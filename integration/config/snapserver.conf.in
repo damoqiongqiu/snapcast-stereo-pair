@@ -1,0 +1,32 @@
+[server]
+threads = -1
+mdns_enabled = false
+datadir = @SUPPORT_DIR@/data
+
+[http]
+enabled = true
+bind_to_address = 127.0.0.1
+port = 1780
+doc_root = @SUPPORT_DIR@/snapweb
+
+[tcp-control]
+enabled = true
+bind_to_address = 127.0.0.1
+port = 1705
+
+[tcp-streaming]
+enabled = true
+bind_to_address = 0.0.0.0
+port = 1704
+
+[stream]
+source = pipe://@SUPPORT_DIR_URL@/run/left.pcm?name=LeftAudio&mode=read
+source = pipe://@SUPPORT_DIR_URL@/run/right.pcm?name=RightAudio&mode=read
+sampleformat = 48000:24:1
+codec = pcm
+chunk_ms = 20
+buffer = 200
+
+[logging]
+sink = file:@LOG_DIR@/server.log
+filter = *:info

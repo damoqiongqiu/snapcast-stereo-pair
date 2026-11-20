@@ -1,0 +1,206 @@
+# Installation
+
+This guide assumes the repository that captures audio is called the source Mac
+and the second MacBook is called the remote Mac. Both can use any stable role
+names and either can be on the physical left.
+
+## Prerequisites
+
+Install Xcode Command Line Tools and Homebrew on the source Mac:
+
+```sh
+xcode-select --install
+```
+
+Install the runtime dependencies:
+
+```sh
+brew install --cask blackhole-2ch
+brew install switchaudio-osx portaudio cmake ninja pkgconf boost openssl@4 \
+  flac libogg libsoxr libvorbis opus
+```
+
+The included remote installer copies a locally built Snapclient binary, so both
+Macs should use the same CPU architecture. If they differ, build Snapclient on
+the remote Mac's architecture and adapt the copy step instead of using the
+prebuilt source-Mac binary.
+
+Configure SSH key authentication before remote installation:
+
+```sh
+ssh <ssh-user>@<remote-mac-address>
+```
+
+The installer uses normal SSH configuration and does not prompt for or store a
+password.
+
+## Clone Both Repositories
+
+The optional controller installer looks beside the runtime checkout by
+default:
+
+```sh
+git clone https://github.com/damoqiongqiu/snapcast-stereo-pair.git
+git clone https://github.com/damoqiongqiu/snapweb-stereo-pair.git
+cd snapcast-stereo-pair
+```
+
+If the controller lives elsewhere, set `SNAPWEB_SOURCE` when installing it.
+
+## Configure Roles
+
+Run the interactive configurator:
+
+```sh
+./integration/scripts/configure-pair.sh
+```
+
+Defaults and file values are documented in
+[`integration/config/pair.env.example`](../integration/config/pair.env.example).
+The resulting file is stored outside the repository:
+
+```text
+~/.config/snapcast-stereo-pair/pair.env
+```
+
+The relevant values are:
+
+```sh
+REMOTE_USER="<ssh-user>"
+REMOTE_HOST="<remote-mac-address>"
+SOURCE_HOST=""
+LEFT_IS_REMOTE=true
+CAPTURE_DEVICE="BlackHole 2ch"
+LOCAL_OUTPUT_DEVICE="BuiltInSpeakerDevice"
+NATIVE_OUTPUT_DEVICE_UID="BuiltInSpeakerDevice"
+LOCAL_CLIENT_ID="stereo-local"
+REMOTE_CLIENT_ID="stereo-remote"
+```
+
+Use `SOURCE_HOST=""` to detect the primary IPv4 address when configuring. Set it
+explicitly if the source Mac has multiple active interfaces.
+
+List CoreAudio outputs and their UIDs when choosing the local and native output
+devices:
+
+```sh
+SwitchAudioSource -a -t output
+```
+
+`LOCAL_OUTPUT_DEVICE` is used while Snapcast captures through BlackHole.
+`NATIVE_OUTPUT_DEVICE_UID` is restored by native mode. Both default to the
+built-in speaker.
+
+Environment variables override file values for automation:
+
+```sh
+PAIR_NONINTERACTIVE=1 \
+REMOTE_USER=tester \
+REMOTE_HOST=remote.local \
+SOURCE_HOST=192.0.2.10 \
+LEFT_IS_REMOTE=true \
+./integration/scripts/configure-pair.sh --print
+```
+
+`--print` resolves and displays the configuration without writing it. The
+address above is reserved for documentation and is not a real network target.
+
+## Build and Install Locally
+
+Build and validate without changing services:
+
+```sh
+./integration/scripts/build-macos.sh
+integration/test/test-pair-config.sh
+integration/test/test-pair-routing.sh
+```
+
+Install the source-Mac services:
+
+```sh
+./integration/scripts/install-local.sh
+```
+
+The installer:
+
+- renders templates into `~/Library/Application Support/Snapcast/`;
+- creates the left/right FIFOs;
+- installs the local LaunchAgents;
+- switches system output to BlackHole;
+- starts Snapserver, splitter, local Snapclient, route, and pairing services.
+
+## Install the Remote Client
+
+Run from the source Mac after local installation:
+
+```sh
+./integration/scripts/install-remote.sh
+```
+
+This command resolves the remote home directory, renders the LaunchAgent for
+that account, copies Snapclient, and bootstraps `com.snapcast.remote-client`.
+
+## Install the Optional Controller
+
+With the controller checked out beside this repository:
+
+```sh
+./integration/scripts/install-snapweb.sh
+```
+
+Or point to another checkout:
+
+```sh
+SNAPWEB_SOURCE=/path/to/snapweb-stereo-pair \
+  ./integration/scripts/install-snapweb.sh
+```
+
+The installer runs the controller's checks, copies its production build, and
+restarts Snapserver. Open `http://127.0.0.1:1780`.
+
+## Validate
+
+Run:
+
+```sh
+./integration/scripts/check-health.sh
+```
+
+Expected conditions:
+
+- `LeftAudio` and `RightAudio` both report `48000:24:1`.
+- `LeftAudio` lists the client role mapped to physical left.
+- `RightAudio` lists the client role mapped to physical right.
+- No recent `Not enough`, `age >`, `No chunk available`, or `onResync` warnings
+  appear in the local logs.
+- The controller shows two connected devices and a complete stereo stage.
+
+## Complete Removal
+
+Return to native audio first:
+
+```sh
+~/Library/Application\ Support/Snapcast/set-mode.sh native
+```
+
+Stop all local Snapcast services:
+
+```sh
+uid="$(id -u)"
+for label in local-client capture server route splitter pairing; do
+  launchctl bootout "gui/$uid/com.snapcast.$label" 2>/dev/null || true
+done
+```
+
+Remove generated local files only after confirming their paths:
+
+```text
+~/Library/Application Support/Snapcast
+~/Library/Logs/Snapcast
+~/Library/LaunchAgents/com.snapcast.*.plist
+```
+
+The remote installer has no automatic uninstaller. On the remote Mac, boot out
+`com.snapcast.remote-client` and remove its copied Snapclient and LaunchAgent
+after confirming the account and paths.
+

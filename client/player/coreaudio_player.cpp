@@ -25,6 +25,9 @@
 // 3rd party headers
 #include <CoreAudio/CoreAudio.h>
 
+#include <cstdlib>
+#include <cstring>
+
 namespace player
 {
 
@@ -43,7 +46,7 @@ void callback(void* custom_data, AudioQueueRef queue, AudioQueueBufferRef buffer
 
 
 CoreAudioPlayer::CoreAudioPlayer(boost::asio::io_context& io_context, const ClientSettings::Player& settings, std::shared_ptr<Stream> stream)
-    : Player(io_context, settings, stream), ms_(100), pubStream_(stream)
+    : Player(io_context, settings, stream), ms_(20), pubStream_(stream), lastChunkTick(chronos::getTickCount())
 {
 }
 
@@ -113,8 +116,9 @@ void CoreAudioPlayer::playerCallback(AudioQueueRef queue, AudioQueueBufferRef bu
 
     /// TODO: sometimes this bufferedMS or AudioTimeStamp wraps around 1s (i.e. we're 1s out of sync (behind)) and recovers later on
     chronos::usec delay(bufferedMs * 1000);
-    char* buffer = (char*)bufferRef->mAudioData;
-    if (!pubStream_->getPlayerChunkOrSilence(buffer, delay, frames_))
+    char* output = (char*)bufferRef->mAudioData;
+    const SampleFormat& format = pubStream_->getFormat();
+    if (!pubStream_->getPlayerChunkOrSilence(source_buffer_.data(), delay, frames_))
     {
         if (chronos::getTickCount() - lastChunkTick > 5000)
         {
@@ -127,8 +131,13 @@ void CoreAudioPlayer::playerCallback(AudioQueueRef queue, AudioQueueBufferRef bu
     else
     {
         lastChunkTick = chronos::getTickCount();
-        adjustVolume(buffer, frames_);
+        adjustVolume(source_buffer_.data(), frames_);
     }
+
+    if (format.channels() == 1)
+        duplicateMonoToStereo(source_buffer_.data(), output, frames_, format.sampleSize());
+    else
+        std::memcpy(output, source_buffer_.data(), source_buffer_.size());
 
     //    OSStatus status =
     AudioQueueEnqueueBuffer(queue, bufferRef, 0, NULL);
@@ -175,14 +184,16 @@ void CoreAudioPlayer::initAudioQueue()
     format.mFormatID = kAudioFormatLinearPCM;
     format.mFormatFlags = kLinearPCMFormatFlagIsSignedInteger; // | kAudioFormatFlagIsPacked;
     format.mBitsPerChannel = sampleFormat.bits();
-    format.mChannelsPerFrame = sampleFormat.channels();
-    format.mBytesPerFrame = sampleFormat.frameSize();
+    const uint16_t output_channels = sampleFormat.channels() == 1 ? 2 : sampleFormat.channels();
+    format.mChannelsPerFrame = output_channels;
+    format.mBytesPerFrame = sampleFormat.sampleSize() * output_channels;
     format.mFramesPerPacket = 1;
     format.mBytesPerPacket = format.mBytesPerFrame * format.mFramesPerPacket;
     format.mReserved = 0;
 
     AudioQueueRef queue;
     AudioQueueNewOutput(&format, callback, this, CFRunLoopGetCurrent(), kCFRunLoopCommonModes, 0, &queue);
+    configureOutputDevice(queue);
     AudioQueueCreateTimeline(queue, &timeLine_);
 
     // Apple recommends this as buffer size:
@@ -194,8 +205,10 @@ void CoreAudioPlayer::initAudioQueue()
     // frames: 4800, ms: 100, buffer size: 19200
     frames_ = (sampleFormat.rate() * ms_) / 1000;
     ms_ = frames_ * 1000 / sampleFormat.rate();
-    buff_size_ = frames_ * sampleFormat.frameSize();
-    LOG(INFO, LOG_TAG) << "frames: " << frames_ << ", ms: " << ms_ << ", buffer size: " << buff_size_ << "\n";
+    buff_size_ = frames_ * format.mBytesPerFrame;
+    source_buffer_.resize(frames_ * sampleFormat.frameSize());
+    LOG(INFO, LOG_TAG) << "frames: " << frames_ << ", ms: " << ms_ << ", input channels: " << sampleFormat.channels()
+                       << ", output channels: " << output_channels << ", buffer size: " << buff_size_ << "\n";
 
     AudioQueueBufferRef buffers[NUM_BUFFERS];
     for (int i = 0; i < NUM_BUFFERS; i++)
@@ -209,6 +222,28 @@ void CoreAudioPlayer::initAudioQueue()
     AudioQueueCreateTimeline(queue, &timeLine_);
     AudioQueueStart(queue, NULL);
     CFRunLoopRun();
+}
+
+void CoreAudioPlayer::configureOutputDevice(AudioQueueRef queue)
+{
+    const char* deviceUid = std::getenv("SNAPCLIENT_COREAUDIO_DEVICE");
+    if ((deviceUid == nullptr) || (*deviceUid == '\0'))
+        return;
+
+    CFStringRef uid = CFStringCreateWithCString(kCFAllocatorDefault, deviceUid, kCFStringEncodingUTF8);
+    if (uid == nullptr)
+    {
+        LOG(ERROR, LOG_TAG) << "Could not create CoreAudio device UID from environment\n";
+        return;
+    }
+
+    OSStatus status = AudioQueueSetProperty(queue, kAudioQueueProperty_CurrentDevice, &uid, sizeof(uid));
+    if (status == noErr)
+        LOG(INFO, LOG_TAG) << "Using CoreAudio output device: " << deviceUid << "\n";
+    else
+        LOG(ERROR, LOG_TAG) << "Could not set CoreAudio output device " << deviceUid << ", status: " << status << "\n";
+
+    CFRelease(uid);
 }
 
 void CoreAudioPlayer::uninitAudioQueue(AudioQueueRef queue)

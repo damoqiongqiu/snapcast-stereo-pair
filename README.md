@@ -1,250 +1,335 @@
-# Snapcast
+# MacBook Stereo Pair for macOS
 
-<picture>
- <source media="(prefers-color-scheme: dark)" srcset="doc/Snapcast_800_dark.png">
- <source media="(prefers-color-scheme: light)" srcset="doc/Snapcast_800.png">
- <img alt="Snapcast" src="doc/Snapcast_800.png">
-</picture>
+> Two MacBooks. One synchronized left/right stereo stage.
 
-**S**y**n**chronous **a**udio **p**layer
+[![CI](https://github.com/damoqiongqiu/snapcast-stereo-pair/actions/workflows/ci.yml/badge.svg)](https://github.com/damoqiongqiu/snapcast-stereo-pair/actions/workflows/ci.yml)
+[![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
 
-[![CI](https://github.com/snapcast/snapcast/actions/workflows/ci.yml/badge.svg)](https://github.com/snapcast/snapcast/actions/workflows/ci.yml)
-[![Github Releases](https://img.shields.io/github/release/snapcast/snapcast.svg)](https://github.com/snapcast/snapcast/releases)
-[![GitHub Downloads](https://img.shields.io/github/downloads/snapcast/snapcast/total)](https://github.com/snapcast/snapcast/releases)
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/badaix)
+MacBook Stereo Pair turns two MacBooks into a synchronized left/right listening
+stage. The source Mac captures its system audio once, splits it into two mono
+streams, and sends each stream to the MacBook on the corresponding side of the
+desk. Playback on both Macs follows one Snapcast clock.
 
-Snapcast is a multiroom client-server audio player, where all clients are time synchronized with the server to play perfectly synced audio. It's not a standalone player, but an extension that turns your existing audio player into a Sonos-like multiroom solution.  
-Audio is captured by the server and routed to the connected clients. Several players can feed audio to the server in parallel and clients can be grouped to play the same audio stream.  
-One of the most generic ways to use Snapcast is in conjunction with the music player daemon ([MPD](http://www.musicpd.org/)) or [Mopidy](https://www.mopidy.com/).
+![MacBook Stereo Pair controller](docs/images/interface-en.png)
 
-![Overview](doc/Overview.png)
+## What It Does
 
-## How does it work
+- Captures macOS system audio through BlackHole and PortAudio.
+- Publishes lossless `LeftAudio` and `RightAudio` PCM streams.
+- Runs Snapserver and the local Snapclient as per-user launchd services.
+- Binds the local client explicitly to the built-in speaker while system audio
+  continues to flow through BlackHole.
+- Installs and configures a remote Snapclient over SSH without storing a
+  password.
+- Uses stable role names and stream-based routing, so client IDs and left/right
+  placement are configurable.
+- Works with the optional bilingual controller in
+  [snapweb-stereo-pair](https://github.com/damoqiongqiu/snapweb-stereo-pair).
 
-The Snapserver reads PCM chunks from configurable stream sources:
+The validated reference setup uses 48 kHz / 24-bit mono PCM, 20 ms chunks, and a
+200 ms buffer for each stream.
 
-- **Named pipe**, e.g. `/tmp/snapfifo`
-- **ALSA** to capture line-in, microphone, alsa-loop (to capture audio from other players)
-- **TCP**
-- **stdout** of a process
-- Many more
+## How the Two Projects Fit Together
 
-The chunks are encoded and tagged with the local time. Supported codecs are:
-
-- **PCM** lossless uncompressed
-- **FLAC** lossless compressed [default]
-- **Vorbis** lossy compression
-- **Opus** lossy low-latency compression
-
-The encoded chunks are sent via a TCP connection to the Snapclients.
-Each client does continuous time synchronization with the server, so that the client is always aware of the local server time.
-Every received chunk is first decoded and added to the client's chunk-buffer. Knowing the server's time, the chunk is played out using a system dependend low level audio API (e.g. ALSA) at the appropriate time. Time deviations are corrected by playing faster/slower, which is done by removing/duplicating single samples (a sample at 48kHz has a duration of ~0.02ms).
-
-Typically the deviation is below 0.2ms.
-
-For more information on the binary protocol, please see the [documentation](doc/binary_protocol.md).
-
-## Installation
-
-You can either install Snapcast from a prebuilt package (recommended for new users), or build and install snapcast from source.
-
-### Install Linux packages (recommended for beginners)
-
-Snapcast packages are available for several Linux distributions:
-
-- [Debian](doc/install.md#debian)
-- [OpenWrt](doc/install.md#openwrt)
-- [Alpine Linux](doc/install.md#alpine-linux)
-- [Archlinux](doc/install.md#archlinux)
-- [Void Linux](doc/install.md#void-linux)
-
-### Install using Homebrew
-
-On macOS and Linux, snapcast can be installed using [Homebrew](https://brew.sh):
-
-```bash
-brew install snapcast
+```text
+snapcast-stereo-pair
+  audio capture
+  left/right stream publication
+  Snapcast server and clients
+  launchd services
+  installation and pairing
+              |
+              | local Snapserver control API
+              v
+snapweb-stereo-pair
+  browser interface
+  bilingual presentation
+  pair status and controls
 ```
 
-### Installation from source
+This repository is the required audio runtime.
+`snapweb-stereo-pair` is an optional interface and does not
+capture, transport, or output audio by itself.
 
-Please follow this [guide](doc/build.md) to build Snapcast for
+You can run the runtime without the browser controller. The controller cannot
+produce a stereo-pair system unless this runtime is installed and running.
 
-- [Linux](doc/build.md#linux-native)
-- [FreeBSD](doc/build.md#freebsd-native)
-- [macOS](doc/build.md#macos-native)
-- [Android](doc/build.md#android-cross-compile)
-- [OpenWrt](doc/build.md#openwrtlede-cross-compile)
-- [Buildroot](doc/build.md#buildroot-cross-compile)
-- [Raspberry Pi](doc/build.md#raspberry-pi-cross-compile)
-- [webOS](doc/build.md#webos-cross-compile)
-- [Windows](doc/build.md#windows-vcpkg)
+The compatible first release is:
 
+- `snapcast-stereo-pair` `v0.1.0`
+- `snapweb-stereo-pair` `v0.1.0`
 
-## Configuration
+## Architecture
 
-After installation, Snapserver and Snapclient are started with the command line arguments that are configured in `/etc/default/snapserver` and `/etc/default/snapclient`.
-Allowed options are listed in the man pages (`man snapserver`, `man snapclient`) or by invoking the snapserver or snapclient with the `-h` option.
-
-### Server
-
-The server configuration is done in `/etc/snapserver.conf`. Different audio sources can by configured in the `[stream]` section with a list of `source` options, e.g.:
-
-```ini
-[stream]
-source = pipe:///tmp/snapfifo?name=Radio&sampleformat=48000:16:2&codec=flac
-source = file:///home/user/Musik/Some%20wave%20file.wav?name=File
+```text
+macOS system audio
+        |
+        v
+BlackHole 2ch
+        |
+        | PortAudio, 10 ms capture callbacks
+        v
+snapcast-capture-blackhole
+        |
+        +---- left.pcm FIFO ----> LeftAudio ----> left-side Mac
+        |
+        +---- right.pcm FIFO ---> RightAudio ---> right-side Mac
 ```
 
-Available stream sources are:
+One PortAudio process reads BlackHole and writes both mono FIFOs from the same
+capture callback. Snapserver timestamps both streams with one server clock.
+Each Snapclient expands its mono stream to the two channels of its local output
+device. See [docs/architecture.md](docs/architecture.md) for the timing,
+clocking, FIFO, and recovery details.
 
-- [pipe](doc/configuration.md#pipe): read audio from a named pipe
-- [alsa](doc/configuration.md#alsa): read audio from an alsa device
-- [librespot](doc/configuration.md#librespot): launches librespot and reads audio from stdout
-- [airplay](doc/configuration.md#airplay): launches airplay and read audio from stdout
-- [file](doc/configuration.md#file): read PCM audio from a file
-- [process](doc/configuration.md#process): launches a process and reads audio from stdout
-- [tcp](doc/configuration.md#tcp-server): receives audio from a TCP socket, can act as client or server
-- [pipewire](doc/configuration.md#pipewire): direct audio capture from PipeWire
-- [jack](doc/configuration.md#jack): receives audio from a Jack server
-- [meta](doc/configuration.md#meta): read and mix audio from other stream sources
+## Requirements
 
-### Client
+- Two Macs running a supported macOS release.
+- Both Macs on the same trusted LAN, or connected through a trusted VPN.
+- The same CPU architecture on both Macs when using the included remote
+  installer to copy the locally built Snapclient binary.
+- Homebrew, Xcode Command Line Tools, and the build dependencies listed below.
+- [BlackHole 2ch](https://github.com/ExistentialAudio/BlackHole) on the source
+  Mac.
+- `SwitchAudioSource`, PortAudio, and the Snapcast build dependencies on the
+  source Mac.
+- SSH key authentication from the source Mac to the remote Mac for unattended
+  remote installation.
 
-The client will use as audio backend the system's low level audio API to have the best possible control and most precise timing to achieve perfectly synced playback.
+The primary validated environment is an Apple Silicon MacBook Pro M4 running
+macOS 27.2.1 with BlackHole 2ch and PortAudio from Homebrew.
 
-Available audio backends are configured using the `--player` command line parameter:
+## Install BlackHole
 
-| Backend   | OS      | Description  | Parameters |
-| --------- | ------- | ------------ | ---------- |
-| alsa      | Linux   | ALSA | `buffer_time=<total buffer size [ms]>` (default 80, min 10)<br>`fragments=<number of buffers>` (default 4, min 2) |
-| pulse     | Linux   | PulseAudio | `buffer_time=<buffer size [ms]>` (default 100, min 10)<br>`server=<PulseAudio server>` - default not-set: use the default server<br>`property=<key>=<value>` set PA property, can be used multiple times (default `media.role=music`)  |
-| oboe      | Android | Oboe, using OpenSL ES on Android 4.1 and AAudio on 8.1 | |
-| opensl    | Android | OpenSL ES | |
-| coreaudio | macOS   | Core Audio | |
-| wasapi    | Windows | Windows Audio Session API | |
-| sld2      | All     | SDL2 Audio (e.g. for LG webOS TVs) | |
-| file      | All     | Write audio to file | `filename=<filename>` (`<filename>` = `stdout`, `stderr`, `null` or a filename)<br>`mode=[w\|a]` (`w`: write (discarding the content), `a`: append (keeping the content) |
+On the Mac that will capture audio:
 
-Parameters are appended to the player name, e.g. `--player alsa:buffer_time=100`. Use `--player <name>:?` to get a list of available options.  
-For some audio backends you can configure the PCM device using the `-s` or `--soundcard` parameter, the device is chosen by index or name. Available PCM devices can be listed with `-l` or `--list`  
-If you are running MPD and Shairport-sync into a soundcard that only supports 48000 sample rate, you can use `--sampleformat <arg>` and the snapclient will resample the audio from shairport-sync, for example, which is 44100 (i.e.  `--sampleformat 48000:16:*`)
-
-## Test
-
-You can test your installation by copying random data into the server's fifo file
-
-```shell
-cat /dev/urandom > /tmp/snapfifo
+```sh
+brew install --cask blackhole-2ch
+brew install switchaudio-osx portaudio cmake ninja pkgconf boost openssl@4 \
+  flac libogg libsoxr libvorbis opus
 ```
 
-All connected clients should play random noise now. You might raise the client's volume with "alsamixer".
-It's also possible to let the server play a WAV file. Simply configure a `file` stream in `/etc/snapserver.conf`, and restart the server:
+The capture path expects the output device named `BlackHole 2ch`. Restart audio
+applications after installing BlackHole so they can see the virtual device.
 
-```ini
-[stream]
-source = file:///home/user/Musik/Some%20wave%20file.wav?name=test
+## Configure the Pair
+
+Clone both repositories beside each other if you plan to use the controller:
+
+```sh
+git clone https://github.com/damoqiongqiu/snapcast-stereo-pair.git
+git clone https://github.com/damoqiongqiu/snapweb-stereo-pair.git
 ```
 
-When you are using a Raspberry Pi, you might have to change your audio output to the 3.5mm jack:
+On the source Mac, run the configurator from the runtime repository:
 
-``` shell
-# The last number is the audio output with 1 being the 3.5 jack, 2 being HDMI and 0 being auto.
-amixer cset numid=3 1
+```sh
+./integration/scripts/configure-pair.sh
 ```
 
-To setup WiFi on a Raspberry Pi, you can follow this [guide](https://www.raspberrypi.org/documentation/configuration/wireless/wireless-cli.md)
+It creates:
 
-## Control
-
-Snapcast can be controlled using a [JSON-RPC API](doc/json_rpc_api/control.md) over plain TCP, HTTP(S), or Websockets:
-
-- Set client's volume
-- Mute clients
-- Rename clients
-- Assign a client to a stream
-- Manage groups
-- ...
-
-### WebApp
-
-The server is shipped with [Snapweb](https://github.com/snapcast/snapweb), this WebApp can be reached under `http://<snapserver host>:1780` or `https://<snapserver host>:1788`, if SSL is enabled (see [HTTPS configuration](doc/configuration.md#https)).
-
-<picture>
- <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/snapcast/snapweb/master/snapweb_dark.png">
- <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/snapcast/snapweb/master/snapweb_light.png">
- <img alt="Snapweb" src="https://raw.githubusercontent.com/snapcast/snapweb/master/snapweb_light.png">
-</picture>
-
-### Android client
-
-There is an Android client [snapdroid](https://github.com/snapcast/snapdroid) available in [Releases](https://github.com/snapcast/snapdroid/releases/latest) and on [Google Play](https://play.google.com/store/apps/details?id=de.badaix.snapcast)
-
-![Snapcast for Android](doc/snapcast_android_scaled.png)
-
-### Contributions
-
-There is also an unofficial WebApp from @atoomic [atoomic/snapcast-volume-ui](https://github.com/atoomic/snapcast-volume-ui).
-This app lists all clients connected to a server and allows you to control individually the volume of each client.
-Once installed, you can use any mobile device, laptop, desktop, or browser.
-
-There is also an [unofficial FHEM module](https://forum.fhem.de/index.php/topic,62389.0.html) from @unimatrix27 which integrates a Snapcast controller into the [FHEM](https://fhem.de/fhem.html) home automation system.
-
-There is a [snapcast component for Home Assistant](https://home-assistant.io/components/media_player.snapcast/) which integrates a Snapcast controller in to the [Home Assistant](https://home-assistant.io/) home automation system and a [snapcast python plugin for Domoticz](https://github.com/akamming/domoticz-snapcast) to integrate a Snapcast controller into the [Domoticz](https://domoticz.com/) home automation system.
-
-There is also support for [Music Assistant](https://www.music-assistant.io), a powerful music management system designed to work with Home Assistant. It enables seamless streaming to Snapcast clients from local files or streaming services, with advanced features like multi-room playback, metadata management, and automated library organization.
-
-For a web interface in Python, see [snapcastr](https://github.com/xkonni/snapcastr), based on [python-snapcast](https://github.com/happyleavesaoc/python-snapcast). This interface controls client volume and assigns streams to groups.
-
-Another web interface running on any device is [snapcast-websockets-ui](https://github.com/derglaus/snapcast-websockets-ui), running entirely in the browser, which needs [websockify](https://github.com/novnc/websockify). No configuration needed; features almost all functions; still needs some tuning for the optics.
-
-A web interface called [HydraPlay](https://github.com/mariolukas/HydraPlay) integrates Snapcast and multiple Mopidy instances. It is JavaScript based and uses Angular 7. A Snapcast web socket proxy server is needed to connect Snapcast to HydraPlay over web sockets.
-
-For Windows, there's [Snap.Net](https://github.com/stijnvdb88/snap.net), a control client and player. It runs in the tray and lets you adjust client volumes with just a few clicks. The player simplifies setting up snapclient to play your music through multiple Windows sound devices simultaneously: pc speakers, hdmi audio, any usb audio devices you may have, etc. Snap.Net also runs on Android, and has limited support for iOS.
-
-If you need an extremely small form factor and low power consumption, there is a microcontroller implementation of Snapclient written in C. The [**Snapclient for ESP32**](https://github.com/CarlosDerSeher/snapclient) project provides a lightweight, Snapcast client that runs on ESP32/ESP32-S2 microcontrollers and delivers excellent multiroom synchronization with very low latency.
-
-There's [snapmixer](https://github.com/tremby/snapmixer), a text-mode volume control for all groups and clients.
-
-## Setup of audio players/server
-
-Snapcast can be used with a number of different audio players and servers, and so it can be integrated into your favorite audio-player solution and make it synced-multiroom capable.
-The only requirement is that the player's audio can be redirected into the Snapserver's fifo `/tmp/snapfifo`. In the following configuration hints for [MPD](http://www.musicpd.org/) and [Mopidy](https://www.mopidy.com/) are given, which are base of other audio player solutions, like [Volumio](https://volumio.org/) or [RuneAudio](http://www.runeaudio.com/) (both MPD).
-
-The goal is to build the following chain:
-
-```plain
-audio player software -> snapfifo -> snapserver -> network -> snapclient -> alsa
+```text
+~/.config/snapcast-stereo-pair/pair.env
 ```
 
-This [guide](doc/player_setup.md) shows how to configure different players/audio sources to redirect their audio signal into the Snapserver's fifo:
+The file is ignored by Git and stores the SSH target, source address, physical
+left/right placement, device identifiers, and stable client role names. Blank
+`SOURCE_HOST` values are resolved from the active primary IPv4 interface.
+Environment variables override values read from the file.
 
-- [MPD](doc/player_setup.md#mpd)
-- [Mopidy](doc/player_setup.md#mopidy)
-- [FFmpeg](doc/player_setup.md#ffmpeg)
-- [mpv](doc/player_setup.md#mpv)
-- [MPlayer](doc/player_setup.md#mplayer)
-- [Alsa](doc/player_setup.md#alsa)
-- [PulseAudio](doc/player_setup.md#pulseaudio)
-- [AirPlay](doc/player_setup.md#airplay)
-- [Spotify](doc/player_setup.md#spotify)
-- [Process](doc/player_setup.md#process)
-- [Line-in](doc/player_setup.md#line-in)
-- [VLC](doc/player_setup.md#vlc)
-- [PlexAmp](doc/player_setup.md#plexamp)
+Use `--force` to replace an existing configuration. Use `--print` to render the
+resolved values without writing them. Never publish `pair.env`; it can contain
+private network information.
 
-## Roadmap
+## Install the Runtime
 
-Unordered list of features that should make it into the v1.0
+On the source Mac:
 
-- [X] **Remote control** JSON-RPC API to change client latency, volume, zone,...
-- [X] **Android client** JSON-RPC client and Snapclient
-- [X] **Streams** Support multiple streams
-- [X] **Debian packages** prebuild deb packages
-- [X] **Endian** independent code
-- [X] **OpenWrt** port Snapclient to OpenWrt
-- [X] **Hi-Res audio** support (like 96kHz 24bit)
-- [X] **Groups** support multiple Groups of clients ("Zones")
-- [X] **Ports** Snapclient for Windows, Mac OS X,...
-- [ ] **JSON-RPC** Possibility to add, remove, rename streams
-- [ ] **Protocol specification** Snapcast binary streaming protocol, JSON-RPC protocol
+```sh
+./integration/scripts/install-local.sh
+```
+
+This builds the binaries, creates the FIFOs and launchd service files, changes
+the local system output to BlackHole, and starts the local runtime. The local
+Snapclient still plays through the built-in speaker.
+
+Install the remote client from the same source Mac:
+
+```sh
+./integration/scripts/install-remote.sh
+```
+
+The remote install copies the patched Snapclient and its LaunchAgent. The remote
+Mac does not need BlackHole or the Snapserver. It must already accept your SSH
+key.
+
+Check the pair:
+
+```sh
+./integration/scripts/check-health.sh
+```
+
+See [docs/installation.md](docs/installation.md) for prerequisites, device
+identifiers, manual configuration, and health validation.
+
+## Install the Control Interface
+
+The controller is optional. With both repositories cloned beside each other:
+
+```sh
+./integration/scripts/install-snapweb.sh
+```
+
+Set `SNAPWEB_SOURCE` if the interface checkout is elsewhere. The installer runs
+the controller checks, deploys its production build, and serves it locally at:
+
+```text
+http://127.0.0.1:1780
+```
+
+## Audio and Network Model
+
+- Capture device: BlackHole 2ch.
+- Internal capture format: 48 kHz, 32-bit float.
+- Stream format: 48 kHz / 24-bit / mono PCM for each side.
+- Capture callback: 10 ms.
+- Snapcast chunk: 20 ms.
+- Stream buffer: 200 ms.
+- Codec: uncompressed PCM.
+- Stream listening port: TCP `1704`.
+- HTTP controller and TCP control APIs: localhost only.
+- Approximate PCM payload: 192,000 bytes/s or 1.54 Mbit/s per mono stream.
+
+The 200 ms buffer was the lowest stable setting on the validated Wi-Fi setup.
+150 ms produced occasional underruns, and 100 ms produced immediate
+discontinuities in that environment.
+
+## Operations
+
+The runtime uses these per-user LaunchAgent labels:
+
+```text
+com.snapcast.route
+com.snapcast.server
+com.snapcast.splitter
+com.snapcast.local-client
+com.snapcast.pairing
+com.snapcast.remote-client
+```
+
+The first five run on the source Mac. `com.snapcast.remote-client` is installed
+only on the remote Mac. Switch between the stereo pair and normal local audio
+with:
+
+```sh
+~/Library/Application\ Support/Snapcast/set-mode.sh snapcast
+~/Library/Application\ Support/Snapcast/set-mode.sh native
+```
+
+`native` stops and disables the local Snapcast services and restores the
+configured built-in output. `snapcast` re-enables them and restores BlackHole as
+the system output. The generated `set-mode.sh` contains the resolved device UIDs
+from your configuration.
+
+Logs are written under:
+
+```text
+~/Library/Logs/Snapcast/
+```
+
+Inspect a local service with:
+
+```sh
+launchctl print gui/$(id -u)/com.snapcast.server
+```
+
+## Troubleshooting
+
+- Run `./integration/scripts/check-health.sh` first.
+- Confirm the controller shows both `LeftAudio` and `RightAudio`.
+- Confirm only the intended client is connected to each stream.
+- Check that BlackHole is the source Mac's selected output in snapcast mode.
+- Check FIFO permissions and recent launchd logs if either stream is missing.
+- If one side is reversed, change `LEFT_IS_REMOTE` and reinstall the routing
+  configuration.
+- If audio drops out, inspect the 200 ms buffer and recent underrun warnings.
+
+See [docs/troubleshooting.md](docs/troubleshooting.md) for recovery commands.
+
+## Security
+
+TCP stream port `1704` has no built-in authentication. Run this project only on
+a trusted LAN or behind a trusted VPN/firewall. Do not expose port `1704`
+directly to the internet.
+
+Snapserver HTTP on `127.0.0.1:1780` and TCP control on `127.0.0.1:1705` are
+localhost-only. The installers never store an SSH password. Keep `pair.env`,
+logs, credentials, and private network addresses out of issues and commits.
+
+This project does not disable Gatekeeper, SIP, or any other macOS security
+feature.
+
+## Uninstall and Rollback
+
+Return to normal local audio:
+
+```sh
+~/Library/Application\ Support/Snapcast/set-mode.sh native
+```
+
+Stop the local services while keeping the installed files:
+
+```sh
+./integration/scripts/uninstall-local.sh
+```
+
+To remove the local installation completely, run the uninstall script and then
+remove the generated support, log, and LaunchAgent files described in
+[docs/installation.md](docs/installation.md). Remove the remote client only
+after confirming its resolved remote path and user.
+
+## Compatibility
+
+| Component | First public release | Upstream base |
+| --- | --- | --- |
+| Runtime | `v0.1.0` | Snapcast `v0.35.0` |
+| Controller | `v0.1.0` | Snapweb `v0.9.3` |
+
+Use matching `v0.1.x` tags from both repositories. Newer controller releases
+are not guaranteed to work with an older runtime until the compatibility matrix
+is expanded.
+
+## Development
+
+```sh
+./integration/scripts/build-macos.sh
+integration/test/test-pair-config.sh
+integration/test/test-pair-routing.sh
+zsh -n integration/scripts/*.sh integration/test/*.sh
+plutil -lint integration/launchagents/*.plist.in
+```
+
+For the upstream Snapcast test executable, configure a test build and run:
+
+```sh
+cmake -S . -B .build-tests -G Ninja -DBUILD_SERVER=OFF -DBUILD_CLIENT=ON \
+  -DBUILD_TESTS=ON -DBUILD_WITH_SSL=OFF -DBUILD_SHARED_LIBS=OFF
+cmake --build .build-tests
+./bin/snapcast_test --reporter compact
+```
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and the
+repository instructions in [AGENTS.md](AGENTS.md). Hardware validation remains
+a manual release gate because CI cannot create a two-MacBook audio setup.
+
+## License and Upstream
+
+This is an unofficial macOS stereo-pair fork maintained by `damoqiongqiu`, not
+an official Snapcast release. It preserves the upstream Snapcast history and
+source notices and is distributed under GPL-3.0-or-later. See
+[NOTICE.md](NOTICE.md), [README.snapcast.md](README.snapcast.md), and
+[LICENSE](LICENSE).
+

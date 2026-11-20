@@ -20,12 +20,15 @@
 #pragma once
 
 // local headers
+#include "mono_stereo.hpp"
 #include "player.hpp"
 
 // 3rd party headers
 #include <AudioToolbox/AudioQueue.h>
 #include <CoreAudio/CoreAudioTypes.h>
 #include <CoreFoundation/CFRunLoop.h>
+
+#include <vector>
 
 
 namespace player
@@ -60,6 +63,7 @@ private:
     bool needsThread() const override;
 
     void initAudioQueue();
+    void configureOutputDevice(AudioQueueRef queue);
     void uninitAudioQueue(AudioQueueRef queue);
 
     AudioQueueTimelineRef timeLine_;
@@ -68,6 +72,7 @@ private:
     size_t buff_size_;
     std::shared_ptr<Stream> pubStream_;
     long lastChunkTick;
+    std::vector<char> source_buffer_;
 };
 
 } // namespace player

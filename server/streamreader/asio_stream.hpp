@@ -269,11 +269,18 @@ void AsioStream<ReadStream>::do_read()
             });
             return;
         }
-        // Read took longer, wait for the buffer to fill up
+        // Small scheduling jitter in live pipe/process sources is common.
+        // Keep the timeline continuous unless the source is genuinely late.
         else
         {
-            resync(std::chrono::duration_cast<std::chrono::nanoseconds>(currentTick - nextTick_));
-            first_ = true;
+            const auto lag = currentTick - nextTick_;
+            if (lag >= 200ms)
+            {
+                resync(std::chrono::duration_cast<std::chrono::nanoseconds>(lag));
+                first_ = true;
+            }
+            // For small scheduling jitter, immediately read again so the
+            // logical audio timeline catches up without a discontinuity.
             do_read();
         }
     });

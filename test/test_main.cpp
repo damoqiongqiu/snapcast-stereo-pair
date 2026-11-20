@@ -24,6 +24,9 @@
 #include "common/stream_uri.hpp"
 #include "common/utils/file_utils.hpp"
 #include "common/utils/string_utils.hpp"
+#include "client/player/mono_stereo.hpp"
+#include "integration/capture/fifo_io.h"
+#include "integration/capture/pcm24.h"
 // #include "server/jwt.hpp"
 #include "server/authinfo.hpp"
 #include "server/server_settings.hpp"
@@ -43,6 +46,78 @@
 
 
 using namespace std;
+
+TEST_CASE("Float samples convert to 24-bit integer containers")
+{
+    const float input[] = {0.0F, 0.5F, -0.5F, 1.0F, -1.0F, 2.0F, -2.0F};
+    std::int32_t output[7] = {};
+
+    floatToS24In32(input, output, 7);
+
+    REQUIRE(output[0] == 0);
+    REQUIRE(output[1] == 4194304);
+    REQUIRE(output[2] == -4194304);
+    REQUIRE(output[3] == 8388607);
+    REQUIRE(output[4] == -8388608);
+    REQUIRE(output[5] == 8388607);
+    REQUIRE(output[6] == -8388608);
+}
+
+TEST_CASE("Float stereo input extracts one 24-bit channel")
+{
+    const float input[] = {0.5F, -0.25F, -0.5F, 0.25F};
+    std::int32_t left[2] = {};
+    std::int32_t right[2] = {};
+
+    extractChannelS24In32(input, left, 2, AUDIO_CHANNEL_LEFT);
+    extractChannelS24In32(input, right, 2, AUDIO_CHANNEL_RIGHT);
+
+    REQUIRE(left[0] == 4194304);
+    REQUIRE(left[1] == -4194304);
+    REQUIRE(right[0] == -2097152);
+    REQUIRE(right[1] == 2097152);
+}
+
+TEST_CASE("FIFO helper writes the complete buffer")
+{
+    int fds[2];
+    REQUIRE(pipe(fds) == 0);
+
+    const char input[] = "left-and-right";
+    char output[sizeof(input)] = {};
+    REQUIRE(writeFully(fds[1], input, sizeof(input)));
+    REQUIRE(read(fds[0], output, sizeof(output)) == static_cast<ssize_t>(sizeof(input)));
+    REQUIRE(std::memcmp(input, output, sizeof(input)) == 0);
+
+    close(fds[0]);
+    close(fds[1]);
+}
+
+TEST_CASE("Mono PCM duplicates to both stereo channels")
+{
+    const std::int32_t source[] = {100, -300};
+    std::int32_t output[4] = {};
+
+    player::duplicateMonoToStereo(source, output, 2, sizeof(std::int32_t));
+
+    REQUIRE(output[0] == 100);
+    REQUIRE(output[1] == 100);
+    REQUIRE(output[2] == -300);
+    REQUIRE(output[3] == -300);
+}
+
+TEST_CASE("16-bit mono PCM duplicates to both stereo channels")
+{
+    const std::int16_t source[] = {100, -300};
+    std::int16_t output[4] = {};
+
+    player::duplicateMonoToStereo(source, output, 2, sizeof(std::int16_t));
+
+    REQUIRE(output[0] == 100);
+    REQUIRE(output[1] == 100);
+    REQUIRE(output[2] == -300);
+    REQUIRE(output[3] == -300);
+}
 
 
 TEST_CASE("String utils")

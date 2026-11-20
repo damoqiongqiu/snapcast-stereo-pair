@@ -36,6 +36,8 @@ GRTAGS
 GTAGS
 build
 bin
+.build
+.build-tests
 android/.idea
 android/Snapcast/release
 
@@ -64,9 +66,12 @@ compile_commands.json
 
 # misc
 notes.txt
+integration/local/
 sanitizer-suppressions.txt
 snapserver.conf
+!integration/config/snapserver.conf
 certs
 server/etc/certs
+pair.env
 
 extras/package/debian/snap*.debhelper.log

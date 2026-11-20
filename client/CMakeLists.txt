@@ -23,7 +23,7 @@ if(MACOSX)
 
   # CoreAudio
   add_compile_definitions(HAS_COREAUDIO)
-  list(APPEND CLIENT_SOURCES player/coreaudio_player.cpp)
+  list(APPEND CLIENT_SOURCES player/mono_stereo.cpp player/coreaudio_player.cpp)
   find_library(COREAUDIO_LIB CoreAudio)
   find_library(COREFOUNDATION_LIB CoreFoundation)
   find_library(IOKIT_LIB IOKit)
