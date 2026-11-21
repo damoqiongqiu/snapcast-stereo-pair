@@ -22,7 +22,9 @@ remote_brew_bin="$(ssh "$remote" '
 rendered_client_plist="$(mktemp)"
 rendered_wake_plist="$(mktemp)"
 rendered_wake_script="$(mktemp)"
-trap 'rm -f "$rendered_client_plist" "$rendered_wake_plist" "$rendered_wake_script"' EXIT
+rendered_remote_mode="$(mktemp)"
+remote_control_json="$(mktemp)"
+trap 'rm -f "$rendered_client_plist" "$rendered_wake_plist" "$rendered_wake_script" "$rendered_remote_mode" "$remote_control_json"' EXIT
 PAIR_RENDER_HOME="$remote_home" \
 PAIR_RENDER_HOMEBREW_BIN="$remote_brew_bin" \
 render_pair_template \
@@ -38,28 +40,44 @@ PAIR_RENDER_HOMEBREW_BIN="$remote_brew_bin" \
 render_pair_template \
   "$repo_root/integration/scripts/wake-recovery-remote.sh" \
   "$rendered_wake_script"
+PAIR_RENDER_HOME="$remote_home" \
+PAIR_RENDER_HOMEBREW_BIN="$remote_brew_bin" \
+render_pair_template \
+  "$repo_root/integration/scripts/remote-mode.sh" \
+  "$rendered_remote_mode"
 
 ssh "$remote" 'mkdir -p "$HOME/Library/Application Support/Snapcast/bin" "$HOME/Library/Logs/Snapcast" "$HOME/Library/LaunchAgents"'
 scp "$repo_root/.build/bin/snapclient" "$remote:Library/Application Support/Snapcast/bin/snapclient"
 scp "$repo_root/.build/bin/set-audio-volume" "$remote:Library/Application Support/Snapcast/bin/set-audio-volume"
 scp "$repo_root/.build/bin/wake-recovery-listener" "$remote:Library/Application Support/Snapcast/bin/wake-recovery-listener"
+scp "$repo_root/integration/scripts/health-marker.sh" "$remote:Library/Application Support/Snapcast/health-marker.sh"
+scp "$repo_root/integration/scripts/audio-profile.sh" "$remote:Library/Application Support/Snapcast/audio-profile.sh"
 scp "$rendered_client_plist" "$remote:Library/LaunchAgents/com.snapcast.remote-client.plist"
 scp "$rendered_wake_plist" "$remote:Library/LaunchAgents/com.snapcast.remote-wake-recovery.plist"
 scp "$rendered_wake_script" "$remote:Library/Application Support/Snapcast/wake-recovery-remote.sh"
+scp "$rendered_remote_mode" "$remote:Library/Application Support/Snapcast/remote-mode.sh"
 
-ssh "$remote" env REMOTE_OUTPUT_DEVICE_UID="$REMOTE_OUTPUT_DEVICE_UID" zsh -s <<'REMOTE_SCRIPT'
+ssh "$remote" zsh -s <<'REMOTE_SCRIPT'
   chmod 755 "$HOME/Library/Application Support/Snapcast/bin/snapclient"
   chmod 755 "$HOME/Library/Application Support/Snapcast/bin/set-audio-volume"
   chmod 755 "$HOME/Library/Application Support/Snapcast/bin/wake-recovery-listener"
   chmod 755 "$HOME/Library/Application Support/Snapcast/wake-recovery-remote.sh"
-  "$HOME/Library/Application Support/Snapcast/bin/set-audio-volume" set "$REMOTE_OUTPUT_DEVICE_UID" 100
-  uid="$(id -u)"
-  for label in com.snapcast.remote-client com.snapcast.remote-wake-recovery; do
-    launchctl bootout "gui/$uid/$label" 2>/dev/null || true
-  done
-  sleep 1
-  launchctl bootstrap "gui/$uid" "$HOME/Library/LaunchAgents/com.snapcast.remote-client.plist"
-  launchctl bootstrap "gui/$uid" "$HOME/Library/LaunchAgents/com.snapcast.remote-wake-recovery.plist"
+  chmod 755 "$HOME/Library/Application Support/Snapcast/remote-mode.sh"
+  chmod 755 "$HOME/Library/Application Support/Snapcast/health-marker.sh"
+  chmod 755 "$HOME/Library/Application Support/Snapcast/audio-profile.sh"
+  ln -sfn "$HOME/Library/Application Support/Snapcast/remote-mode.sh" "$HOME/.snapcast-remote-mode"
+  "$HOME/Library/Application Support/Snapcast/remote-mode.sh" snapcast
 REMOTE_SCRIPT
+
+local_state_dir="$HOME/Library/Application Support/Snapcast/state"
+mkdir -p "$local_state_dir"
+chmod 700 "$local_state_dir"
+jq -n \
+  --arg user "$REMOTE_USER" \
+  --arg host "$REMOTE_HOST" \
+  --arg helperPath "$remote_home/.snapcast-remote-mode" \
+  '{user: $user, host: $host, helperPath: $helperPath}' \
+  > "$remote_control_json"
+install -m 600 "$remote_control_json" "$local_state_dir/remote-control.json"
 
 print "Installed remote Snapcast client on $remote."

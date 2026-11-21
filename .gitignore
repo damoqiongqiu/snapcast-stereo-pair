@@ -73,5 +73,6 @@ snapserver.conf
 certs
 server/etc/certs
 pair.env
+.superpowers/
 
 extras/package/debian/snap*.debhelper.log

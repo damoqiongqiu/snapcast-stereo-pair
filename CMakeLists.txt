@@ -11,7 +11,7 @@ endif()
 
 project(
   snapcast
-  LANGUAGES CXX
+  LANGUAGES C CXX
   VERSION 0.35.0)
 
 set(PROJECT_DESCRIPTION "Multiroom client-server audio player")

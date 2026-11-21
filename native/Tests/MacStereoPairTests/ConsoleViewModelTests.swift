@@ -1,0 +1,360 @@
+import Foundation
+import StereoPairCore
+import XCTest
+@testable import MacStereoPair
+
+@MainActor
+final class ConsoleViewModelTests: XCTestCase {
+    func testDisconnectedAgentStartsFailed() {
+        let model = ConsoleViewModel(transport: FixtureTransport())
+
+        XCTAssertEqual(model.connectionState, .failed)
+        XCTAssertFalse(model.healthy)
+    }
+
+    func testFirstSnapshotPopulatesChannelsAndHealth() async {
+        let transport = FixtureTransport(snapshot: .healthy)
+        let model = ConsoleViewModel(transport: transport)
+
+        await model.refresh()
+
+        XCTAssertEqual(model.connectionState, .connected)
+        XCTAssertEqual(model.left?.clientId, "left-client")
+        XCTAssertEqual(model.right?.clientId, "right-client")
+        XCTAssertEqual(model.snapshot?.health, .healthy)
+        XCTAssertNil(model.message)
+    }
+
+    func testDuplicateModeCommandIsIgnoredWhileTransitionIsInFlight() async {
+        let transport = SuspendedModeTransport(snapshot: .healthy)
+        let model = ConsoleViewModel(transport: transport)
+
+        let first = Task { await model.setMode(.system) }
+        await transport.waitForModeRequest()
+        await model.setMode(.snapcast)
+
+        let modeRequestCount = await transport.modeRequestCount()
+        XCTAssertEqual(modeRequestCount, 1)
+        await transport.resumeModeRequest()
+        await first.value
+    }
+
+    func testSystemModeDisablesServicesWithoutReportingAnError() async {
+        let transport = FixtureTransport(snapshot: .system)
+        let model = ConsoleViewModel(transport: transport)
+
+        await model.refresh()
+
+        XCTAssertEqual(model.snapshot?.mode, .system)
+        XCTAssertEqual(model.snapshot?.health, .disabled)
+        XCTAssertTrue(model.snapshot?.services.allSatisfy { $0.state == .disabled } == true)
+        XCTAssertNil(model.message)
+    }
+
+    func testMasterVolumePreservesChannelOffsets() async {
+        let transport = FixtureTransport(snapshot: .healthy)
+        let model = ConsoleViewModel(transport: transport)
+        await model.refresh()
+
+        await model.setMaster(76)
+
+        let volumes = await transport.volumeRequests()
+        XCTAssertEqual(volumes, [
+            .init(clientId: "left-client", percent: 56),
+            .init(clientId: "right-client", percent: 96)
+        ])
+    }
+
+    func testDiagnosticsExportReturnsTheAgentPayload() async {
+        let model = ConsoleViewModel(transport: DiagnosticsTransport())
+
+        let payload = await model.exportDiagnostics(redacted: true)
+
+        XCTAssertEqual(payload, #"{"health":"healthy","protocolVersion":1}"#)
+    }
+
+    func testServiceRestartSendsOnlyTheSelectedKnownService() async {
+        let transport = DiagnosticsTransport()
+        let model = ConsoleViewModel(transport: transport)
+
+        await model.restartService(id: "com.snapcast.splitter")
+
+        let restartedServices = await transport.restartedServices()
+        XCTAssertEqual(restartedServices, ["com.snapcast.splitter"])
+    }
+
+    func testViewStateCoversHealthyTransitionDegradedAndSystemModes() {
+        let healthy = ConsoleViewModel(transport: FixtureTransport())
+        healthy.apply(snapshot: .healthy)
+        XCTAssertTrue(healthy.canChangeMode)
+        XCTAssertFalse(healthy.showsTransition)
+        XCTAssertTrue(healthy.showsChannelControls)
+
+        let transitioning = ConsoleViewModel(transport: FixtureTransport())
+        transitioning.apply(snapshot: .transitioning)
+        XCTAssertFalse(transitioning.canChangeMode)
+        XCTAssertTrue(transitioning.showsTransition)
+        XCTAssertTrue(transitioning.showsChannelControls)
+
+        let degraded = ConsoleViewModel(transport: FixtureTransport())
+        degraded.apply(snapshot: .degraded)
+        XCTAssertTrue(degraded.canChangeMode)
+        XCTAssertTrue(degraded.showsWarning)
+        XCTAssertTrue(degraded.showsChannelControls)
+
+        let system = ConsoleViewModel(transport: FixtureTransport())
+        system.apply(snapshot: .system)
+        XCTAssertTrue(system.canChangeMode)
+        XCTAssertTrue(system.showsChannelControls)
+        XCTAssertEqual(system.snapshot?.health, .disabled)
+    }
+}
+
+private struct FixtureTransport: ControlTransport {
+    var snapshot: RuntimeSnapshot = .healthy
+    private let recorder = VolumeRecorder()
+
+    func request(_ request: ControlRequest) async throws -> ControlEvent {
+        switch request {
+        case .snapshot, .subscribe:
+            return .snapshot(snapshot)
+        case .setAudioMode(let requestId, let mode):
+            return .modeChanged(
+                requestId: requestId,
+                result: ModeTransitionResult(mode: mode, remoteWarning: nil)
+            )
+        case .setClientVolume(_, let clientId, let percent):
+            await recorder.append(.init(clientId: clientId, percent: percent))
+            return .success(requestId: "volume")
+        default:
+            return .success(requestId: request.requestId)
+        }
+    }
+
+    func volumeRequests() async -> [VolumeRequest] {
+        await recorder.values
+    }
+}
+
+private struct VolumeRequest: Equatable, Sendable {
+    let clientId: String
+    let percent: Int
+}
+
+private actor VolumeRecorder {
+    private(set) var values: [VolumeRequest] = []
+
+    func append(_ value: VolumeRequest) {
+        values.append(value)
+    }
+}
+
+private struct DiagnosticsTransport: ControlTransport {
+    private let recorder = ServiceRestartRecorder()
+
+    func request(_ request: ControlRequest) async throws -> ControlEvent {
+        switch request {
+        case .exportDiagnostics(let requestId, _):
+            return .diagnostics(
+                requestId: requestId,
+                json: #"{"health":"healthy","protocolVersion":1}"#
+            )
+        case .restartService(let requestId, let serviceId):
+            await recorder.append(serviceId)
+            return .success(requestId: requestId)
+        case .snapshot:
+            return .snapshot(.healthy)
+        default:
+            return .success(requestId: request.requestId)
+        }
+    }
+
+    func restartedServices() async -> [String] {
+        await recorder.values
+    }
+}
+
+private actor ServiceRestartRecorder {
+    private(set) var values: [String] = []
+
+    func append(_ value: String) {
+        values.append(value)
+    }
+}
+
+private actor SuspendedModeTransport: ControlTransport {
+    let snapshot: RuntimeSnapshot
+    private var modeContinuation: CheckedContinuation<ControlEvent, Never>?
+    private var requestCount = 0
+
+    init(snapshot: RuntimeSnapshot) {
+        self.snapshot = snapshot
+    }
+
+    func request(_ request: ControlRequest) async throws -> ControlEvent {
+        if case .setAudioMode(let requestId, let mode) = request {
+            requestCount += 1
+            return await withCheckedContinuation { continuation in
+                modeContinuation = continuation
+                modeRequestID = requestId
+                requestedMode = mode
+            }
+        }
+        return .snapshot(snapshot)
+    }
+
+    func waitForModeRequest() async {
+        while modeContinuation == nil {
+            await Task.yield()
+        }
+    }
+
+    func modeRequestCount() -> Int {
+        requestCount
+    }
+
+    func resumeModeRequest() {
+        guard let modeContinuation, let modeRequestID, let requestedMode else { return }
+        self.modeContinuation = nil
+        modeContinuation.resume(returning: .modeChanged(
+            requestId: modeRequestID,
+            result: ModeTransitionResult(mode: requestedMode, remoteWarning: nil)
+        ))
+    }
+
+    private var modeRequestID: String?
+    private var requestedMode: AudioMode?
+}
+
+private extension ControlRequest {
+    var requestId: String {
+        switch self {
+        case .snapshot(let requestId),
+             .subscribe(let requestId),
+             .setAudioMode(let requestId, _),
+             .restartPair(let requestId),
+             .setClientVolume(let requestId, _, _),
+             .setClientMute(let requestId, _, _),
+             .setClientLatency(let requestId, _, _),
+             .restartService(let requestId, _),
+             .exportDiagnostics(let requestId, _):
+            return requestId
+        }
+    }
+}
+
+private extension RuntimeSnapshot {
+    static let healthy = make(
+        mode: .snapcast,
+        health: .healthy,
+        leftVolume: 50,
+        rightVolume: 90,
+        serviceState: .running,
+        issues: []
+    )
+
+    static let transitioning = make(
+        mode: .transitioning,
+        health: .degraded,
+        leftVolume: 50,
+        rightVolume: 90,
+        serviceState: .running,
+        issues: []
+    )
+
+    static let degraded = make(
+        mode: .snapcast,
+        health: .degraded,
+        leftVolume: 50,
+        rightVolume: 90,
+        serviceState: .running,
+        issues: ["RightAudio has no connected client"]
+    )
+
+    static let system = make(
+        mode: .system,
+        health: .disabled,
+        leftVolume: 50,
+        rightVolume: 90,
+        serviceState: .disabled,
+        issues: []
+    )
+
+    private static func make(
+        mode: AudioMode,
+        health: HealthLevel,
+        leftVolume: Int,
+        rightVolume: Int,
+        serviceState: ServiceState,
+        issues: [String]
+    ) -> RuntimeSnapshot {
+        RuntimeSnapshot(
+            protocolVersion: controlProtocolVersion,
+            mode: mode,
+            health: health,
+            services: [
+                ServiceStatus(
+                    id: "com.snapcast.server",
+                    displayName: "Snapserver",
+                    state: serviceState,
+                    pid: nil,
+                    runs: 1,
+                    lastExitCode: nil,
+                    lastSuccessAgeSeconds: nil,
+                    message: nil
+                ),
+                ServiceStatus(
+                    id: "com.snapcast.splitter",
+                    displayName: "Splitter",
+                    state: serviceState,
+                    pid: nil,
+                    runs: 1,
+                    lastExitCode: nil,
+                    lastSuccessAgeSeconds: nil,
+                    message: nil
+                ),
+                ServiceStatus(
+                    id: "com.snapcast.wake-recovery",
+                    displayName: "Wake Recovery",
+                    state: serviceState,
+                    pid: nil,
+                    runs: 1,
+                    lastExitCode: nil,
+                    lastSuccessAgeSeconds: nil,
+                    message: nil
+                )
+            ],
+            channels: [
+                ChannelStatus(
+                    side: "left",
+                    clientId: "left-client",
+                    streamId: "LeftAudio",
+                    connected: mode != .system,
+                    deviceName: "MacBook Speakers",
+                    volume: leftVolume,
+                    muted: false,
+                    latencyMs: 0,
+                    peakDb: -18,
+                    rmsDb: -24,
+                    clipped: false
+                ),
+                ChannelStatus(
+                    side: "right",
+                    clientId: "right-client",
+                    streamId: "RightAudio",
+                    connected: mode != .system,
+                    deviceName: "MacBook Speakers",
+                    volume: rightVolume,
+                    muted: false,
+                    latencyMs: 0,
+                    peakDb: -16,
+                    rmsDb: -22,
+                    clipped: false
+                )
+            ],
+            streams: [],
+            issues: issues,
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+    }
+}

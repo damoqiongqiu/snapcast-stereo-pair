@@ -1,15 +1,15 @@
 # Repository Instructions
 
-This repository is the required macOS audio runtime for the
-`snapweb-stereo-pair` controller. The companion repository is:
+This repository is the required macOS audio runtime and owns the primary native
+console. The optional browser companion is:
 
 ```text
 https://github.com/damoqiongqiu/snapweb-stereo-pair
 ```
 
 The runtime owns audio capture, `LeftAudio` and `RightAudio`, Snapserver,
-Snapclients, launchd services, installation, routing, and device recovery. The
-controller owns only the browser interface and must not be documented as an
+Snapclients, launchd services, the native control Agent, installation, routing,
+and device recovery. Neither the native console nor the browser controller is an
 audio engine.
 
 ## Structure
@@ -21,6 +21,8 @@ audio engine.
 - `integration/launchagents/`: rendered per-user service templates.
 - `integration/scripts/`: install, routing, mode, health, and maintenance.
 - `integration/test/`: configuration, routing, volume, and wake-recovery tests.
+- `native/`: Swift control models, Agent, CLI, native SwiftUI console, setup,
+  packaging, and tests.
 - `docs/`: public architecture, installation, security, and maintenance docs.
 
 ## Required Checks
@@ -29,10 +31,20 @@ Run the checks that cover the change; run the complete set before release:
 
 ```sh
 ./integration/scripts/build-macos.sh
+swift test --package-path native
+swift build --package-path native -c release
 integration/test/test-pair-config.sh
 integration/test/test-audio-levels.sh
+integration/test/test-audio-profile.sh
 integration/test/test-pair-routing.sh
 integration/test/test-wake-recovery.sh
+integration/test/test-control-plane.sh
+integration/test/test-mode-transitions.sh
+integration/test/test-install-lifecycle.sh
+integration/test/test-control-agent-install.sh
+integration/test/test-native-app-packaging.sh
+integration/test/test-homebrew-formula.sh
+integration/test/test-native-release.sh --automated-only
 zsh -n integration/scripts/*.sh integration/test/*.sh
 plutil -lint integration/launchagents/*.plist.in
 ./scripts/check-public-tree.sh
@@ -68,6 +80,9 @@ macOS and BlackHole versions when changing audio behavior.
   100% hardware volume; use Snapcast volume for normal listening.
 - Keep both CoreAudio main-volume controls (`vmvc` and `volm`) normalized when
   the device exposes them.
+- Before entering Snapcast mode, persist the current physical output UID and
+  exact volume. Restore that profile on both Macs before switching back to
+  system audio; never default a hand-back path to 100%.
 - Apply CoreAudio listening volume through `AudioQueueSetParameter`; do not
   attenuate the integer PCM buffer during software-mixer operation.
 - Recreate capture and playback queues after wake; never dispose an AudioQueue
@@ -86,6 +101,19 @@ macOS and BlackHole versions when changing audio behavior.
 - Never disable Gatekeeper, SIP, or another macOS security feature.
 - Do not modify a user's live services while running a read-only investigation.
 - Do not publish unsigned app bundles or binaries in the first release.
+- The first release uses ad-hoc signing and no paid Developer ID, App Store,
+  root helper, or automatic updater.
+- Native control uses an owner-only Unix socket with peer UID validation and
+  fixed commands; never accept executable paths or shell fragments.
+- Redact diagnostics by default and never upload them automatically.
+- Repeated installs are manifest-driven: verified same-version installs are
+  no-ops, missing or changed files are repaired, upgrades are allowed, and
+  accidental downgrades fail.
+- Always keep an explicit user-facing force-reinstall override. It replaces all
+  program and service files but preserves pair configuration, remote control
+  state, logs, and user preferences.
+- Clearing user configuration is a separate destructive operation and must not
+  be folded into force reinstall.
 
 ## Licensing
 

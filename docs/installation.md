@@ -66,6 +66,7 @@ The resulting file is stored outside the repository:
 The relevant values are:
 
 ```sh
+CONFIG_SCHEMA=1
 REMOTE_USER="<ssh-user>"
 REMOTE_HOST="<remote-mac-address>"
 SOURCE_HOST=""
@@ -121,14 +122,20 @@ integration/test/test-pair-routing.sh
 integration/test/test-wake-recovery.sh
 ```
 
-Install the source-Mac services:
+Install or upgrade the complete local product:
 
 ```sh
-./integration/scripts/install-local.sh
+./integration/scripts/install-product.sh
 ```
 
 The installer:
 
+- reads `state/installation.json` when present;
+- skips verified repeat installation or repairs missing files;
+- treats a different installed version as an upgrade;
+- rejects an accidental downgrade unless force reinstall is requested;
+- treats changed pairing or remote-control configuration as a repair so
+  rendered services are refreshed;
 - renders templates into `~/Library/Application Support/Snapcast/`;
 - keeps BlackHole and the built-in speaker at 100% hardware volume;
 - creates the left/right FIFOs;
@@ -136,6 +143,23 @@ The installer:
 - switches system output to BlackHole;
 - starts Snapserver, splitter, local Snapclient, route, pairing, and wake
   recovery services.
+
+Inspect the decision without changing files or services:
+
+```sh
+./integration/scripts/install-product.sh --dry-run
+```
+
+Force a clean rebuild of the current version:
+
+```sh
+./integration/scripts/install-product.sh --force-reinstall
+```
+
+Force reinstall replaces the application, Agent, CLI, audio runtime, scripts,
+LaunchAgents, and templates. It preserves the pairing configuration, remote
+control configuration, logs, and user preferences. It may briefly interrupt
+audio while runtime services restart.
 
 ## Install the Remote Client
 
@@ -148,6 +172,34 @@ Run from the source Mac after local installation:
 This command resolves the remote home directory, renders the LaunchAgents for
 that account, copies Snapclient and the wake listener, and bootstraps
 `com.snapcast.remote-client` and `com.snapcast.remote-wake-recovery`.
+
+It also installs a fixed remote mode helper and writes the local non-secret
+remote control configuration:
+
+```text
+~/Library/Application Support/Snapcast/state/remote-control.json
+```
+
+That file contains the remote user, host, and rendered helper path with mode
+`0600`. It never contains a password, private key, or token. Remote mode
+commands run with `BatchMode=yes` and a bounded timeout. Failure to stop or
+start the remote client degrades synchronization status but does not roll back
+the local mode change.
+
+## Install the Native Console
+
+The product installer above installs the app under `~/Applications`.
+Its first-run wizard can also run
+the local and remote installation steps through Terminal. It detects existing
+configuration and preconfigured SSH keys. Password entry stays in Terminal.
+
+The app requires macOS 14 or newer. It is ad-hoc signed, not notarized, and does
+not require an Apple Developer subscription. See
+[native-console.md](native-console.md).
+
+The native app also exposes **Advanced Diagnostics → Installation maintenance**
+with a confirmed force-reinstall action. This exists because file and version
+detection can occasionally be wrong; the user must retain an explicit override.
 
 ## Install the Optional Controller
 
@@ -184,6 +236,21 @@ Expected conditions:
 - No recent `Not enough`, `age >`, `No chunk available`, or `onResync` warnings
   appear in the local logs.
 - The controller shows two connected devices and a complete stereo stage.
+- The native console shows two connected channels, fresh Splitter activity,
+  correct routes, and a healthy recovery zone.
+
+Before switching modes, verify the saved native profile exists on both Macs.
+System mode restores the remembered physical output and exact volume, with a
+30% built-in-speaker fallback when that output is unavailable.
+
+The native app and CLI use the same Agent snapshot:
+
+```sh
+~/Library/Application\ Support/Snapcast/bin/mac-stereo-pairctl status --json
+```
+
+Advanced Diagnostics exports redacted information only after an explicit local
+action. Review any diagnostic file before sharing it.
 
 While BlackHole is the active macOS output, its volume slider controls the
 capture level rather than the built-in speakers. Use the controller volume for
@@ -223,4 +290,12 @@ The remote installer has no automatic uninstaller. On the remote Mac, boot out
 `com.snapcast.remote-client` and `com.snapcast.remote-wake-recovery`, then remove
 the copied binaries, scripts, and LaunchAgents after confirming the account and
 paths.
+
+Remove only the native app, Agent, and CLI with:
+
+```sh
+./integration/scripts/uninstall-native.sh
+```
+
+This leaves the audio runtime and user configuration intact.
 

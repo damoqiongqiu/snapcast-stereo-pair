@@ -18,7 +18,7 @@ multiroom-audio
 - Discussions: optional
 - Private vulnerability reporting: enabled
 - Wiki: disabled
-- First release: `v0.1.0`
+- Native console release: `v0.2.0`
 
 These are recommendations for the repository owner. The source preparation
 does not change GitHub settings automatically.

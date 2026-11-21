@@ -22,6 +22,7 @@ load_pair_config() {
   local key
   local value
   local -a allowed=(
+    CONFIG_SCHEMA
     REMOTE_USER
     REMOTE_HOST
     SOURCE_HOST
@@ -51,6 +52,7 @@ load_pair_config() {
   fi
 
   REMOTE_USER="${REMOTE_USER:-}"
+  CONFIG_SCHEMA="${CONFIG_SCHEMA:-1}"
   REMOTE_HOST="${REMOTE_HOST:-}"
   SOURCE_HOST="${SOURCE_HOST:-}"
   LEFT_IS_REMOTE="${LEFT_IS_REMOTE:-true}"
@@ -74,6 +76,20 @@ compute_pair_roles() {
   fi
 }
 
+validate_pair_config_schema() {
+  [[ "${CONFIG_SCHEMA:-1}" == <-> ]] &&
+    (( CONFIG_SCHEMA >= 1 && CONFIG_SCHEMA <= 1 ))
+}
+
+migrate_pair_config_schema() {
+  validate_pair_config_schema || {
+    print -u2 "pair.env was created by a newer, unsupported version."
+    return 1
+  }
+  CONFIG_SCHEMA=1
+  save_pair_config
+}
+
 require_pair_config() {
   local -a missing=()
   [[ -n "$REMOTE_USER" ]] || missing+=(REMOTE_USER)
@@ -85,12 +101,20 @@ require_pair_config() {
   fi
 }
 
+prepare_local_only_config() {
+  REMOTE_USER="${REMOTE_USER:-pending-remote}"
+  REMOTE_HOST="${REMOTE_HOST:-pending.invalid}"
+  SOURCE_HOST="${SOURCE_HOST:-$(detect_source_host || true)}"
+  LEFT_IS_REMOTE="${LEFT_IS_REMOTE:-true}"
+}
+
 save_pair_config() {
   local config_file
   config_file="$(pair_config_default_path)"
   mkdir -p "${config_file:h}"
   chmod 700 "${config_file:h}"
   cat > "$config_file" <<EOF
+CONFIG_SCHEMA="$CONFIG_SCHEMA"
 REMOTE_USER="$REMOTE_USER"
 REMOTE_HOST="$REMOTE_HOST"
 SOURCE_HOST="$SOURCE_HOST"

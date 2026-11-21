@@ -1,8 +1,10 @@
 #include <portaudio.h>
 
+#include "audio_metrics.h"
 #include "fifo_io.h"
 #include "pcm24.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdint.h>
@@ -16,6 +18,7 @@ typedef struct
 {
     const char* left_fifo;
     const char* right_fifo;
+    const char* metrics_shm;
 } CaptureOutputs;
 
 static void stop_capture(int signal_number)
@@ -28,6 +31,7 @@ static int parse_outputs(int argc, char** argv, CaptureOutputs* outputs)
 {
     outputs->left_fifo = NULL;
     outputs->right_fifo = NULL;
+    outputs->metrics_shm = NULL;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -35,6 +39,8 @@ static int parse_outputs(int argc, char** argv, CaptureOutputs* outputs)
             outputs->left_fifo = argv[++i];
         else if ((strcmp(argv[i], "--right-fifo") == 0) && (i + 1 < argc))
             outputs->right_fifo = argv[++i];
+        else if ((strcmp(argv[i], "--metrics-shm") == 0) && (i + 1 < argc))
+            outputs->metrics_shm = argv[++i];
         else
             return -1;
     }
@@ -160,6 +166,15 @@ int main(int argc, char** argv)
     int32_t left[480];
     int32_t right[480];
     int exit_code = 0;
+    SnapcastAudioMetricsPublisher metricsPublisher = {.fd = -1, .metrics = NULL};
+    if (!audioMetricsPublisherOpen(&metricsPublisher, outputs.metrics_shm))
+    {
+        fprintf(stderr, "Could not open shared audio metrics: %s\n", strerror(errno));
+        exit_code = 7;
+        goto cleanup;
+    }
+    fprintf(stderr, "Publishing audio metrics to %s\n", metricsPublisher.name);
+
     while (running)
     {
         error = Pa_ReadStream(stream, buffer, frames_per_buffer);
@@ -169,6 +184,12 @@ int main(int argc, char** argv)
             exit_code = 5;
             break;
         }
+
+        SnapcastChannelMetrics leftMetrics = {0};
+        SnapcastChannelMetrics rightMetrics = {0};
+        audioMetricsCalculateChannel(buffer, frames_per_buffer, 0, 2, &leftMetrics);
+        audioMetricsCalculateChannel(buffer, frames_per_buffer, 1, 2, &rightMetrics);
+        audioMetricsPublisherPublish(&metricsPublisher, &leftMetrics, &rightMetrics, 48000);
 
         if (left_fd >= 0)
         {
@@ -198,6 +219,8 @@ int main(int argc, char** argv)
         }
     }
 
+cleanup:
+    audioMetricsPublisherClose(&metricsPublisher);
     Pa_StopStream(stream);
     Pa_CloseStream(stream);
     Pa_Terminate();

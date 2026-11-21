@@ -45,6 +45,9 @@ Resolve conflicts by preserving the project behavior described in
 - PortAudio BlackHole capture and dual mono FIFOs.
 - Normalization of both `vmvc` and `volm` hardware controls.
 - Role-based stream routing.
+- Native Swift UI, control Agent, Unix socket protocol, and launchd health.
+- Shared-memory peak/RMS meters and mirrored player-style waveform history.
+- Dual audio modes with remote best-effort synchronization.
 
 When the upstream base tag changes, update this document, the README
 compatibility table, and CI expectations together.
@@ -78,10 +81,17 @@ git apply --check --reverse \
 
 ```sh
 ./integration/scripts/build-macos.sh
+swift test --package-path native
+swift build --package-path native -c release
 integration/test/test-pair-config.sh
 integration/test/test-audio-levels.sh
 integration/test/test-pair-routing.sh
 integration/test/test-wake-recovery.sh
+integration/test/test-control-plane.sh
+integration/test/test-mode-transitions.sh
+integration/test/test-control-agent-install.sh
+integration/test/test-native-app-packaging.sh
+integration/test/test-homebrew-formula.sh
 zsh -n integration/scripts/*.sh integration/test/*.sh
 plutil -lint integration/launchagents/*.plist.in
 ./scripts/check-public-tree.sh
@@ -99,7 +109,8 @@ cmake --build .build-tests
 Hardware acceptance still requires the two-MacBook setup. Verify both stream
 formats, routing, full-scale PCM with CoreAudio queue volume, `vmvc`/`volm`
 normalization, sleep/wake recovery, click-marker alignment, native-mode
-restoration, and controller compatibility before merging.
+restoration, native console and CLI state agreement, notification deduplication,
+remote-offline degradation, and controller compatibility before merging.
 
 ## Privacy
 

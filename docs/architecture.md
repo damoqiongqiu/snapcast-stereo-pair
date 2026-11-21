@@ -3,6 +3,21 @@
 MacBook Stereo Pair separates the system into a required runtime and an optional
 browser controller. This repository owns everything on the audio path.
 
+The primary interface is now the native SwiftUI application in this repository.
+Snapweb remains an optional browser diagnostics interface during the transition.
+
+```text
+MacStereoPair.app ─┐
+                   ├─ owner-only Unix socket ─ StereoPairAgent
+mac-stereo-pairctl ┘                           ├─ launchctl
+                                               ├─ Snapserver JSON-RPC
+                                               └─ shared audio meters
+```
+
+The Agent and GUI are control-plane processes. Audio capture, Snapserver, and
+both Snapclients remain independent launchd jobs. Closing or crashing the GUI
+does not interrupt playback.
+
 ```text
 macOS applications
        |
@@ -77,6 +92,12 @@ level.
 Treat Snapcast volume as the normal listening control. The macOS volume slider
 for BlackHole is a capture-level control and is normalized back to 100% while
 the pair runtime is active.
+
+Before entering Snapcast mode, each Mac records its current physical output UID,
+name, and exact volume in `state/native-audio.json`. When returning audio to
+macOS, the runtime applies the saved volume to that device before changing the
+default output. If the saved device is unavailable, it uses the built-in
+speaker at a conservative 30%, never 100% by default.
 
 The CoreAudio player applies the exponential Snapcast volume curve through
 `AudioQueueSetParameter(kAudioQueueParam_Volume)`. This keeps the received

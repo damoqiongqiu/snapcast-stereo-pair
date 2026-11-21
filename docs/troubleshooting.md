@@ -6,6 +6,13 @@ Start with:
 ./integration/scripts/check-health.sh
 ```
 
+The native console and CLI share the same Agent snapshot. Use Advanced
+Diagnostics for redacted export, service state, versions, and logs:
+
+```sh
+~/Library/Application\ Support/Snapcast/bin/mac-stereo-pairctl status --json
+```
+
 ## Missing LeftAudio or RightAudio
 
 Confirm the stream format:
@@ -44,7 +51,7 @@ Both `left.pcm` and `right.pcm` should be FIFOs owned by the current user. If
 either is missing, rerun:
 
 ```sh
-./integration/scripts/install-local.sh
+./integration/scripts/install-product.sh --force-reinstall
 ```
 
 Do not replace a FIFO with a regular file. A leftover splitter process can also
@@ -67,7 +74,7 @@ Set `LEFT_IS_REMOTE` to match physical placement:
 Then reinstall the local runtime so templates and routing use the new roles:
 
 ```sh
-./integration/scripts/install-local.sh
+./integration/scripts/install-product.sh --force-reinstall
 ```
 
 The controller derives the visible sides from `LeftAudio` and `RightAudio`, not
@@ -176,6 +183,9 @@ left/right timing relationship.
 
 ## Return to Native Audio
 
+Choose **Mac system audio** in the native console or use the command below.
+System mode intentionally stops the pair runtime;
+
 Use the generated mode switcher:
 
 ```sh
@@ -190,7 +200,23 @@ UID. To resume the pair:
 ```
 
 The local script does not modify the remote Mac's installed LaunchAgent. With
-the server stopped, the remote client has no stream to play.
+the server stopped, the remote client has no stream to play. The native Agent
+attempts a bounded, key-only remote stop and reports a degraded warning when the
+remote Mac is unavailable without rolling back the local switch.
+
+Expected disabled services in system mode do not generate notifications. A
+notification is sent once when Snapserver, a playback route, a client, or wake
+recovery actually fails in Snapcast mode, then resets after recovery.
+
+Each Mac stores its pre-Snapcast physical output and exact volume at:
+
+```text
+~/Library/Application Support/Snapcast/state/native-audio.json
+```
+
+Both Macs restore that volume before switching output back. If the remembered
+device is unavailable, the fallback volume is 30%. Do not raise the saved
+fallback to 100%; use the normal system volume after the transition.
 
 ## Collect a Safe Bug Report
 
