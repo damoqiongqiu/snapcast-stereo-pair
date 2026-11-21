@@ -1,13 +1,14 @@
 import Darwin
 import Foundation
 
-public enum UnixSocketError: Error, LocalizedError {
+public enum UnixSocketError: Error, LocalizedError, Equatable {
     case create(Int32)
     case bind(Int32)
     case listen(Int32)
     case connect(Int32)
     case peerRejected
     case invalidMessage
+    case timedOut
 
     public var errorDescription: String? {
         switch self {
@@ -17,6 +18,7 @@ public enum UnixSocketError: Error, LocalizedError {
         case .connect(let code): "Could not connect to control Agent: \(code)"
         case .peerRejected: "Control socket peer is not the current user"
         case .invalidMessage: "Control protocol message is invalid"
+        case .timedOut: "Control Agent request timed out"
         }
     }
 }
@@ -100,6 +102,7 @@ public final class UnixControlServer: @unchecked Sendable {
 
     private func serve(clientFD: Int32) async {
         defer { close(clientFD) }
+        configureSocketTimeout(clientFD, seconds: 10)
         var peerUID: uid_t = 0
         var peerGID: gid_t = 0
         guard getpeereid(clientFD, &peerUID, &peerGID) == 0, peerUID == getuid() else {
@@ -110,7 +113,10 @@ public final class UnixControlServer: @unchecked Sendable {
         var buffer = [UInt8](repeating: 0, count: 4096)
         while true {
             let count = read(clientFD, &buffer, buffer.count)
-            if count <= 0 { break }
+            if count < 0 {
+                return
+            }
+            if count == 0 { break }
             data.append(buffer, count: count)
         }
         guard let line = data.split(separator: 0x0A).first,
@@ -134,9 +140,11 @@ public final class UnixControlServer: @unchecked Sendable {
 
 public struct UnixControlClient: Sendable {
     private let socketURL: URL
+    private let timeout: TimeInterval
 
-    public init(socketURL: URL) {
+    public init(socketURL: URL, timeout: TimeInterval = 5) {
         self.socketURL = socketURL
+        self.timeout = timeout
     }
 
     public func send(_ request: ControlRequest) throws -> ControlEvent {
@@ -159,12 +167,25 @@ public struct UnixControlClient: Sendable {
             }
         }
         guard result == 0 else { throw UnixSocketError.connect(errno) }
+        configureSocketTimeout(fd, seconds: timeout)
 
         var encoded = try JSONEncoder().encode(request)
         encoded.append(0x0A)
-        encoded.withUnsafeBytes { raw in
-            guard let base = raw.baseAddress else { return }
-            _ = write(fd, base, raw.count)
+        try encoded.withUnsafeBytes { raw in
+            guard let base = raw.baseAddress else {
+                throw UnixSocketError.invalidMessage
+            }
+            var offset = 0
+            while offset < raw.count {
+                let count = write(fd, base.advanced(by: offset), raw.count - offset)
+                if count <= 0 {
+                    if errno == EAGAIN || errno == EWOULDBLOCK {
+                        throw UnixSocketError.timedOut
+                    }
+                    throw UnixSocketError.invalidMessage
+                }
+                offset += count
+            }
         }
         shutdown(fd, SHUT_WR)
 
@@ -172,7 +193,13 @@ public struct UnixControlClient: Sendable {
         var buffer = [UInt8](repeating: 0, count: 4096)
         while true {
             let count = read(fd, &buffer, buffer.count)
-            if count <= 0 { break }
+            if count < 0 {
+                if errno == EAGAIN || errno == EWOULDBLOCK {
+                    throw UnixSocketError.timedOut
+                }
+                throw UnixSocketError.invalidMessage
+            }
+            if count == 0 { break }
             data.append(buffer, count: count)
         }
         guard let line = data.split(separator: 0x0A).first else {
@@ -180,4 +207,16 @@ public struct UnixControlClient: Sendable {
         }
         return try JSONDecoder().decode(ControlEvent.self, from: Data(line))
     }
+}
+
+private func configureSocketTimeout(_ fd: Int32, seconds: TimeInterval) {
+    guard seconds > 0 else { return }
+    let wholeSeconds = Int(seconds)
+    var value = timeval(
+        tv_sec: wholeSeconds,
+        tv_usec: Int32((seconds - Double(wholeSeconds)) * 1_000_000)
+    )
+    let size = socklen_t(MemoryLayout<timeval>.size)
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &value, size)
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &value, size)
 }

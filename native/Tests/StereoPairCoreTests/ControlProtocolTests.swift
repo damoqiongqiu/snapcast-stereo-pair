@@ -26,6 +26,30 @@ final class ControlProtocolTests: XCTestCase {
         XCTAssertEqual(decoded, request)
     }
 
+    func testClientTimesOutWhenServerDoesNotRespond() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let socketURL = directory.appendingPathComponent("slow.sock")
+        let server = UnixControlServer(socketURL: socketURL) { _ in
+            try? await Task.sleep(for: .seconds(2))
+            return .success(requestId: "slow")
+        }
+        try server.start()
+        defer { server.stop() }
+
+        let started = Date()
+        XCTAssertThrowsError(
+            try UnixControlClient(socketURL: socketURL, timeout: 0.2)
+                .send(.snapshot(requestId: "timeout"))
+        ) { error in
+            XCTAssertEqual(error as? UnixSocketError, .timedOut)
+        }
+        XCTAssertLessThan(Date().timeIntervalSince(started), 1.5)
+    }
+
     func testUnixSocketReturnsSnapshotForRequest() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

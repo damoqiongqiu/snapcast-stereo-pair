@@ -8,12 +8,19 @@ let socketURL =
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/Snapcast/run/control.sock")
     }
-let client = UnixControlClient(socketURL: socketURL)
 let requestId = UUID().uuidString
+let command = CommandLine.arguments.dropFirst().first ?? "status"
+let timeout: TimeInterval = switch command {
+case "start", "stop", "restart":
+    45
+default:
+    5
+}
+let client = UnixControlClient(socketURL: socketURL, timeout: timeout)
 
 do {
     let event: ControlEvent
-    switch CommandLine.arguments.dropFirst().first ?? "status" {
+    switch command {
     case "status":
         event = try client.send(.snapshot(requestId: requestId))
     case "start":

@@ -9,8 +9,16 @@ struct UnixControlTransport: ControlTransport {
     let socketURL: URL
 
     func request(_ request: ControlRequest) async throws -> ControlEvent {
-        try await Task.detached {
-            try UnixControlClient(socketURL: socketURL).send(request)
+        let timeout: TimeInterval = switch request {
+        case .setAudioMode, .restartPair:
+            45
+        case .restartService:
+            12
+        default:
+            5
+        }
+        return try await Task.detached {
+            try UnixControlClient(socketURL: socketURL, timeout: timeout).send(request)
         }.value
     }
 }
