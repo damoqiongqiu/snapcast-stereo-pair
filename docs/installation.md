@@ -132,7 +132,8 @@ The installer:
 - creates the left/right FIFOs;
 - installs the local LaunchAgents;
 - switches system output to BlackHole;
-- starts Snapserver, splitter, local Snapclient, route, and pairing services.
+- starts Snapserver, splitter, local Snapclient, route, pairing, and wake
+  recovery services.
 
 ## Install the Remote Client
 
@@ -142,8 +143,9 @@ Run from the source Mac after local installation:
 ./integration/scripts/install-remote.sh
 ```
 
-This command resolves the remote home directory, renders the LaunchAgent for
-that account, copies Snapclient, and bootstraps `com.snapcast.remote-client`.
+This command resolves the remote home directory, renders the LaunchAgents for
+that account, copies Snapclient and the wake listener, and bootstraps
+`com.snapcast.remote-client` and `com.snapcast.remote-wake-recovery`.
 
 ## Install the Optional Controller
 
@@ -198,7 +200,7 @@ Stop all local Snapcast services:
 
 ```sh
 uid="$(id -u)"
-for label in local-client capture server route splitter pairing; do
+for label in local-client capture server route splitter pairing wake-recovery; do
   launchctl bootout "gui/$uid/com.snapcast.$label" 2>/dev/null || true
 done
 ```
@@ -212,6 +214,7 @@ Remove generated local files only after confirming their paths:
 ```
 
 The remote installer has no automatic uninstaller. On the remote Mac, boot out
-`com.snapcast.remote-client` and remove its copied Snapclient and LaunchAgent
-after confirming the account and paths.
+`com.snapcast.remote-client` and `com.snapcast.remote-wake-recovery`, then remove
+the copied binaries, scripts, and LaunchAgents after confirming the account and
+paths.
 

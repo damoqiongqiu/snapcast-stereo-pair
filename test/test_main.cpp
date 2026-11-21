@@ -24,6 +24,7 @@
 #include "common/stream_uri.hpp"
 #include "common/utils/file_utils.hpp"
 #include "common/utils/string_utils.hpp"
+#include "client/player/coreaudio_queue_health.hpp"
 #include "client/player/mono_stereo.hpp"
 #include "integration/capture/fifo_io.h"
 #include "integration/capture/pcm24.h"
@@ -104,6 +105,32 @@ TEST_CASE("Mono PCM duplicates to both stereo channels")
     REQUIRE(output[1] == 100);
     REQUIRE(output[2] == -300);
     REQUIRE(output[3] == -300);
+}
+
+TEST_CASE("CoreAudio queue restarts after invalidation or a timeline discontinuity")
+{
+    REQUIRE(player::coreAudioQueueNeedsRestart(0, false, true) == false);
+    REQUIRE(player::coreAudioQueueNeedsRestart(-66671, false, true) == true);
+    REQUIRE(player::coreAudioQueueNeedsRestart(0, true, true) == true);
+}
+
+TEST_CASE("CoreAudio pre-start buffers ignore an invalid run-state query")
+{
+    REQUIRE(player::coreAudioQueueNeedsRestart(-66678, false, false) == false);
+    REQUIRE(player::coreAudioQueueNeedsRestart(-66678, false, true) == true);
+}
+
+TEST_CASE("CoreAudio callbacks remain suppressed until a queue is recreated")
+{
+    player::CoreAudioCallbackState state;
+
+    REQUIRE(state.callbackSuppressed() == false);
+    REQUIRE(state.requestRestart() == true);
+    REQUIRE(state.callbackSuppressed() == true);
+    REQUIRE(state.requestRestart() == false);
+
+    state.reset();
+    REQUIRE(state.callbackSuppressed() == false);
 }
 
 TEST_CASE("16-bit mono PCM duplicates to both stereo channels")

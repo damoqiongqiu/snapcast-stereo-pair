@@ -28,13 +28,14 @@ done
 install -m 755 "$repo_root/.build/bin/snapserver" "$support_dir/bin/snapserver"
 install -m 755 "$repo_root/.build/bin/snapclient" "$support_dir/bin/snapclient"
 install -m 755 "$repo_root/.build/bin/set-audio-volume" "$support_dir/bin/set-audio-volume"
+install -m 755 "$repo_root/.build/bin/wake-recovery-listener" "$support_dir/bin/wake-recovery-listener"
 install -m 755 "$repo_root/.build/bin/capture-blackhole" "$homebrew_bin/snapcast-capture-blackhole"
 install -m 644 "$repo_root/integration/capture/capture-blackhole-pa.c" "$support_dir/capture-blackhole-pa.c"
 render_pair_template \
   "$repo_root/integration/config/snapserver.conf.in" \
   "$support_dir/snapserver.conf"
 
-for name in server local-client route splitter pairing; do
+for name in server local-client route splitter pairing wake-recovery; do
   render_pair_template \
     "$repo_root/integration/launchagents/$name.plist.in" \
     "$launch_dir/com.snapcast.$name.plist"
@@ -56,8 +57,12 @@ render_pair_template \
   "$repo_root/integration/scripts/route-audio.sh" \
   "$support_dir/route-audio.sh"
 chmod 755 "$support_dir/route-audio.sh"
+render_pair_template \
+  "$repo_root/integration/scripts/wake-recovery-local.sh" \
+  "$support_dir/wake-recovery-local.sh"
+chmod 755 "$support_dir/wake-recovery-local.sh"
 
-for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
+for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery; do
   launchctl bootout "gui/$uid/$label" 2>/dev/null || true
 done
 sleep 1
@@ -68,6 +73,7 @@ sleep 1
 launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.splitter.plist"
 launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.local-client.plist"
 launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.pairing.plist"
+launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.wake-recovery.plist"
 
 print "Installed local Snapcast stereo-pair services."
 print "Check status with: $repo_root/integration/scripts/check-health.sh"

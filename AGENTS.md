@@ -32,6 +32,7 @@ Run the checks that cover the change; run the complete set before release:
 integration/test/test-pair-config.sh
 integration/test/test-audio-levels.sh
 integration/test/test-pair-routing.sh
+integration/test/test-wake-recovery.sh
 zsh -n integration/scripts/*.sh integration/test/*.sh
 plutil -lint integration/launchagents/*.plist.in
 ./scripts/check-public-tree.sh
@@ -65,6 +66,10 @@ macOS and BlackHole versions when changing audio behavior.
   system output is BlackHole.
 - Keep BlackHole, the local built-in speaker, and the remote output device at
   100% hardware volume; use Snapcast volume for normal listening.
+- Keep both CoreAudio main-volume controls (`vmvc` and `volm`) normalized when
+  the device exposes them.
+- Recreate capture and playback queues after wake; never dispose an AudioQueue
+  from one of its own callbacks.
 - Preserve timeline continuity for scheduling jitter below the discontinuity
   threshold.
 - Do not add lossy codecs or resampling to the default path without measured

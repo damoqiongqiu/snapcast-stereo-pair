@@ -31,7 +31,7 @@ fi
 print "Local processes:"
 pgrep -ifl 'snapserver|snapclient|snapcast-capture-blackhole' || print "  none"
 
-for label in com.snapcast.server com.snapcast.splitter com.snapcast.local-client com.snapcast.pairing; do
+for label in com.snapcast.server com.snapcast.splitter com.snapcast.local-client com.snapcast.pairing com.snapcast.wake-recovery; do
   print "\n$label:"
   launchctl print "gui/$uid/$label" 2>/dev/null | rg 'state =|runs =|pid =' | head -3 || print "  not loaded"
 done
@@ -95,7 +95,8 @@ for file in \
   "$HOME/Library/Logs/Snapcast/local-client.log" \
   "$HOME/Library/Logs/Snapcast/server.log" \
   "$HOME/Library/Logs/Snapcast/splitter.stderr.log" \
-  "$HOME/Library/Logs/Snapcast/pairing.stderr.log"; do
+  "$HOME/Library/Logs/Snapcast/pairing.stderr.log" \
+  "$HOME/Library/Logs/Snapcast/wake-recovery.stderr.log"; do
   if [[ ! -f "$file" ]]; then
     continue
   fi

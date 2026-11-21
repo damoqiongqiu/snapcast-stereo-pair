@@ -103,6 +103,10 @@ Both hardware volume lines must report `100.00%`. BlackHole and the built-in
 speaker are separate CoreAudio devices: changing the macOS volume while
 BlackHole is selected does not change the speaker's hardware level.
 
+The volume helper writes both the virtual main volume (`vmvc`) and the physical
+main volume scalar (`volm`). Health checks report the lower of the two supported
+controls, because macOS can restore them independently after wake.
+
 Reapply the normalization:
 
 ```sh
@@ -111,6 +115,27 @@ Reapply the normalization:
 
 The runtime also reapplies this calibration while routing is active. Use the
 controller's volume after the hardware stages are normalized.
+
+## Crackling, Dropouts, or Low Volume After Wake
+
+macOS can invalidate active CoreAudio queues during sleep and restore the
+speaker's physical volume separately from its virtual main volume. Both Macs
+therefore install a user wake-recovery service.
+
+Verify that it is running:
+
+```sh
+launchctl print "gui/$(id -u)/com.snapcast.wake-recovery"
+```
+
+The service waits briefly for CoreAudio to settle, re-selects BlackHole on the
+source Mac, writes both volume controls, and recreates the audio processes.
+The remote installer installs the equivalent service as
+`com.snapcast.remote-wake-recovery`.
+
+If a failure still occurs, collect
+`~/Library/Logs/Snapcast/wake-recovery.stderr.log` and any `snapclient` crash
+report produced around the wake time.
 
 ## Dropouts or Periodic Gaps
 
@@ -129,7 +154,7 @@ Also check:
 - Only one Snapserver is running on the source Mac.
 - The selected source address is reachable from the remote Mac.
 - No duplicate Snapclient processes use the same role ID.
-- The remote Mac is not suspending the LaunchAgent during sleep.
+- The wake-recovery LaunchAgents are running on both Macs.
 
 If the network genuinely needs a larger buffer, change `buffer` in
 [`integration/config/snapserver.conf.in`](../integration/config/snapserver.conf.in)

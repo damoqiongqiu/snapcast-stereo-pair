@@ -27,6 +27,8 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <stdexcept>
+#include <string>
 
 namespace player
 {
@@ -104,14 +106,29 @@ std::vector<PcmDevice> CoreAudioPlayer::pcm_list()
 
 void CoreAudioPlayer::playerCallback(AudioQueueRef queue, AudioQueueBufferRef bufferRef)
 {
+    if (callbackState_.callbackSuppressed())
+        return;
+
     /// Estimate the playout delay by checking the number of frames left in the buffer
     /// and add ms_ (= complete buffer size). Based on trying.
-    AudioTimeStamp timestamp;
-    AudioQueueGetCurrentTime(queue, timeLine_, &timestamp, NULL);
-    size_t bufferedFrames = (frames_ - ((uint64_t)timestamp.mSampleTime % frames_)) % frames_;
-    size_t bufferedMs = bufferedFrames * 1000 / pubStream_->getFormat().rate() + (ms_ * (NUM_BUFFERS - 1));
-    /// 15ms DAC delay. Based on trying.
-    bufferedMs += 15;
+    size_t bufferedMs = ms_ * (NUM_BUFFERS - 1) + 15;
+    OSStatus status = noErr;
+    if (queueStarted_)
+    {
+        AudioTimeStamp timestamp = {};
+        Boolean timelineDiscontinuity = false;
+        status = AudioQueueGetCurrentTime(queue, timeLine_, &timestamp, &timelineDiscontinuity);
+        if (coreAudioQueueNeedsRestart(status, timelineDiscontinuity, queueStarted_))
+        {
+            LOG(NOTICE, LOG_TAG) << "CoreAudio timeline changed, restarting Audio Queue (status: " << status << ")\n";
+            requestAudioQueueRestart();
+            return;
+        }
+
+        size_t bufferedFrames = (frames_ - ((uint64_t)timestamp.mSampleTime % frames_)) % frames_;
+        bufferedMs = bufferedFrames * 1000 / pubStream_->getFormat().rate() + (ms_ * (NUM_BUFFERS - 1)) + 15;
+    }
+
     //    LOG(INFO, LOG_TAG) << "buffered: " << bufferedFrames << ", ms: " << bufferedMs << ", mSampleTime: " << timestamp.mSampleTime << "\n";
 
     /// TODO: sometimes this bufferedMS or AudioTimeStamp wraps around 1s (i.e. we're 1s out of sync (behind)) and recovers later on
@@ -122,8 +139,8 @@ void CoreAudioPlayer::playerCallback(AudioQueueRef queue, AudioQueueBufferRef bu
     {
         if (chronos::getTickCount() - lastChunkTick > 5000)
         {
-            LOG(NOTICE, LOG_TAG) << "No chunk received for 5000ms. Closing Audio Queue.\n";
-            uninitAudioQueue(queue);
+            LOG(NOTICE, LOG_TAG) << "No chunk received for 5000ms. Restarting Audio Queue.\n";
+            requestAudioQueueRestart();
             return;
         }
         // LOG(INFO, LOG_TAG) << "Failed to get chunk. Playing silence.\n";
@@ -139,13 +156,16 @@ void CoreAudioPlayer::playerCallback(AudioQueueRef queue, AudioQueueBufferRef bu
     else
         std::memcpy(output, source_buffer_.data(), source_buffer_.size());
 
-    //    OSStatus status =
-    AudioQueueEnqueueBuffer(queue, bufferRef, 0, NULL);
+    status = AudioQueueEnqueueBuffer(queue, bufferRef, 0, NULL);
+    if (status != noErr)
+    {
+        LOG(NOTICE, LOG_TAG) << "Could not enqueue CoreAudio buffer, restarting Audio Queue (status: " << status << ")\n";
+        requestAudioQueueRestart();
+        return;
+    }
 
     if (!active_)
-    {
-        uninitAudioQueue(queue);
-    }
+        requestAudioQueueRestart();
 }
 
 
@@ -177,6 +197,8 @@ void CoreAudioPlayer::worker()
 
 void CoreAudioPlayer::initAudioQueue()
 {
+    callbackState_.reset();
+    queueStarted_ = false;
     const SampleFormat& sampleFormat = pubStream_->getFormat();
 
     AudioStreamBasicDescription format;
@@ -191,10 +213,18 @@ void CoreAudioPlayer::initAudioQueue()
     format.mBytesPerPacket = format.mBytesPerFrame * format.mFramesPerPacket;
     format.mReserved = 0;
 
-    AudioQueueRef queue;
-    AudioQueueNewOutput(&format, callback, this, CFRunLoopGetCurrent(), kCFRunLoopCommonModes, 0, &queue);
+    AudioQueueRef queue = nullptr;
+    OSStatus status = AudioQueueNewOutput(&format, callback, this, CFRunLoopGetCurrent(), kCFRunLoopCommonModes, 0, &queue);
+    if (status != noErr)
+        throw std::runtime_error("AudioQueueNewOutput failed with status " + std::to_string(status));
+
     configureOutputDevice(queue);
-    AudioQueueCreateTimeline(queue, &timeLine_);
+    status = AudioQueueCreateTimeline(queue, &timeLine_);
+    if (status != noErr)
+    {
+        AudioQueueDispose(queue, true);
+        throw std::runtime_error("AudioQueueCreateTimeline failed with status " + std::to_string(status));
+    }
 
     // Apple recommends this as buffer size:
     // https://developer.apple.com/library/content/documentation/MusicAudio/Conceptual/CoreAudioOverview/CoreAudioEssentials/CoreAudioEssentials.html
@@ -207,21 +237,50 @@ void CoreAudioPlayer::initAudioQueue()
     ms_ = frames_ * 1000 / sampleFormat.rate();
     buff_size_ = frames_ * format.mBytesPerFrame;
     source_buffer_.resize(frames_ * sampleFormat.frameSize());
+    lastChunkTick = chronos::getTickCount();
     LOG(INFO, LOG_TAG) << "frames: " << frames_ << ", ms: " << ms_ << ", input channels: " << sampleFormat.channels()
                        << ", output channels: " << output_channels << ", buffer size: " << buff_size_ << "\n";
 
     AudioQueueBufferRef buffers[NUM_BUFFERS];
     for (int i = 0; i < NUM_BUFFERS; i++)
     {
-        AudioQueueAllocateBuffer(queue, buff_size_, &buffers[i]);
+        status = AudioQueueAllocateBuffer(queue, buff_size_, &buffers[i]);
+        if (status != noErr)
+        {
+            AudioQueueDispose(queue, true);
+            throw std::runtime_error("AudioQueueAllocateBuffer failed with status " + std::to_string(status));
+        }
         buffers[i]->mAudioDataByteSize = buff_size_;
         callback(this, queue, buffers[i]);
+        if (callbackState_.callbackSuppressed())
+            break;
     }
 
     LOG(DEBUG, LOG_TAG) << "CoreAudioPlayer::worker\n";
-    AudioQueueCreateTimeline(queue, &timeLine_);
-    AudioQueueStart(queue, NULL);
-    CFRunLoopRun();
+    if (!callbackState_.callbackSuppressed())
+    {
+        status = AudioQueueStart(queue, NULL);
+        if (status != noErr)
+        {
+            AudioQueueDispose(queue, true);
+            throw std::runtime_error("AudioQueueStart failed with status " + std::to_string(status));
+        }
+        queueStarted_ = true;
+        CFRunLoopRun();
+    }
+
+    status = AudioQueueStop(queue, true);
+    if (status != noErr && status != kAudioQueueErr_QueueInvalidated)
+        LOG(NOTICE, LOG_TAG) << "AudioQueueStop returned status: " << status << "\n";
+
+    status = AudioQueueDispose(queue, true);
+    if (status != noErr && status != kAudioQueueErr_QueueInvalidated)
+        LOG(NOTICE, LOG_TAG) << "AudioQueueDispose returned status: " << status << "\n";
+
+    timeLine_ = nullptr;
+    queueStarted_ = false;
+    pubStream_->clearChunks();
+    callbackState_.reset();
 }
 
 void CoreAudioPlayer::configureOutputDevice(AudioQueueRef queue)
@@ -246,11 +305,9 @@ void CoreAudioPlayer::configureOutputDevice(AudioQueueRef queue)
     CFRelease(uid);
 }
 
-void CoreAudioPlayer::uninitAudioQueue(AudioQueueRef queue)
+void CoreAudioPlayer::requestAudioQueueRestart()
 {
-    AudioQueueStop(queue, false);
-    AudioQueueDispose(queue, false);
-    pubStream_->clearChunks();
+    callbackState_.requestRestart();
     CFRunLoopStop(CFRunLoopGetCurrent());
 }
 

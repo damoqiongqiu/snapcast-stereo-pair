@@ -6,7 +6,7 @@ launch_dir="$HOME/Library/LaunchAgents"
 source "@SUPPORT_DIR@/audio-levels.sh"
 
 stop_snapcast() {
-  for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
+  for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery; do
     launchctl bootout "gui/$uid/$label" 2>/dev/null || true
   done
 }
@@ -14,7 +14,7 @@ stop_snapcast() {
 start_snapcast() {
   stop_snapcast
   sleep 1
-  for label in com.snapcast.local-client com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
+  for label in com.snapcast.local-client com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery; do
     launchctl enable "gui/$uid/$label"
   done
   SwitchAudioSource -s "@CAPTURE_DEVICE@" -t output
@@ -25,6 +25,7 @@ start_snapcast() {
   launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.splitter.plist"
   launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.local-client.plist"
   launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.pairing.plist"
+  launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.wake-recovery.plist"
   print "Snapcast stereo-pair mode enabled."
 }
 
@@ -34,7 +35,7 @@ case "${1:-}" in
     ;;
   native)
     stop_snapcast
-    for label in com.snapcast.local-client com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
+    for label in com.snapcast.local-client com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery; do
       launchctl disable "gui/$uid/$label"
     done
     "@SUPPORT_DIR@/bin/set-audio-volume" set "@NATIVE_OUTPUT_DEVICE_UID@" 100

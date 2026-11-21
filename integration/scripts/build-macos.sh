@@ -46,9 +46,15 @@ clang -O2 -Wall -Wextra \
   "$repo_root/integration/capture/set-audio-volume.c" \
   -framework CoreAudio \
   -framework CoreFoundation
+clang -O2 -Wall -Wextra \
+  -o "$build_dir/bin/wake-recovery-listener" \
+  "$repo_root/integration/capture/wake-recovery-listener.c" \
+  -framework CoreFoundation \
+  -framework IOKit
 
 print "Built:"
 print "  $build_dir/bin/snapserver"
 print "  $build_dir/bin/snapclient"
 print "  $build_dir/bin/capture-blackhole"
 print "  $build_dir/bin/set-audio-volume"
+print "  $build_dir/bin/wake-recovery-listener"

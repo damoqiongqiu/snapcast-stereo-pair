@@ -38,6 +38,7 @@ jobs:
           integration/test/test-pair-config.sh
           integration/test/test-audio-levels.sh
           integration/test/test-pair-routing.sh
+          integration/test/test-wake-recovery.sh
       - name: Validate shell and plists
         run: |
           zsh -n integration/scripts/*.sh integration/test/*.sh

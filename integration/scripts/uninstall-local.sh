@@ -7,7 +7,7 @@ load_pair_config
 
 uid="$(id -u)"
 
-for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
+for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery; do
   launchctl bootout "gui/$uid/$label" 2>/dev/null || true
 done
 

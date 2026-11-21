@@ -96,8 +96,11 @@ clocking, FIFO, and recovery details.
 - SSH key authentication from the source Mac to the remote Mac for unattended
   remote installation.
 
-The primary validated environment is an Apple Silicon MacBook Pro M4 running
-macOS 27.2.1 with BlackHole 2ch and PortAudio from Homebrew.
+The primary validated environment is a pair of MacBook Pro `Mac16,1` systems
+with Apple M4 (arm64), 24 GB and 16 GB memory, running macOS 27.2.1 (26B131).
+The source Mac uses BlackHole 2ch 0.7.1 and PortAudio from Homebrew. Hardware
+validation covers cold start, native-mode switching, sleep/wake recovery with
+both systems, and independent `vmvc`/`volm` volume restoration.
 
 ## Install BlackHole
 
@@ -160,9 +163,9 @@ Install the remote client from the same source Mac:
 ./integration/scripts/install-remote.sh
 ```
 
-The remote install copies the patched Snapclient and its LaunchAgent. The remote
-Mac does not need BlackHole or the Snapserver. It must already accept your SSH
-key.
+The remote install copies the patched Snapclient, wake listener, and both
+LaunchAgents. The remote Mac does not need BlackHole or the Snapserver. It must
+already accept your SSH key.
 
 Check the pair:
 
@@ -206,10 +209,10 @@ The 200 ms buffer was the lowest stable setting on the validated Wi-Fi setup.
 150 ms produced occasional underruns, and 100 ms produced immediate
 discontinuities in that environment.
 
-Hardware volume is normalized before the services start. In pair mode, changing
-the macOS output-volume slider while BlackHole is selected only changes the
-capture level; it does not represent the built-in speaker volume. Use the
-controller's total or per-device volume for normal listening.
+Hardware volume is normalized before the services start and after wake. In pair
+mode, changing the macOS output-volume slider while BlackHole is selected only
+changes the capture level; it does not represent the built-in speaker volume.
+Use the controller's total or per-device volume for normal listening.
 
 ## Operations
 
@@ -222,11 +225,13 @@ com.snapcast.splitter
 com.snapcast.local-client
 com.snapcast.pairing
 com.snapcast.remote-client
+com.snapcast.wake-recovery
+com.snapcast.remote-wake-recovery
 ```
 
-The first five run on the source Mac. `com.snapcast.remote-client` is installed
-only on the remote Mac. Switch between the stereo pair and normal local audio
-with:
+The first six run on the source Mac. `com.snapcast.remote-client` and
+`com.snapcast.remote-wake-recovery` are installed only on the remote Mac. Switch
+between the stereo pair and normal local audio with:
 
 ```sh
 ~/Library/Application\ Support/Snapcast/set-mode.sh snapcast
@@ -260,6 +265,8 @@ launchctl print gui/$(id -u)/com.snapcast.server
 - If one side is reversed, change `LEFT_IS_REMOTE` and reinstall the routing
   configuration.
 - If audio drops out, inspect the 200 ms buffer and recent underrun warnings.
+- If audio breaks after sleep, verify both wake-recovery LaunchAgents are
+  running.
 - If one side is quieter, run the health check and confirm both hardware levels
   are 100% before changing Snapcast volume.
 

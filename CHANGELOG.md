@@ -4,8 +4,13 @@
 
 - Normalize BlackHole, local speaker, and remote speaker hardware volumes to
   100% independently of the selected macOS output device.
+- Write and verify both virtual and physical CoreAudio main-volume controls.
 - Add CoreAudio volume diagnostics and prevent pre-capture attenuation from
   making Snapcast volume appear quieter than native playback.
+- Defer CoreAudio queue disposal until after its callback returns, and recreate
+  queues when the timeline is invalidated.
+- Add source and remote wake-recovery LaunchAgents that restore routing,
+  hardware volume, capture, and playback after sleep.
 
 ## v0.1.0 - 2026-11-20
 

@@ -68,10 +68,11 @@ device explicitly. The default is `BuiltInSpeakerDevice`. A mono Snapcast
 stream is duplicated into both channels of the local AudioQueue output.
 
 BlackHole and the built-in speaker expose separate CoreAudio volume controls.
-The runtime helper resolves both by UID and sets each virtual main volume to
-100%. This prevents the BlackHole output slider from silently attenuating the
-signal before capture while the independently selected local speaker remains at
-a different hardware level.
+The runtime helper resolves both by UID and sets the virtual main volume
+(`vmvc`) and physical main-volume scalar (`volm`) to 100%. This prevents the
+BlackHole output slider from silently attenuating the signal before capture
+while the independently selected local speaker remains at a different hardware
+level.
 
 Treat Snapcast volume as the normal listening control. The macOS volume slider
 for BlackHole is a capture-level control and is normalized back to 100% while
@@ -112,6 +113,13 @@ relaunched after the server's new readers are ready.
 The process source accepts scheduling jitter below 200 ms by reading again
 while preserving the logical audio timeline. A gap of 200 ms or more is treated
 as a genuine discontinuity and triggers a real resync.
+
+Both Macs run a lightweight user LaunchAgent that listens for the macOS
+power-on notification. After CoreAudio has settled, the source Mac restores
+BlackHole routing, normalizes both source hardware volumes, and recreates the
+capture and local playback processes. The remote Mac normalizes its speaker and
+recreates Snapclient. This avoids reusing AudioQueues that macOS invalidated
+during sleep.
 
 ## Network Boundary
 

@@ -20,6 +20,7 @@
 #pragma once
 
 // local headers
+#include "coreaudio_queue_health.hpp"
 #include "mono_stereo.hpp"
 #include "player.hpp"
 
@@ -64,9 +65,11 @@ private:
 
     void initAudioQueue();
     void configureOutputDevice(AudioQueueRef queue);
-    void uninitAudioQueue(AudioQueueRef queue);
+    void requestAudioQueueRestart();
 
-    AudioQueueTimelineRef timeLine_;
+    AudioQueueTimelineRef timeLine_ = nullptr;
+    CoreAudioCallbackState callbackState_;
+    bool queueStarted_ = false;
     size_t ms_;
     size_t frames_;
     size_t buff_size_;
