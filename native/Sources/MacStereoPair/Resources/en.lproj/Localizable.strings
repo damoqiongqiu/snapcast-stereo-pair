@@ -128,6 +128,15 @@
 "advanced.subtitle" = "Logs, versions, service maintenance, and raw health data";
 "advanced.close" = "Close";
 "advanced.openLogs" = "Open logs";
+"advanced.maintenance" = "Installation maintenance";
+"advanced.reinstallDescription" = "Force rebuilding replaces the app, Agent, runtime binaries, LaunchAgents, scripts, and templates. Pair configuration, logs, and preferences are preserved.";
+"advanced.reinstall" = "Force reinstall current version…";
+"advanced.reinstallTitle" = "Force reinstall current version?";
+"advanced.reinstallHelp" = "The program and service files will be rebuilt even if this version is already installed. Audio may pause briefly. Configuration will not be removed.";
+"advanced.reinstallConfirm" = "Force reinstall";
+"advanced.reinstallCancel" = "Cancel";
+"advanced.reinstallOpened" = "Terminal opened for reinstallation";
+"advanced.reinstallFailed" = "Could not open the reinstallation helper";
 "advanced.diagnostics" = "Diagnostic export";
 "advanced.diagnosticsHelp" = "Exports are redacted by default. Review the file before sharing it publicly.";
 "advanced.redacted" = "Redact paths, addresses, and tokens";

@@ -51,7 +51,7 @@ Both `left.pcm` and `right.pcm` should be FIFOs owned by the current user. If
 either is missing, rerun:
 
 ```sh
-./integration/scripts/install-local.sh
+./integration/scripts/install-product.sh --force-reinstall
 ```
 
 Do not replace a FIFO with a regular file. A leftover splitter process can also
@@ -74,7 +74,7 @@ Set `LEFT_IS_REMOTE` to match physical placement:
 Then reinstall the local runtime so templates and routing use the new roles:
 
 ```sh
-./integration/scripts/install-local.sh
+./integration/scripts/install-product.sh --force-reinstall
 ```
 
 The controller derives the visible sides from `LeftAudio` and `RightAudio`, not

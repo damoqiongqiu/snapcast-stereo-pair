@@ -17,8 +17,28 @@ install -m 755 "$repo_root/integration/scripts/native-setup-helper.sh" \
   "$support_dir/setup/native-setup-helper.sh"
 print -r -- "$repo_root" > "$support_dir/setup/source-root"
 chmod 600 "$support_dir/setup/source-root"
-rm -rf "$HOME/Applications/MacBook Stereo Pair.app"
-cp -R "$app_path" "$HOME/Applications/MacBook Stereo Pair.app"
+destination_app="$HOME/Applications/MacBook Stereo Pair.app"
+app_backup="$support_dir/state/app-backup/MacBook Stereo Pair.app"
+mkdir -p "$support_dir/state/app-backup"
+chmod 700 "$support_dir/state" "$support_dir/state/app-backup"
+rm -rf "$app_backup"
+if [[ -d "$destination_app" ]]; then
+  mv "$destination_app" "$app_backup"
+fi
+if ! cp -R "$app_path" "$destination_app"; then
+  rm -rf "$destination_app"
+  if [[ -d "$app_backup" ]]; then
+    mv "$app_backup" "$destination_app"
+  fi
+  exit 1
+fi
+if ! codesign --verify --deep --strict "$destination_app"; then
+  rm -rf "$destination_app"
+  if [[ -d "$app_backup" ]]; then
+    mv "$app_backup" "$destination_app"
+  fi
+  exit 1
+fi
 
 source "$repo_root/integration/scripts/pair-config.sh"
 load_pair_config

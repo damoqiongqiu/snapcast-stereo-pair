@@ -11,6 +11,7 @@ struct AdvancedView: View {
     @State private var exportRedacted = true
     @State private var statusMessage: String?
     @State private var restartingServiceID: String?
+    @State private var showsReinstallConfirmation = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,6 +34,7 @@ struct AdvancedView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     versionCard
+                    maintenanceCard
                     diagnosticsCard
                     serviceCard
                     rawSnapshotCard
@@ -43,6 +45,17 @@ struct AdvancedView: View {
         .frame(minWidth: 720, minHeight: 620)
         .background(Theme.background)
         .foregroundStyle(Theme.text)
+        .confirmationDialog(
+            language.text("advanced.reinstallTitle"),
+            isPresented: $showsReinstallConfirmation
+        ) {
+            Button(language.text("advanced.reinstallConfirm"), role: .destructive) {
+                forceReinstall()
+            }
+            Button(language.text("advanced.reinstallCancel"), role: .cancel) {}
+        } message: {
+            Text(verbatim: language.text("advanced.reinstallHelp"))
+        }
     }
 
     private var versionCard: some View {
@@ -88,6 +101,30 @@ struct AdvancedView: View {
                     statusMessage = language.text("advanced.copied")
                 }
                 .disabled(diagnostics.isEmpty)
+                Spacer()
+                if let statusMessage {
+                    Text(verbatim: statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(Theme.muted)
+                }
+            }
+        }
+        .padding(14)
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var maintenanceCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(verbatim: language.text("advanced.maintenance"))
+                .font(.headline)
+            Text(verbatim: language.text("advanced.reinstallDescription"))
+                .font(.caption)
+                .foregroundStyle(Theme.muted)
+            HStack {
+                Button(language.text("advanced.reinstall")) {
+                    showsReinstallConfirmation = true
+                }
                 Spacer()
                 if let statusMessage {
                     Text(verbatim: statusMessage)
@@ -215,6 +252,25 @@ struct AdvancedView: View {
             statusMessage = language.text("advanced.saved")
         } catch {
             statusMessage = error.localizedDescription
+        }
+    }
+
+    private func forceReinstall() {
+        do {
+            let supportDirectory = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Library/Application Support/Snapcast")
+            let helperURL = try InstallationSupport.helperURL(
+                supportDirectory: supportDirectory
+            )
+            let scriptURL = try TerminalScriptBuilder.writeScript(
+                action: .forceReinstallCurrentVersion,
+                helperURL: helperURL,
+                supportDirectory: supportDirectory
+            )
+            try TerminalLauncher().open(scriptURL)
+            statusMessage = language.text("advanced.reinstallOpened")
+        } catch {
+            statusMessage = language.text("advanced.reinstallFailed")
         }
     }
 

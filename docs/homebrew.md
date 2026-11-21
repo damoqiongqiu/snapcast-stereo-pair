@@ -75,6 +75,12 @@ brew update
 brew reinstall --HEAD macbook-stereo-pair
 ```
 
+After updating the Homebrew package, launch the newly copied app and use the
+normal product installer if an upgrade is reported. If detection is incorrect
+or you intentionally want a complete rebuild, use Advanced Diagnostics →
+Installation maintenance → Force reinstall current version. The force path
+keeps user configuration.
+
 Return to system audio before removal:
 
 ```sh

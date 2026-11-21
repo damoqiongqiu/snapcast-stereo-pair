@@ -18,6 +18,10 @@
   the app never reads local administrator or remote SSH passwords.
 - Add native app packaging, ad-hoc signing, source Homebrew packaging, and
   expanded release checks.
+- Add manifest-driven repeat installation, repair, upgrade detection, explicit
+  downgrade rejection, installation locking, and configuration schema checks.
+- Add a user-visible force-reinstall path that rebuilds all program and service
+  files while preserving pair configuration, logs, and preferences.
 - Normalize BlackHole, local speaker, and remote speaker hardware volumes to
   100% independently of the selected macOS output device.
 - Write and verify both virtual and physical CoreAudio main-volume controls.

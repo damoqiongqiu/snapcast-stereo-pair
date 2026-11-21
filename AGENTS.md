@@ -39,6 +39,7 @@ integration/test/test-pair-routing.sh
 integration/test/test-wake-recovery.sh
 integration/test/test-control-plane.sh
 integration/test/test-mode-transitions.sh
+integration/test/test-install-lifecycle.sh
 integration/test/test-control-agent-install.sh
 integration/test/test-native-app-packaging.sh
 integration/test/test-homebrew-formula.sh
@@ -101,6 +102,14 @@ macOS and BlackHole versions when changing audio behavior.
 - Native control uses an owner-only Unix socket with peer UID validation and
   fixed commands; never accept executable paths or shell fragments.
 - Redact diagnostics by default and never upload them automatically.
+- Repeated installs are manifest-driven: verified same-version installs are
+  no-ops, missing or changed files are repaired, upgrades are allowed, and
+  accidental downgrades fail.
+- Always keep an explicit user-facing force-reinstall override. It replaces all
+  program and service files but preserves pair configuration, remote control
+  state, logs, and user preferences.
+- Clearing user configuration is a separate destructive operation and must not
+  be folded into force reinstall.
 
 ## Licensing
 

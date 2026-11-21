@@ -132,4 +132,11 @@ final class SetupProbeTests: XCTestCase {
             try SetupAction.configureRemote(user: "tester", host: "host name")
         )
     }
+
+    func testForceReinstallActionUsesTheLifecycleHelperCommand() {
+        XCTAssertEqual(
+            SetupAction.forceReinstallCurrentVersion.arguments,
+            ["force-reinstall"]
+        )
+    }
 }

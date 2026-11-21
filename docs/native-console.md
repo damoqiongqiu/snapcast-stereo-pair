@@ -120,3 +120,30 @@ The first release builds from source and is ad-hoc signed. It is not notarized,
 does not require paid Apple Developer membership, has no App Store dependency,
 and has no automatic updater. See [installation.md](installation.md) and
 [homebrew.md](homebrew.md) for distribution details.
+
+## Reinstall and Upgrade
+
+Installation is manifest-driven. The installer writes:
+
+```text
+~/Library/Application Support/Snapcast/state/installation.json
+```
+
+Repeated installation checks:
+
+- product and config schema versions;
+- control protocol version;
+- required app, Agent, CLI, runtime, script, and LaunchAgent files;
+- a digest of installed executable, generated service, pairing configuration,
+  and remote control files.
+
+An unchanged installation is left running. Missing or changed files trigger a
+repair, a newer product version triggers an upgrade, and an older product
+version is rejected unless the user explicitly forces a downgrade.
+
+The user-facing force override is always available at **Advanced Diagnostics →
+Installation maintenance → Force reinstall current version**. It deliberately
+skips the “already installed” decision and rebuilds all program and service
+files. Configuration, remote control state, logs, and preferences remain in
+place. Removing configuration must remain a separate, explicit destructive
+action.

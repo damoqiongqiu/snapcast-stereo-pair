@@ -157,21 +157,25 @@ private network information.
 
 ## Install the Runtime
 
-On the source Mac:
+On the source Mac, run the product installer:
 
 ```sh
-./integration/scripts/install-local.sh
+./integration/scripts/install-product.sh
 ```
 
-This builds the binaries, creates the FIFOs and launchd service files, changes
-the local system output to BlackHole, and starts the local runtime. The local
-Snapclient still plays through the built-in speaker.
+This builds and installs the audio runtime, native application, control Agent,
+CLI, LaunchAgents, scripts, and setup helper. Re-running it is safe: matching
+files are left untouched, missing or modified files are repaired, and a newer
+version is treated as an upgrade.
 
-Install the native application, control Agent, and CLI:
+The installer records its state at:
 
-```sh
-./integration/scripts/install-native.sh
+```text
+~/Library/Application Support/Snapcast/state/installation.json
 ```
+
+The manifest stores the product version, control protocol version, configuration
+schema, installation source, and file digest.
 
 The app is installed at:
 
@@ -183,6 +187,17 @@ Launch it to use the first-run wizard. The wizard checks dependencies, hands
 password-requiring work to Terminal, configures SSH key authentication, and
 verifies both channel routes before opening the console. The app never reads or
 stores an SSH password.
+
+If automatic detection is wrong, or a clean rebuild is required, use **Advanced
+Diagnostics → Installation maintenance → Force reinstall current version**, or:
+
+```sh
+./integration/scripts/install-product.sh --force-reinstall
+```
+
+Force reinstall replaces all program and service files. It preserves
+`pair.env`, remote control configuration, logs, and user preferences. Clearing
+configuration is a separate destructive operation.
 
 Install the remote client from the same source Mac:
 
@@ -379,6 +394,7 @@ integration/test/test-pair-routing.sh
 integration/test/test-wake-recovery.sh
 integration/test/test-control-plane.sh
 integration/test/test-mode-transitions.sh
+integration/test/test-install-lifecycle.sh
 integration/test/test-control-agent-install.sh
 integration/test/test-native-app-packaging.sh
 integration/test/test-homebrew-formula.sh

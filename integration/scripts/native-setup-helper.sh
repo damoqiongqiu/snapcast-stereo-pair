@@ -21,10 +21,13 @@ validate_remote_host() {
 }
 
 install_local() {
-  "$repo_root/integration/scripts/install-native.sh"
-  PAIR_LOCAL_ONLY=1 "$repo_root/integration/scripts/install-local.sh"
+  "$repo_root/integration/scripts/install-product.sh"
   print
   print "Local stereo-pair runtime installation completed."
+}
+
+force_reinstall() {
+  "$repo_root/integration/scripts/install-product.sh" --force-reinstall
 }
 
 configure_remote() {
@@ -62,8 +65,7 @@ configure_remote() {
   /usr/bin/ssh -o BatchMode=yes -o ConnectTimeout=3 \
     "$remote_user@$remote_host" true >/dev/null
 
-  "$repo_root/integration/scripts/install-native.sh"
-  "$repo_root/integration/scripts/install-local.sh"
+  "$repo_root/integration/scripts/install-product.sh"
   "$repo_root/integration/scripts/install-remote.sh"
   print
   print "Remote stereo-pair setup completed."
@@ -73,6 +75,9 @@ case "${1:-}" in
   install-local)
     install_local
     ;;
+  force-reinstall)
+    force_reinstall
+    ;;
   configure-remote)
     [[ $# -eq 3 ]] || {
       print -u2 "Usage: $0 configure-remote USER HOST"
@@ -81,7 +86,7 @@ case "${1:-}" in
     configure_remote "$2" "$3"
     ;;
   *)
-    print -u2 "Usage: $0 {install-local|configure-remote USER HOST}"
+    print -u2 "Usage: $0 {install-local|force-reinstall|configure-remote USER HOST}"
     exit 2
     ;;
 esac

@@ -44,6 +44,7 @@ public enum SetupValidationError: Error, Equatable {
 
 public enum SetupAction: Equatable, Sendable {
     case installLocalRuntime
+    case forceReinstallCurrentVersion
     case remoteConfiguration(user: String, host: String)
 
     public init(user: String, host: String) throws {
@@ -67,6 +68,8 @@ public enum SetupAction: Equatable, Sendable {
         switch self {
         case .installLocalRuntime:
             return ["install-local"]
+        case .forceReinstallCurrentVersion:
+            return ["force-reinstall"]
         case .remoteConfiguration(let user, let host):
             return ["configure-remote", user, host]
         }
