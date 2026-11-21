@@ -17,12 +17,12 @@ final class DiagnosticsTests: XCTestCase {
                     runs: 3,
                     lastExitCode: 1,
                     lastSuccessAgeSeconds: 2,
-                    message: "failed /Users/felix/Library/Application Support/Snapcast and user@192.168.0.120"
+                    message: "failed /Users/tester/Library/Application Support/Snapcast and user@198.51.100.20"
                 )
             ],
             channels: [],
             streams: [],
-            issues: ["Cannot reach bot01@192.168.0.120 through /Users/felix/.ssh/id_ed25519"],
+            issues: ["Cannot reach tester@198.51.100.20 through /Users/tester/.ssh/id_ed25519"],
             updatedAt: Date(timeIntervalSince1970: 1_700_000_000)
         )
 
@@ -36,9 +36,9 @@ final class DiagnosticsTests: XCTestCase {
 
         XCTAssertEqual(report.protocolVersion, controlProtocolVersion)
         XCTAssertEqual(report.runtimeVersion, "0.2.0")
-        XCTAssertFalse(json.contains("/Users/felix"))
-        XCTAssertFalse(json.contains("192.168.0.120"))
-        XCTAssertFalse(json.contains("bot01"))
+        XCTAssertFalse(json.contains("/Users/tester"))
+        XCTAssertFalse(json.contains("198.51.100.20"))
+        XCTAssertFalse(json.contains("tester"))
         XCTAssertTrue(json.contains("<redacted>"))
     }
 

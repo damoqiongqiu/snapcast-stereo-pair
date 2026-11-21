@@ -32,6 +32,11 @@ status_json="$(SNAPCAST_CONTROL_SOCKET="$socket" "$bin_dir/mac-stereo-pairctl" s
 print -r -- "$status_json" | jq -e 'has("snapshot")' >/dev/null
 print -r -- "$status_json" | jq -e '.snapshot._0.protocolVersion == 1' >/dev/null
 
+diagnostics_json="$(SNAPCAST_CONTROL_SOCKET="$socket" "$bin_dir/mac-stereo-pairctl" diagnostics)"
+print -r -- "$diagnostics_json" | jq -e '.diagnostics.requestId' >/dev/null
+print -r -- "$diagnostics_json" | jq -r '.diagnostics.json' | jq -e \
+  '.protocolVersion == 1 and .runtimeVersion != null and .schemaVersion == 1' >/dev/null
+
 set +e
 "$bin_dir/mac-stereo-pairctl" unknown-command >/dev/null 2>&1
 unknown_status=$?

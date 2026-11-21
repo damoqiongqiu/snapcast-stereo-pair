@@ -14,7 +14,7 @@ final class SnapserverDecodingTests: XCTestCase {
               "stream_id": "LeftAudio",
               "clients": [
                 {
-                  "id": "mac120",
+                  "id": "left-test-client",
                   "connected": true,
                   "config": {
                     "volume": {"percent": 58, "muted": false},
@@ -28,7 +28,7 @@ final class SnapserverDecodingTests: XCTestCase {
               "stream_id": "RightAudio",
               "clients": [
                 {
-                  "id": "mac122",
+                  "id": "right-test-client",
                   "connected": true,
                   "config": {
                     "volume": {"percent": 52, "muted": true},
@@ -60,10 +60,10 @@ final class SnapserverDecodingTests: XCTestCase {
 
         XCTAssertEqual(status.healthIssues, [])
         XCTAssertEqual(status.channels.count, 2)
-        XCTAssertEqual(status.channels[0].clientId, "mac120")
+        XCTAssertEqual(status.channels[0].clientId, "left-test-client")
         XCTAssertEqual(status.channels[0].streamId, "LeftAudio")
         XCTAssertEqual(status.channels[0].volume, 58)
-        XCTAssertEqual(status.channels[1].clientId, "mac122")
+        XCTAssertEqual(status.channels[1].clientId, "right-test-client")
         XCTAssertEqual(status.channels[1].volume, 52)
         XCTAssertTrue(status.channels[1].muted)
         XCTAssertEqual(status.channels[1].latencyMs, 12)

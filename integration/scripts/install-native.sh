@@ -10,8 +10,13 @@ uid="$(id -u)"
 app_path="$repo_root/.build/MacBook Stereo Pair.app"
 "$repo_root/native/Packaging/build-app.sh"
 mkdir -p "$support_dir/bin" "$launch_dir" "$HOME/Applications"
+mkdir -p "$support_dir/setup"
 install -m 755 "$repo_root/native/.build/release/StereoPairAgent" "$support_dir/bin/StereoPairAgent"
 install -m 755 "$repo_root/native/.build/release/mac-stereo-pairctl" "$support_dir/bin/mac-stereo-pairctl"
+install -m 755 "$repo_root/integration/scripts/native-setup-helper.sh" \
+  "$support_dir/setup/native-setup-helper.sh"
+print -r -- "$repo_root" > "$support_dir/setup/source-root"
+chmod 600 "$support_dir/setup/source-root"
 rm -rf "$HOME/Applications/MacBook Stereo Pair.app"
 cp -R "$app_path" "$HOME/Applications/MacBook Stereo Pair.app"
 

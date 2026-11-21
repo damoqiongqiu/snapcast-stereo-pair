@@ -36,6 +36,7 @@ for pattern in "${checks[@]}"; do
     --glob '!node_modules/**' \
     --glob '!dist/**' \
     --glob '!.build*/**' \
+    --glob '!**/.build*/**' \
     --glob '!.playwright-cli/**' \
     --glob '!output/**' \
     --glob '!docs/superpowers/**' \
@@ -49,7 +50,8 @@ fi
 
 large_files="$(find . -path ./.git -prune -o -path ./node_modules -prune \
   -o -path ./dist -prune -o -path ./.build-tests -prune \
-  -o -path ./.build-ci -prune -o -path ./bin -prune \
+  -o -path ./.build-ci -prune -o -path ./.build -prune \
+  -o -path '*/native/.build' -prune -o -path ./bin -prune \
   -o -type f -size +10M -print)"
 if [[ -n "$large_files" ]]; then
   print -u2 "Files larger than 10 MiB:"
