@@ -31,7 +31,7 @@ fi
 print "Local processes:"
 pgrep -ifl 'snapserver|snapclient|snapcast-capture-blackhole' || print "  none"
 
-for label in com.snapcast.server com.snapcast.splitter com.snapcast.local-client com.snapcast.pairing com.snapcast.wake-recovery; do
+for label in com.snapcast.server com.snapcast.splitter com.snapcast.local-client com.snapcast.pairing com.snapcast.wake-recovery com.snapcast.control-agent; do
   print "\n$label:"
   launchctl print "gui/$uid/$label" 2>/dev/null | rg 'state =|runs =|pid =' | head -3 || print "  not loaded"
 done

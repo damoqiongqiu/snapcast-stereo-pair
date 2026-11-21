@@ -14,6 +14,7 @@ require_pair_config
 compute_pair_roles
 
 "$repo_root/integration/scripts/build-macos.sh"
+"$repo_root/native/Packaging/build-native.sh"
 homebrew_bin="$(brew --prefix)/bin"
 
 mkdir -p "$support_dir/bin" "$support_dir/data" "$log_dir" "$launch_dir" "$run_dir"
@@ -29,13 +30,15 @@ install -m 755 "$repo_root/.build/bin/snapserver" "$support_dir/bin/snapserver"
 install -m 755 "$repo_root/.build/bin/snapclient" "$support_dir/bin/snapclient"
 install -m 755 "$repo_root/.build/bin/set-audio-volume" "$support_dir/bin/set-audio-volume"
 install -m 755 "$repo_root/.build/bin/wake-recovery-listener" "$support_dir/bin/wake-recovery-listener"
+install -m 755 "$repo_root/native/.build/release/StereoPairAgent" "$support_dir/bin/StereoPairAgent"
+install -m 755 "$repo_root/native/.build/release/mac-stereo-pairctl" "$support_dir/bin/mac-stereo-pairctl"
 install -m 755 "$repo_root/.build/bin/capture-blackhole" "$homebrew_bin/snapcast-capture-blackhole"
 install -m 644 "$repo_root/integration/capture/capture-blackhole-pa.c" "$support_dir/capture-blackhole-pa.c"
 render_pair_template \
   "$repo_root/integration/config/snapserver.conf.in" \
   "$support_dir/snapserver.conf"
 
-for name in server local-client route splitter pairing wake-recovery; do
+for name in server local-client route splitter pairing wake-recovery control-agent; do
   render_pair_template \
     "$repo_root/integration/launchagents/$name.plist.in" \
     "$launch_dir/com.snapcast.$name.plist"
@@ -63,7 +66,7 @@ render_pair_template \
   "$support_dir/wake-recovery-local.sh"
 chmod 755 "$support_dir/wake-recovery-local.sh"
 
-for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery; do
+for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery com.snapcast.control-agent; do
   launchctl bootout "gui/$uid/$label" 2>/dev/null || true
 done
 sleep 1
@@ -75,6 +78,9 @@ launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.splitter.plist"
 launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.local-client.plist"
 launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.pairing.plist"
 launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.wake-recovery.plist"
+if [[ -x "$support_dir/bin/StereoPairAgent" ]]; then
+  launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.control-agent.plist"
+fi
 
 print "Installed local Snapcast stereo-pair services."
 print "Check status with: $repo_root/integration/scripts/check-health.sh"
