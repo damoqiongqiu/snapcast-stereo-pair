@@ -20,7 +20,7 @@ audio engine.
 - `integration/config/`: public configuration example and templates.
 - `integration/launchagents/`: rendered per-user service templates.
 - `integration/scripts/`: install, routing, mode, health, and maintenance.
-- `integration/test/`: configuration and routing tests.
+- `integration/test/`: configuration, routing, volume, and wake-recovery tests.
 - `docs/`: public architecture, installation, security, and maintenance docs.
 
 ## Required Checks

@@ -19,6 +19,8 @@ desk. Playback on both Macs follows one Snapcast clock.
 - Runs Snapserver and the local Snapclient as per-user launchd services.
 - Binds the local client explicitly to the built-in speaker while system audio
   continues to flow through BlackHole.
+- Applies listening volume in CoreAudio after decoding, leaving the received
+  PCM chunks at full scale.
 - Installs and configures a remote Snapclient over SSH without storing a
   password.
 - Uses stable role names and stream-based routing, so client IDs and left/right
@@ -322,7 +324,9 @@ is expanded.
 ```sh
 ./integration/scripts/build-macos.sh
 integration/test/test-pair-config.sh
+integration/test/test-audio-levels.sh
 integration/test/test-pair-routing.sh
+integration/test/test-wake-recovery.sh
 zsh -n integration/scripts/*.sh integration/test/*.sh
 plutil -lint integration/launchagents/*.plist.in
 ```

@@ -192,11 +192,89 @@ index 00000000..8da24cde
 +    attributes:
 +      label: Quality, latency, security, or compatibility risks
 +
+diff --git a/.github/PULL_REQUEST_TEMPLATE.md b/.github/PULL_REQUEST_TEMPLATE.md
+new file mode 100644
+index 00000000..6e2e7299
+--- /dev/null
++++ b/.github/PULL_REQUEST_TEMPLATE.md
+@@ -0,0 +1,35 @@
++## Summary
++
++Describe the user-visible problem and the completed change.
++
++## Repository boundary
++
++- [ ] The change belongs in the required audio runtime, not only the browser
++      controller.
++- [ ] Companion-repository behavior remains compatible or is documented.
++
++## Tests
++
++List automated and manual checks:
++
++```text
++commands and results
++```
++
++## Audio/device impact
++
++Describe changes to capture devices, output devices, stream format, routing,
++latency, buffer size, CPU, network payload, or launchd behavior. Write `None`
++when unaffected.
++
++## Privacy
++
++- [ ] No personal IPs, usernames, paths, secrets, logs, or generated files
++- [ ] Logs and reproduction data are redacted
++- [ ] `pair.env` and rendered local configuration are not included
++
++## Licensing
++
++- [ ] GPL notices and upstream attribution remain intact
++- [ ] New third-party material is compatible with GPL-3.0-or-later and noted
++      where required
+diff --git a/.github/pull_request_template.md b/.github/pull_request_template.md
+deleted file mode 100644
+index 5d0e429c..00000000
+--- a/.github/pull_request_template.md
++++ /dev/null
+@@ -1,31 +0,0 @@
+-[Describe your pull request here. Please read the text below the line, and make sure you follow the checklist.]
+-
+-* * *
+-
+-## Pull Request Checklist
+-
+-* Contributions must be licensed under the [GPL-3.0 License](LICENSE)
+-
+-* This project loosely follows the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html)
+-
+-* For better compatibility with embedded toolchains, the used C++ standard should be limited to C++17
+-
+-* Code should be formatted by running `make reformat`
+-
+-* Branch from the `develop` branch and ensure it is up to date with the current `develop` branch before submitting your pull request. If it doesn't merge cleanly with `develop`, you may be asked to resolve the conflicts. Pull requests to master will be closed.
+-
+-* Commits should be as small as possible while ensuring that each commit is correct independently (i.e., each commit should compile and pass tests).
+-
+-* Pull requests must not contain compiled sources (already set by the default .gitignore) or binary files
+-
+-* Test your changes as thoroughly as possible before you commit them. Preferably, automate your test by unit/integration tests. If tested manually, provide information about the test scope in the PR description (e.g. “Test passed: Upgrade version from 0.42 to 0.42.23.”).
+-
+-* Create _Work In Progress [WIP]_ pull requests only if you need clarification or an explicit review before you can continue your work item.
+-
+-* If your patch is not getting reviewed or you need a specific person to review it, you can @-reply a reviewer asking for a review in the pull request or a comment, or you can ask for a review by contacting us via [email](mailto:snapcast@badaix.de).
+-
+-* Post review:
+-  * If a review requires you to change your commit(s), please test the changes again.
+-  * Amend the affected commit(s) and force push onto your branch.
+-  * Set respective comments in your GitHub review to resolved.
+-  * Create a general PR comment to notify the reviewers that your amendments are ready for another round of review.
 diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
-index 141ec1e7..0155cb77 100644
+index 141ec1e7..f0941a04 100644
 --- a/.github/workflows/ci.yml
 +++ b/.github/workflows/ci.yml
-@@ -4,403 +4,45 @@ on:
+@@ -4,403 +4,46 @@ on:
    push:
    pull_request:
  
@@ -631,6 +709,7 @@ index 141ec1e7..0155cb77 100644
 +          integration/test/test-pair-config.sh
 +          integration/test/test-audio-levels.sh
 +          integration/test/test-pair-routing.sh
++          integration/test/test-wake-recovery.sh
 +      - name: Validate shell and plists
 +        run: |
 +          zsh -n integration/scripts/*.sh integration/test/*.sh
@@ -667,10 +746,10 @@ index a21f71d9..70a452e6 100644
  extras/package/debian/snap*.debhelper.log
 diff --git a/AGENTS.md b/AGENTS.md
 new file mode 100644
-index 00000000..9f779c3e
+index 00000000..f8663c3f
 --- /dev/null
 +++ b/AGENTS.md
-@@ -0,0 +1,88 @@
+@@ -0,0 +1,95 @@
 +# Repository Instructions
 +
 +This repository is the required macOS audio runtime for the
@@ -693,7 +772,7 @@ index 00000000..9f779c3e
 +- `integration/config/`: public configuration example and templates.
 +- `integration/launchagents/`: rendered per-user service templates.
 +- `integration/scripts/`: install, routing, mode, health, and maintenance.
-+- `integration/test/`: configuration and routing tests.
++- `integration/test/`: configuration, routing, volume, and wake-recovery tests.
 +- `docs/`: public architecture, installation, security, and maintenance docs.
 +
 +## Required Checks
@@ -705,6 +784,7 @@ index 00000000..9f779c3e
 +integration/test/test-pair-config.sh
 +integration/test/test-audio-levels.sh
 +integration/test/test-pair-routing.sh
++integration/test/test-wake-recovery.sh
 +zsh -n integration/scripts/*.sh integration/test/*.sh
 +plutil -lint integration/launchagents/*.plist.in
 +./scripts/check-public-tree.sh
@@ -738,6 +818,12 @@ index 00000000..9f779c3e
 +  system output is BlackHole.
 +- Keep BlackHole, the local built-in speaker, and the remote output device at
 +  100% hardware volume; use Snapcast volume for normal listening.
++- Keep both CoreAudio main-volume controls (`vmvc` and `volm`) normalized when
++  the device exposes them.
++- Apply CoreAudio listening volume through `AudioQueueSetParameter`; do not
++  attenuate the integer PCM buffer during software-mixer operation.
++- Recreate capture and playback queues after wake; never dispose an AudioQueue
++  from one of its own callbacks.
 +- Preserve timeline continuity for scheduling jitter below the discontinuity
 +  threshold.
 +- Do not add lossy codecs or resampling to the default path without measured
@@ -759,6 +845,44 @@ index 00000000..9f779c3e
 +provenance. Record material third-party dependencies in `NOTICE.md`. This is an
 +unofficial fork and must not be described as an official Snapcast release.
 +
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+new file mode 100644
+index 00000000..2cd75e4f
+--- /dev/null
++++ b/CHANGELOG.md
+@@ -0,0 +1,32 @@
++# Changelog
++
++## Unreleased
++
++- Normalize BlackHole, local speaker, and remote speaker hardware volumes to
++  100% independently of the selected macOS output device.
++- Write and verify both virtual and physical CoreAudio main-volume controls.
++- Add CoreAudio volume diagnostics and prevent pre-capture attenuation from
++  making Snapcast volume appear quieter than native playback.
++- Defer CoreAudio queue disposal until after its callback returns, and recreate
++  queues when the timeline is invalidated.
++- Add source and remote wake-recovery LaunchAgents that restore routing,
++  hardware volume, capture, and playback after sleep.
++- Apply CoreAudio listening volume through the AudioQueue floating-point volume
++  parameter so network PCM remains at full scale.
++
++## v0.1.0 - 2026-11-20
++
++First public source release.
++
++- Two-MacBook left/right channel split.
++- 48 kHz / 24-bit mono PCM streams with synchronized playback.
++- 20 ms chunks and 200 ms stream buffer.
++- BlackHole capture through PortAudio with no additional capture processing.
++- Generic role-based configuration and rendered launchd templates.
++- Intel and Apple Silicon Homebrew path support.
++- Bilingual English/Simplified Chinese controller integration.
++- Responsive full-width controller interface.
++- Runtime health checks, stream-based routing, native-mode recovery, and
++  public-tree validation.
++
++Upstream base: Snapcast `v0.35.0`.
 diff --git a/CODE_OF_CONDUCT.md b/CODE_OF_CONDUCT.md
 new file mode 100644
 index 00000000..9673d47a
@@ -1007,10 +1131,10 @@ index 00000000..879f51e9
 +```
 +
 diff --git a/README.md b/README.md
-index 2af80ea5..e1344054 100644
+index 2af80ea5..49255564 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,250 +1,343 @@
+@@ -1,250 +1,356 @@
 -# Snapcast
 -
 -<picture>
@@ -1073,6 +1197,8 @@ index 2af80ea5..e1344054 100644
 +- Runs Snapserver and the local Snapclient as per-user launchd services.
 +- Binds the local client explicitly to the built-in speaker while system audio
 +  continues to flow through BlackHole.
++- Applies listening volume in CoreAudio after decoding, leaving the received
++  PCM chunks at full scale.
 +- Installs and configures a remote Snapclient over SSH without storing a
 +  password.
 +- Uses stable role names and stream-based routing, so client IDs and left/right
@@ -1152,8 +1278,11 @@ index 2af80ea5..e1344054 100644
 +- SSH key authentication from the source Mac to the remote Mac for unattended
 +  remote installation.
 +
-+The primary validated environment is an Apple Silicon MacBook Pro M4 running
-+macOS 27.2.1 with BlackHole 2ch and PortAudio from Homebrew.
++The primary validated environment is a pair of MacBook Pro `Mac16,1` systems
++with Apple M4 (arm64), 24 GB and 16 GB memory, running macOS 27.2.1 (26B131).
++The source Mac uses BlackHole 2ch 0.7.1 and PortAudio from Homebrew. Hardware
++validation covers cold start, native-mode switching, sleep/wake recovery with
++both systems, and independent `vmvc`/`volm` volume restoration.
 +
 +## Install BlackHole
 +
@@ -1251,9 +1380,9 @@ index 2af80ea5..e1344054 100644
  ```
  
 -Available stream sources are:
-+The remote install copies the patched Snapclient and its LaunchAgent. The remote
-+Mac does not need BlackHole or the Snapserver. It must already accept your SSH
-+key.
++The remote install copies the patched Snapclient, wake listener, and both
++LaunchAgents. The remote Mac does not need BlackHole or the Snapserver. It must
++already accept your SSH key.
  
 -- [pipe](doc/configuration.md#pipe): read audio from a named pipe
 -- [alsa](doc/configuration.md#alsa): read audio from an alsa device
@@ -1329,15 +1458,17 @@ index 2af80ea5..e1344054 100644
 +- Stream listening port: TCP `1704`.
 +- HTTP controller and TCP control APIs: localhost only.
 +- Approximate PCM payload: 192,000 bytes/s or 1.54 Mbit/s per mono stream.
++- Listening volume: CoreAudio AudioQueue parameter, after PCM decoding and
++  channel expansion; the integer stream buffer is not attenuated.
 +
 +The 200 ms buffer was the lowest stable setting on the validated Wi-Fi setup.
 +150 ms produced occasional underruns, and 100 ms produced immediate
 +discontinuities in that environment.
 +
-+Hardware volume is normalized before the services start. In pair mode, changing
-+the macOS output-volume slider while BlackHole is selected only changes the
-+capture level; it does not represent the built-in speaker volume. Use the
-+controller's total or per-device volume for normal listening.
++Hardware volume is normalized before the services start and after wake. In pair
++mode, changing the macOS output-volume slider while BlackHole is selected only
++changes the capture level; it does not represent the built-in speaker volume.
++Use the controller's total or per-device volume for normal listening.
 +
 +## Operations
 +
@@ -1350,12 +1481,14 @@ index 2af80ea5..e1344054 100644
 +com.snapcast.local-client
 +com.snapcast.pairing
 +com.snapcast.remote-client
++com.snapcast.wake-recovery
++com.snapcast.remote-wake-recovery
  ```
  
 -When you are using a Raspberry Pi, you might have to change your audio output to the 3.5mm jack:
-+The first five run on the source Mac. `com.snapcast.remote-client` is installed
-+only on the remote Mac. Switch between the stereo pair and normal local audio
-+with:
++The first six run on the source Mac. `com.snapcast.remote-client` and
++`com.snapcast.remote-wake-recovery` are installed only on the remote Mac. Switch
++between the stereo pair and normal local audio with:
  
 -``` shell
 -# The last number is the audio output with 1 being the 3.5 jack, 2 being HDMI and 0 being auto.
@@ -1408,6 +1541,8 @@ index 2af80ea5..e1344054 100644
 +- If one side is reversed, change `LEFT_IS_REMOTE` and reinstall the routing
 +  configuration.
 +- If audio drops out, inspect the 200 ms buffer and recent underrun warnings.
++- If audio breaks after sleep, verify both wake-recovery LaunchAgents are
++  running.
 +- If one side is quieter, run the health check and confirm both hardware levels
 +  are 100% before changing Snapcast volume.
  
@@ -1480,7 +1615,9 @@ index 2af80ea5..e1344054 100644
 +```sh
 +./integration/scripts/build-macos.sh
 +integration/test/test-pair-config.sh
++integration/test/test-audio-levels.sh
 +integration/test/test-pair-routing.sh
++integration/test/test-wake-recovery.sh
 +zsh -n integration/scripts/*.sh integration/test/*.sh
 +plutil -lint integration/launchagents/*.plist.in
 +```
@@ -1847,6 +1984,1040 @@ index 00000000..6fbbeb82
 +https://github.com/damoqiongqiu/snapweb-stereo-pair/security/advisories/new
 +```
 +
+diff --git a/changelog.md b/changelog.md
+deleted file mode 100644
+index edf5b5b2..00000000
+--- a/changelog.md
++++ /dev/null
+@@ -1,1028 +0,0 @@
+-# Snapcast changelog
+-
+-## Version 0.35.0
+-
+-### Features
+-
+-- Client: Add SDL2 player for better portability (PR #1460)
+-- Server: Add option for a default source (PR #1494, Issue #1316)
+-
+-### Bugfixes
+-
+-- Server: End control script when Stream.RemoveStream is called (Issue #1455)
+-- Server: Close TCP server when Stream.RemoveStream is called (Issue #1497)
+-
+-### General
+-
+-- CI: remove gcc-9
+-- Move project to https://github.com/snapcast/snapcast (Issue #1458)
+-- Doc: Update README with Snapclient for ESP32 details (PR #1468, Issue #1501)
+-- Doc: Update README with snapmixer (CLI volume control) details (PR #1490)
+-- Doc: Include correct samplerate in the go-librespot example (PR #1504)
+-- Doc: Update param name in librespot example (PR #1476)
+-
+-### Contributors
+-
+-- @badaix
+-- @malkstar
+-- @CarlosDerSeher
+-- @tremby
+-- @genericuser256
+-- @flocke
+-- @olorin
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sun, 08 Mar 2026 00:13:37 +0200_
+-
+-# Snapcast changelog
+-
+-## Version 0.34.0
+-
+-### Features
+-
+-- CI: Build packages for Raspberry Pi OS trixie (Issue #1429)
+-
+-### Bugfixes
+-
+-- Fix file utils include (PR #1447)
+-- Fix pipewire / jack mixup in documentation (PR #1450)
+-
+-### General
+-
+-- Snapweb: Update to v0.9.2
+-
+-### Contributors
+-
+-- @badaix
+-- @djmaze
+-- @W-Floyd
+-
+-_Johannes Pohl <snapcast@badaix.de>  Thu, 02 Oct 2025 00:13:37 +0200_
+-
+-## Version 0.33.0
+-
+-### Features
+-
+-- Server: Add PipeWire stream reader (PR #1418, Issue #1371)
+-- Client: Add PipeWire player (PR #1420, Issue #1419, #821)
+-- Server: process stream sources can be added via RPC (Issue #1359, PR #1444)
+-- Server: mDNS can be disabled (Issue #1172, PR #1437)
+-- Server: Audio streaming over plain TCP (port 1704) can be disabled (PR #1437)
+-- Server: Add control script for `go-librespot` (PR #1433, Issue #1424)
+-
+-### Bugfixes
+-
+-- Client: Fix case of command line arguments (Issue #1411)
+-- Client: Fix deadlock during shutdown (PR #1415)
+-- Fix building with boost v1.89.0 (Issues #1413)
+-- Fix MacOS CI (PR #1446)
+-
+-### General
+-
+-- Server: Log warning if default config is missing (PR #1402)
+-- Server: Make SSL support optional (`-DBUILD_WITH_SSL`) (Issue #1426, PR #1427)
+-- Make ALSA optional (PR #1422)
+-- Enable OpenSSL support for Android builds in `CMakeLists.txt` (PR #1373)
+-- Update Readme (PR #1431)
+-- Build Trixie packages for amd64 (Issue #1429)
+-- `tcp` section in `snapserver.conf` renamed to `tcp-control` (PR #1437)
+-- TCP streaming settings moved from `stream` to `tcp-streaming` (PR #1437)
+-
+-### Contributors
+-
+-- @badaix
+-- @mafrosis
+-- @aanno
+-- @filmor
+-- @sajjadsabzkar
+-- @MickMorley
+-- @lucianm
+-
+-_Johannes Pohl <snapcast@badaix.de>  Tue, 23 Sep 2025 00:13:37 +0200_
+-
+-## Version 0.32.3
+-
+-### Features
+-
+-### Bugfixes
+-
+-- Server: re-add port to host in json RPC stream requests (Issue #1410)
+-- Documentation: Update Windows build instructions (PR #1408)
+-
+-### General
+-
+-### Contributors
+-
+-- @stijnvdb88
+-- @badaix
+-
+-_Johannes Pohl <snapcast@badaix.de>  Fri, 08 Aug 2025 00:13:37 +0200_
+-
+-## Version 0.32.2
+-
+-### Bugfixes
+-
+-- Fix building Snapclient debian package with Pulse audio (Issue #1406)
+-
+-### Contributors
+-
+-- @badaix
+-
+-_Johannes Pohl <snapcast@badaix.de>  Tue, 05 Aug 2025 00:13:37 +0200_
+-
+-## Version 0.32.1
+-
+-### Bugfixes
+-
+-- Add OpenSSL dlls to Windows bundle (Issue #1405)
+-
+-### Contributors
+-
+-- @badaix
+-
+-_Johannes Pohl <snapcast@badaix.de>  Mon, 04 Aug 2025 00:13:37 +0200_
+-
+-## Version 0.32.0
+-
+-### Features
+-
+-- Client: Add support for (secure-) websockets (Issue #1325, PR #1340)
+-- Server: Add client certificate validation (Issue #1334)
+-- Server: Add control script for Plex (PR #1346)
+-
+-### Bugfixes
+-
+-- Fix typos (PR #1333, PR #1341, PR #1345)
+-- Add `mpv` option `--ao-pcm-waveheader=no` on player setup page (Issue #1094)
+-- Fix clang-tidy static analysis issues (Issue #1354)
+-- Fix building with Jack on Fedora (Issue #1363)
+-- Snapserver silently ignores if config file cannot be read (Issue #1402) 
+-- Add required packages to build instructions (Issue #1397)
+-- Fix stream URI string encoding (PR #1398)
+-- Fix reading port for TCP streams (PR #1399)
+-
+-### General
+-
+-- Snapweb: Update to v0.9.1
+-- Client: Command line arguments '--host' and '--port' are deprecated
+-- Update binary_protocol.md (Issue #1339)
+-- Add missing doxygen code documentation (Issue #1352)
+-- Add clang-tidy static analysis to CI (Issue #1353)
+-- Compiles with boost v1.88.0 (Issue #1367, PR #1378, PR #1387)
+-- Add Music Assistant project to readme (PR #1366)
+- 
+-### Contributors
+-
+-- @chicco-carone
+-- @rnestler
+-- @badaix
+-- @chriscn
+-- @SantiagoSotoC
+-- @tobster
+-- @gnumpi
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sun, 03 Aug 2025 00:13:37 +0200_
+-
+-## Version 0.31.0
+-
+-### Features
+-
+-- Server: Add secure RPC method `Stream.AddStream` (PR #1331, Issue #1330)
+-- Server: Re-add RPC method `RemoveStream` (Issue #1330)
+-
+-### Bugfixes
+-
+-- Fix crash when calling `Stream.RemoveStream`
+-- Fix typo in `changelog.md` (PR #1328)
+-- Fix typo in `configuration.md` (PR #1329)
+-- Update to AixLog v1.5.1, flushing log lines (PR #1332)
+-
+-### General
+-
+-- Add more doxygen documentation
+-
+-_Johannes Pohl <snapcast@badaix.de>  Thu, 23 Jan 2025 00:13:37 +0200_
+-
+-## Version 0.30.0
+-
+-### Features
+-
+-- Server: Add support for HTTPS and WSS (Issue #1322)
+-- Server: custom URL prefix for HTTP URLs (PR #1260)
+-- Server: listen to both IPv4 and IPv6 for incoming connections (PR #1290)
+-
+-### Bugfixes
+-
+-- Fix CVE-2023-36177: Remove "AddStream" and "RemoveStream" RPC (Issue #1327)
+-- Fix compile error on MacOS
+-- Remove PiMusicBox from readme (Issue ##1304)
+-- Add missing include (Issue #1295)
+-- Fix building with boost v1.87.0 (Issues #1305, #1306, #1307, PR #1308)
+-- Log tag is missing in syslog (Issue #1276)
+-
+-### General
+-
+-- CI: execute unit tests (asan and tsan)
+-- CI: create doxygen documentation
+-- CI: compile release and debug builds
+-- Code cleanup
+-- Add more doxygen documentation
+-
+-_Johannes Pohl <snapcast@badaix.de>  Fri, 17 Jan 2025 00:13:37 +0200_
+-
+-## Version 0.29.0
+-
+-### Features
+-
+-- Server: Add support for Jack streams (PR #1241, Issue #644)
+-- Client: Add support for 24 and 32 bit audio on Android
+-
+-### Bugfixes
+-
+-- Fix linker paths on ARM based MacOS
+-
+-### General
+-
+-- Snapweb: Update to v0.8.0
+-- CI: Add clang 16, 17, 18, gcc 14, xcode 15.1, 15.2, 15.3, 15.4
+-- CI: Create GitHub draft release
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sun, 25 Aug 2024 00:13:37 +0200_
+-
+-## Version 0.28.0
+-
+-### Features
+-
+-- Server: Use filename as title for FileStreams
+-- Client: Loop through resolved server IPs during connect (Issue #1216)
+-
+-### Bugfixes
+-
+-- Server: Fix noise caused by reading half samples (Issue #1170)
+-- Server: Check open syscall error in PipeStream::do_connect (PR #1150)
+-- Server: Tweak Airplay support (#1102)
+-- Server: Lower log severity for shairport-sync (Issue #891)
+-- Server: Emits notifications for streams with codec=null (Is11sue #1205)
+-- Server: Fix delayed switching of meta streams (Issue #1187)
+-- Server: Mixer script calls piling up (Issue #1174)
+-- Server: Mixer script creates zombie processes (Issue #1157)
+-- Improve connect handling in meta_mopidy.py
+-- Improve connect handling in meta_librespot-java.py
+-- Fix cppcheck issues
+-
+-### General
+-
+-- CI: Build debian bookworm and bullseye packages for amd64, arm and arm64
+-- CI: Add cppcheck static analysis
+-- Update documentation (PR #1130, PR #1067)
+-- Delete deprecated Makefiles, CMake is the only supported buildsystem
+-- Snapweb: Update to v0.7.0
+-
+-_Johannes Pohl <snapcast@badaix.de>  Fri, 19 Apr 2024 00:13:37 +0200_
+-
+-## Version 0.27.0
+-
+-### Features
+-
+-- Server: Configurable default volume for new clients (Issue #910, PR #1024)
+-- Server: New control script for mopidy: meta_mopidy.py
+-- Server: New control script for librespot java: meta_librespot-java.py
+-- Server: Add "mute" stream property
+-
+-### Bugfixes
+-
+-- Server: Fix random crash with meta stream (Issue #966)
+-- Server: Fix compatibility with librespot 0.5-dev (Issue #1063, #1074, #1042)
+-- Server: Not terminate on malformed json messages (Issue #1049)
+-- Server: Fix random segfault (Issue #1047)
+-- Server: Fix growing delay on input stream (Issue #1014)
+-- Server: Fix segfault with Librespot on Alpine (Issue #1026)
+-- Server: meta_mpd.py is installed with 755 (Issue #1021, #970)
+-- Server: Add list of dependecies to meta_mpd.py (Issue #971)
+-- Server: meta_mpd.py stopped working (Issue #997)
+-- Client: Not terminate if codec is "null" (Issue #1076)
+-- Fix test failures (Issue #961)
+-
+-### General
+-
+-- Fix compilation on macOS with Xcode 13.4.1 (Issue #1028)
+-- Fix compilation with boost 1.81.0 (Issue #1082)
+-- Remove debhelper files from project (moved to SnapOS project)
+-- SnapOs uses containers to build deb packages (solves Issue #968)
+-- Snapweb: Update to v0.5.0
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sun, 05 Feb 2023 00:13:37 +0200_
+-
+-## Version 0.26.0
+-
+-### Features
+-
+-- Client: Disconnect from pulse when no audio is available (Issue #927, PR #931)
+-- Server: New Metadata API for audio streams (Issue #803, #953)
+-- Server: New Control API for audio streams (Issue #954)
+-- Server: Lowered minimum buffer from 400ms to 20ms (Issue #329)
+-
+-### Bugfixes
+-
+-- Server: systemd.unit starts server after network-online (Issue #950)
+-
+-### General
+-
+-- Update documentation (Issue #804, PR #945, PR #951)
+-- Snapweb: Update to v0.4.0
+-
+-_Johannes Pohl <snapcast@badaix.de>  Wed, 22 Dec 2021 00:13:37 +0200_
+-
+-## Version 0.25.0
+-
+-### Features
+-
+-- Client: Editable PulseAudio properties, e.g. media.role=music (Issue #829)
+-- Server: Configurable amplitute for silence detection in alsa stream (Issue #846)
+-
+-### Bugfixes
+-
+-- Client: Fix crash on Windows when system volume changes (PR #838)
+-- Client: Removed a log message to stdout for file player backend (Issue #681)
+-- Server: Fix percent-decoding for stream URIs (Issue #850)
+-- Server: Fix double quotes in Airplay device names (Issue #851)
+-- Server: Fix crash when feeding a 16 bit signal into 24 bit flac (Issue #866)  
+-
+-### General
+-
+-- Server: less verbose librespot logging (Issue #874)
+-- Snapweb: Update to v0.3.0
+-- Add unit tests to the project
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sat, 15 May 2021 00:13:37 +0200_
+-
+-## Version 0.24.0
+-
+-### Features
+-
+-- Client: Configurable server for Pulseaudio backend (Issue #779)
+-
+-### Bugfixes
+-
+-- Client: Fix dropouts in alsa player backend (Issue #774)
+-- Client: Fix alsa player volume resetting to max (Issue #735)  
+-- Client: Fix noise while muted for Pulseaudio (Issue #785)
+-- Client: Android support for opus readded (Issue #789)
+-- Client: Fix host id for MacBook Pro (later 2016) (Issue #807)
+-
+-### General
+-
+-- Snapweb: Update to v0.2.0
+-- Remove submodules with external libs from the git repository
+-- Write version and revision (git sha) to log
+-- Add documentation to the default files (Issue #791)
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sat, 27 Feb 2021 00:13:37 +0200_
+-
+-## Version 0.23.0
+-
+-### Features
+-
+-- Client: Add PulseAudio player backend (Issue #722)
+-- Client: Configurable buffer time for alsa and pulse players
+-- Server: If docroot is not configured, a default page is served (Issue #711)
+-- Server: airplay source supports "password" parameter (Issue #754)
+-
+-### Bugfixes
+-
+-- Server: airplay source deletes Shairport's meta pipe on exit (Issue #672)
+-- Server: alsa source will not send silece when going idle (Issue #729)
+-- Server: pipe source will not send silence after 3h idle (Issue #741)
+-- Server: Fix build error on FreeBSD (Issue #752)
+-- Client: "make install" will set correct user/group for snapclient (Issue #728)
+-- Client: Fix printing UTF-8 device names on Windows (Issue #732)
+-- Client: Fix stuttering on alsa player backend (Issue #722, #727)
+-- Client: Terminate if host is not configured and mDNS is unavailable
+-
+-### General
+-
+-- Server: Change librespot parameter "killall" default to false (Issue #746, #724)
+-- Client: Android uses performance mode "none" to allow effects (Issue #766)
+-- Snapweb: Update to v0.1.0
+-- Build: Update CMakeLists.txt to build Snapclient on Android
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sun, 10 Jan 2021 00:13:37 +0200_
+-
+-## Version 0.22.0
+-
+-### Features
+-
+-- Server: Add Meta stream source (Issue #402, #569, #666)
+-- Client: Add file audio backend (Issue #681)
+-
+-### Bugfixes
+-
+-- Add missing define for alsa stream to makefile (Issue #692)
+-- Fix playback when plugging the headset on Android (Issue #699)
+-- Server discards old chunks if not consumed (Issue #708)
+-
+-### General
+-
+-- Less verbose logging during pipe reconnects (Issue #696)
+-- Add null encoder for streams used only as input for meta streams
+-- Snapweb: Change latency range to [-10s, 10s] (Issue #695)
+-- Update Snapweb, including PR #11, #12, #13, Issues #16, #17
+-
+-_Johannes Pohl <snapcast@badaix.de>  Thu, 15 Oct 2020 00:13:37 +0200_
+-
+-## Version 0.21.0
+-
+-### Features
+-
+-- Server: Support for WebSocket streaming clients
+-- Server: Install Snapweb web client (Issue #579)
+-- Server: Resample input to 48000:16:2 when using opus codec
+-- Server: Add Alsa stream source
+-
+-### Bugfixes
+-
+-- make install will setup the snapserver home dir (Issue #643)
+-- Client retries to open a blocked alsa device (Issue #652)
+-
+-### General
+-
+-- debian package generation switched from make to CMake buildsystem
+-- Reintroduce MACOS define, hopefully not breaking anything on macOS
+-- Snapcast uses GitHub actions for automated CI/CD
+-- CMake installs man files (Issue #507)
+-- Update documentation (Issue #615, #617)
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sun, 13 Sep 2020 00:13:37 +0200_
+-
+-## Version 0.20.0
+-
+-### Features
+-
+-- Client: Windows support (Issue #24)
+-- Client: add hardware mixer (Issue #318)
+-- Client: add "script" and "none" mixer (Issue #302)
+-- Client: add sharingmode for audio device (if supported)
+-- Logging: configurable sink and filters (Issue #30, #561, #122, #559)
+-- Librespot: add option "disable-audio-cache=[false|true]"
+-
+-### Bugfixes
+-
+-- Fix build failure on FreeBSD (Issue #565)
+-- Fix calling lsb_release multiple times (Issue #470)
+-- Client: high CPU load and crash during playback (Issue #609, #628)
+-- Client: improved handling of USB audio disconnects (Issue #64)
+-- Client: latency is forgotten (Issue #476, #588, Snapdroid #11)
+-- Client: fix segfault on mac when playback is paused (Issue #560)
+-- Client: fix bonjour on mac reports empty IP (Issue #632)
+-- Client: fix buzzing tone on Android (Issue #23, #24)
+-- Server: fix crash if client disconnects during connect (Issue #639)
+-- Server: fix reading metadata from shairport-sync (Issue #624)
+-- Server: fix crash on FreeBSD if settings.json is empty (Issue #620)
+-- Server: fix warning about unknown command line options (Issue #635)
+-- Readme: openWrt documentation (Issue #633)
+-- Fix setting the daemon's process priority (PR #448)
+-
+-### General
+-
+-- Client: use less threads and thus less ressources
+-- Update links to xiph externals (Issue #637, PR #616)
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sat, 13 Jun 2020 00:13:37 +0200_
+-
+-## Version 0.19.0
+-
+-### Features
+-
+-- Option to not kill all running librespot instances (PR #539)
+-- Add Airplay cover art to metadata (PR #543)
+-- Anroid: add support for Oboe audio backend
+-- Server: configurable PID file (Issue #554)
+-- Server: configurable persistant storage directory (Issue #554)
+-- Server: config file options can be overwritten on command line
+-- Client: PCM stream can be resampled using the "--sampleformat" option
+-- Librespot: add option "autoplay=[false|true]"
+-
+-### Bugfixes
+-
+-- Fix Airplay metadata, port selection and device names (PR #537)
+-- Fix cmake build when libatomic is needed (PR #540)
+-- Control: fix random crash (PR #543)
+-
+-### General
+-
+-- ALSA: improved latency estimation for better sync
+-- Improved audio synchronization
+-- Faster initial sync after client start and reconnect
+-- Less playback tempo adaptions and jitter (Issue #525)
+-- Playback is robust against system time changes (Issue #522)
+-- Less "resyncs" in stream reader that were causing audio dropouts
+-- Control: quicker response to group volume changes
+-- Server uses less memory when sending PCM data to a stalled connection
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sat, 14 Mar 2020 00:13:37 +0200_
+-
+-## Version 0.18.1
+-
+-### Bugfixes
+-
+-- Fix random server crash or deadlock during stream client disconnect
+-- Fix random server crash or deadlock during control client disconnect
+-- Fix airplay stream buffer allocation (PR #536)
+-
+-_Johannes Pohl <snapcast@badaix.de>  Tue, 28 Jan 2020 00:13:37 +0200_
+-
+-## Version 0.18.0
+-
+-### Features
+-
+-- Add TCP stream reader
+-- Configurable number of server worker threads
+-
+-### Bugfixes
+-
+-- Client: fix hostname reporting on Android
+-- Fix some small memory leaks
+-- Fix Librespot stream causing zombie processes (Issue #530)
+-- Process stream watchdog is configurable (Issue #517)
+-- Fix Makefile for macOS (Issues #510, #514)
+-
+-### General
+-
+-- Refactored stream readers
+-- Server can run on a single thread
+-
+-_Johannes Pohl <snapcast@badaix.de>  Wed, 22 Jan 2020 00:13:37 +0200_
+-
+-## Version 0.17.1
+-
+-### Bugfixes
+-
+-- Fix compile error if u_char is not defined (Issue #506)
+-- Fix error "exception unknown codec ogg" (Issue #504)
+-- Fix random crash during client disconnect
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sat, 23 Nov 2019 00:13:37 +0200_
+-
+-## Version 0.17.0
+-
+-### Features
+-
+-- Support for Opus low-latency codec (PR #4)
+-
+-### Bugfixes
+-
+-- CMake: fix check for libatomic (Issue #490, PR #494)
+-- WebUI: interface.html uses the server's IP for the websocket connection
+-- Fix warnings (Issue #484)
+-- Fix lock order inversions and data races identified by thread sanitizer
+-- Makefiles: fix install targets (PR #493)
+-- Makefiles: LDFLAGS are added from environment (PR #492)
+-- CMake: required Boost version is raised to 1.70 (Issue #488)
+-- Fix crash in websocket server
+-
+-### General
+-
+-- Stream server uses less threads (one in total, instead of 1+2n)
+-- Changing group volume is much more responsive for larger groups
+-- Unknown snapserver.conf options are logged as warning (Issue #487)
+-- debian scripts: change usernames back to snapclient and snapserver
+-
+-_Johannes Pohl <snapcast@badaix.de>  Wed, 20 Nov 2019 00:13:37 +0200_
+-
+-## Version 0.16.0
+-
+-### Features
+-
+-- Control server: websocket support for JSON RPC
+-- Control server: simple webserver integrated to host web UIs
+-- Control server: bind-to addresses are configurable
+-- Control server: streams can be added and Removed (PR #443)
+-- Control server: group names can be changed (PR #467)
+-- Librespot: add onevent parameter (PR #465)
+-
+-### Bugfixes
+-
+-- Fix build on macOS (Issue #474)
+-
+-### General
+-
+-- Control server uses less threads (one in total, instead of 1+2n)
+-- Snapserver: Configuration is moved into a file
+-- Removed submodules "popl" and "aixlog" to ease build
+-- Snapcast depends on boost::asio and boost::beast (header only)
+-- Tidy up code base
+-- Makefile doesn't statically link libgcc and libstdc++
+-- debian scripts: change usernames to \_snapclient and \_snapserver
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sat, 13 Oct 2019 00:13:37 +0200_
+-
+-## Version 0.15.0
+-
+-### Bugfixes
+-
+-- Snapserver: fix occasional deadlock
+-- Snapclient: make systemd dependeny to avahi-daemon optional
+-- cmake: fix build on FreeBSD
+-
+-### General
+-
+-- additional linker flags "ADD_LDFLAGS" can be passed to makefile
+-- update man pages, fix lintian warnings
+-- Support Android NDK r17
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sat, 07 Jul 2018 00:13:37 +0200_
+-
+-## Version 0.14.0
+-
+-### Features
+-
+-- Snapserver supports IPv4v6 dual stack and IPv4 + IPv6
+-
+-### Bugfixes
+-
+-- cmake: fix check for big endian (Issue #367)
+-- cmake: fix linking against libatomic (PR #368)
+-- Snapclient compiles with Android NDK API level 16 (Issue #365)
+-- Fix compilation errors on FreeBSD (Issue #374, PR #375)
+-
+-### General
+-
+-- cmake: make dependency on avahi optional (PR #378)
+-- cmake: Options to build snapserver and snapclient
+-- cmake: works on FreeBSD
+-- Update external libs (JSON for modern C++, ASIO, AixLog)
+-- Restructured source tree
+-- Moved Android app into seperate project [snapdroid](https://github.com/snapcast/snapdroid)
+-
+-_Johannes Pohl <snapcast@badaix.de>  Fri, 27 Apr 2018 00:13:37 +0200_
+-
+-## Version 0.13.0
+-
+-### Features
+-
+-- Support "volume" parameter for Librespot (PR #273)
+-- Add support for metatags (PR #319)
+-
+-### Bugfixes
+-
+-- Fix overflow in timesync when the system time is many years off
+-- Zeroconf works with IPv6
+-- Snapclient unit file depends on avahi-daemon.service (PR #348)
+-
+-### General
+-
+-- Drop dependency to external "jsonrpc++"
+-- Move OpenWrt and Buildroot support into separate project "[SnapOS](https://github.com/snapcast/snapos)"
+-- Add CMake support (not fully replacing Make yet) (PR #212)
+-- Remove MIPS support for Android (deprecated by Google)
+-- Use MAC address as default client id (override with "--hostID")
+-
+-_Johannes Pohl <snapcast@badaix.de>  Tue, 04 Mar 2018 00:13:37 +0200_
+-
+-## Version 0.12.0
+-
+-### Features
+-
+-- Support for IPv6 (PR #273, #279)
+-- Spotify plugin: onstart and onstop parameter (PR #225)
+-- Snapclient: configurable client id (Issue #249)
+-- Android: Snapclient support for ARM, MIPS and X86
+-- Snapserver: Play some silence before going idle (PR #284)
+-
+-### Bugfixes
+-
+-- Fix linker error (Issue #255, #274)
+-- Snapclient: more reliable unique client id (Issue #249, #246)
+-- Snapserver: fix config file permissions (Issue #251)
+-- Snapserver: fix crash on `bye` from control client (Issue #238)
+-- Snapserver: fix crash on port scan (Issue #267)
+-- Snapserver: fix crash when a malformed message is received (Issue #264)
+-  
+-### General
+-
+-- Improved logging: Use `--debug` for debug logging
+-- Log to file: Use `--debug=<filename>`
+-- Improved exception handling and error logging (Issue #276)
+-- Android: update to NDK r16 and clang++
+-- hide spotify credentials in json control message (Issue #282)
+-
+-_Johannes Pohl <snapcast@badaix.de>  Tue, 17 Oct 2017 00:13:37 +0200_
+-
+-## Version 0.11.1
+-
+-### Bugfixes
+-
+-- Snapserver produces high CPU load on some systems (Issue #174)
+-- Snapserver compile error on FreeBSD
+-
+-### General
+-
+-- Updated Markdown files (PR #216, #218)
+-
+-_Johannes Pohl <snapcast@badaix.de>  Tue, 21 Mar 2017 00:13:37 +0200_
+-
+-## Version 0.11.0
+-
+-### Features
+-
+-- Don't send audio to muted clients (Issue #109, #150)
+-- Snapclient multi-instance support (Issue #73)
+-- daemon can run as different user (default: snapclient, Issue #89)
+-- Spotify plugin does not require username and password (PR #181)
+-- Spotify plugin is compatible to librespot's pipe backend (PR #158)
+-- Clients are organized in Groups
+-- JSON RPC API: Support batch requests
+-
+-### Bugfixes
+-
+-- Compilation error on recent GCC versions (Issues #146, #170)
+-- Crash when frequently connecting to the control port (Issue #200)
+-- Snapcast App crashes on Android 4.x (Issue #207)
+-- Resync issue on macOS (Issue #156)
+-- Id in JSON RPC API can be String, Number or NULL (Issue #161)
+-- Use "which" instead of "whereis" to find binaries (PR #196, Issue #185)
+-- Compiles on lede (Issue #203)
+-
+-### General
+-
+-- JSON RPC API is versionized (current version is 2.0.0)
+-- Restructured Android App to support Groups
+-
+-_Johannes Pohl <snapcast@badaix.de>  Thu, 16 Mar 2017 00:13:37 +0200_
+-
+-## Version 0.11.0-beta-1
+-
+-### Features
+-
+-- Snapclient multi-instance support (Issue #73)
+-- daemon can run as different user (default: snapclient, Issue #89)
+-- Spotify plugin does not require username and password (PR #181)
+-- Spotify plugin is compatible to librespot's pipe backend (PR #158)
+-- Clients are organized in Groups
+-- JSON RPC API: Support batch requests
+-
+-### Bugfixes
+-
+-- Resync issue on macOS (Issue #156)
+-- Id in JSON RPC API can be String, Number or NULL (Issue #161)
+-- Use "which" instead of "whereis" to find binaries (PR #196, Issue #185)
+-- Compiles on lede (Issue #203)
+-
+-### General
+-
+-- JSON RPC API is versionized (current version is 2.0.0)
+-- Restructured Android App to support Groups
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sat, 04 Mar 2017 00:13:37 +0200_
+-
+-## Version 0.10.0
+-
+-### Features
+-
+-- Added support [process](https://github.com/snapcast/snapcast/blob/master/doc/player_setup.md#process) streams:  
+-  Snapserver starts a process and reads PCM data from stdout
+-- Specialized versions for [Spotify](https://github.com/snapcast/snapcast/blob/master/doc/player_setup.md#spotify) and [AirPlay](https://github.com/snapcast/snapcast/blob/master/doc/player_setup.md#airplay)
+-
+-### Bugfixes
+-
+-- Fixed crash during server shutdown
+-- Fixed Makefile for FreeBSD
+-- Fixed building of dpk (unsigned .changes file)
+-
+-### General
+-
+-- Speed up client and server shutdown
+-
+-_Johannes Pohl <snapcast@badaix.de>  Wed, 16 Nov 2016 00:13:37 +0200_
+-
+-## Version 0.9.0
+-
+-### Features
+-
+-- Added (experimental) support for macOS (make TARGET=MACOS)
+-
+-### Bugfixes
+-
+-- Android client: Fixed crash on Nougat (Issue #97)
+-- Fixed FreeBSD compile error for Snapserver (Issue #107)
+-- Snapserver randomly dropped JSON control messages
+-- Long command line options (like `--sampleformat`) didn't work on some systems (Issue #103)
+-
+-### General
+-
+-- Updated Android NDK to revision 13
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sat, 22 Oct 2016 00:13:37 +0200_
+-
+-## Version 0.8.0
+-
+-### Features
+-
+-- Added support for FreeBSD (Issue #67)
+-- Android client: Added Japanese and German translation
+-- Android client: Added support for ogg (Issue #83)
+-
+-### Bugfixes
+-
+-- OpenWRT: makefile automatically sets correct endian (Issue #91)
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sun, 24 Jul 2016 00:13:37 +0200_
+-
+-## Version 0.7.0
+-
+-### Features
+-
+-- Support for HiRes audio (e.g. 96000:24:2) (Issue #13)
+-  - Bitdepth must be one of 8, 16, 24 (=24 bit padded to 32) or 32
+-- Auto start option for Android (Issue #49)
+-- Creation mode for the fifo can be configured (Issue #52)
+-  - "-s pipe:///tmp/snapfifo?mode=[read|create]"
+-
+-### Bugfixes
+-
+-- Server was sometimes crashing during shutdown
+-- Exceptions were not properly logged (e.g. unsupported sample rates)
+-- Fixed default sound card detection on OpenWrt
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sat, 07 May 2016 00:13:37 +0200_
+-
+-## Version 0.6.0
+-
+-### Features
+-
+-- Port to OpenWrt (Issue #18)
+-
+-### Bugfixes
+-
+-- Android client: fixed crash if more than two streams are active (Issue #47)
+-
+-### General
+-
+-- Support Tremor, an integer only Ogg-Vorbis implementation
+-- Endian-independent code (Issue #18)
+-- Cleaned up build process
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sun, 10 Apr 2016 00:02:00 +0200_
+-
+-## Version 0.5.0
+-
+-### Features
+-
+-- Android client: Fast switching of clients between streams
+-
+-### Bugfixes
+-
+-- Server: Fixed reading of server.json config file
+-
+-### General
+-
+-- Source code cleanups
+-
+-_Johannes Pohl <snapcast@badaix.de>  Fri, 25 Mar 2016 00:02:00 +0200_
+-
+-## Version 0.4.1
+-
+-### General
+-
+-- Debian packages (.deb) are linked statically against libgcc and libstdc++ to improve compatibility
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sat, 12 Mar 2016 12:00:00 +0200_
+-
+-## Version 0.5.0-beta-2
+-
+-### Features
+-
+-- Remote control API (JSON)
+-  - Added version information
+-  - Stream playing state (unknown, idle, playing, inactive) (Issue #34)
+-- Android client: manually configure snapserver host name
+-- Android client compatibility improved: armeabi and armeabi-v7 binaries
+-- Android client: configurable latency
+-- Improved compatibility to Mopidy (GStreamer) (Issue #23)
+-
+-### Bugfixes
+-
+-- Android client: fixed "hide offline" on start
+-- Store config in /var/lib/snapcast/ when running as daemon (Issue #33)
+-
+-### General
+-
+-- README.md: Added resampling command to the Mopidy section (Issue #32)
+-
+-_Johannes Pohl <snapcast@badaix.de>  Wed, 09 Mar 2016 00:02:00 +0200_
+-
+-## Version 0.5.0-beta-1
+-
+-### Features
+-
+-- Remote control API (JSON)
+-  - Get server status, get streams, get active clients, ...
+-  - Assign volume, assign stream, rename client, ...
+-- Android port of the Snapclient with a remote control app (requires API level 16, Android 4.1)
+-- Multiple streams ("zones") can be configured using `-s, --stream`  
+-  The stream is configured by an URI: path, name, codec, sample format, ...  
+-  E.g. `pipe:///tmp/snapfifo?name=Radio&sampleformat=48000:16:2&codec=flac`
+-  or `file:///home/user/some_pcm_file.wav?name=file`
+-- Added .default file for the service in `/etc/default/snapserver` and `/etc/default/snapclient`.  
+-  Default program options should be configured here (e.g. streams)
+-
+-### Bugfixes
+-
+-- Pipe reader recovers if the pipe has been reopened
+-
+-### General
+-
+-- SnapCast is renamed to Snapcast
+-  - SnapClient => Snapclient
+-  - SnapServer => Snapserver
+-- Changed default sample rate to 48kHz. The sample rate can be configured per stream `-s "pipe:///tmp/snapfifo?name=default&sampleformat=44100:16:2`. The default can be changed with `--sampleformat 44100:16:2`
+-- Snapcast protocol:  
+-  Less messaging: SampleFormat, Command, Ack, String, not yet final
+-- Removed dependency to boost
+-
+-_Johannes Pohl <snapcast@badaix.de>  Tue, 09 Feb 2016 13:25:00 +0200_
+-
+-## Version 0.4.0
+-
+-### Features
+-
+-- Debian packages (.deb) for amd64 and armhf
+-- Added man pages
+-
+-### Bugfixes
+-
+-- Snapserver and Snapclient are started as daemon on systemd systems (e.g. ARCH, Debian Jessie)
+-
+-### General
+-
+-- Snapserver is started with normal process priority (changed nice from -3 to 0)
+-
+-_Johannes Pohl <snapcast@badaix.de>  Mon, 28 Dec 2015 12:00:00 +0200_
+-
+-## Version 0.3.4
+-
+-### Bugfixes
+-
+-- Fix synchronization bug in FLAC decoder that could cause audible dropouts
+-
+-_Johannes Pohl <snapcast@badaix.de>  Wed, 23 Dec 2015 12:00:00 +0200_
+-
+-## Version 0.3.3
+-
+-### Bugfixes
+-
+-- Fix Segfault when ALSA device has no description
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sun, 15 Nov 2015 12:00:00 +0200_
+-
+-## Version 0.3.2
+-
+-### General
+-
+-- Makefile uses CXX instead of CC to invoke the c++ compiler
+-
+-### Bugfixes
+-
+-- Time calculation for PCM chunk play-out was wrong on some gcc versions
+-
+-_Johannes Pohl <snapcast@badaix.de>  Wed, 30 Sep 2015 12:00:00 +0200_
+-
+-## Version 0.3.1
+-
+-### General
+-
+-- Improved stability over WiFi by avoiding simultaneous reads/writes on the socket connection
+-
+-### Bugfixes
+-
+-- Fixed a bug in avahi browser
+-
+-_Johannes Pohl <snapcast@badaix.de>  Wed, 26 Aug 2015 12:00:00 +0200_
+-
+-## Version 0.3.0
+-
+-### Features
+-
+-- Configurable codec options. Run `snapserver -c [flac|ogg|pcm]:?` to get supported options for the codec
+-- Configurable buffer size for the pipe reader (default 20ms, was 50ms before)
+-- Process priority can be changed as argument to the daemon option `-d<prio>`. Default priority is -3
+-
+-### Bugfixes
+-
+-- Fixed deadlock in logger
+-- Fixed occasional timeouts for client to server requests (e.g. time sync commands)
+-- Client didn't connect to a local server if the loopback device is the only device with an address
+-
+-### General
+-
+-- Code clean up
+-- Refactored encoding for lower latency
+-
+-_Johannes Pohl <snapcast@badaix.de>  Sun, 16 Aug 2015 19:25:51 +0100_
+-
+-## Version 0.2.1
+-
+-### Features
+-
+-- Arch Linux compatibility
+-
+-_Johannes Pohl <snapcast@badaix.de>  Fri, 24 Jul 2015 15:47:00 +0100_
 diff --git a/client/CMakeLists.txt b/client/CMakeLists.txt
 index c0bbf34e..06b2c3fb 100644
 --- a/client/CMakeLists.txt
@@ -1861,20 +3032,30 @@ index c0bbf34e..06b2c3fb 100644
    find_library(COREFOUNDATION_LIB CoreFoundation)
    find_library(IOKIT_LIB IOKit)
 diff --git a/client/player/coreaudio_player.cpp b/client/player/coreaudio_player.cpp
-index a2055de3..ffe26aa0 100644
+index a2055de3..420e284e 100644
 --- a/client/player/coreaudio_player.cpp
 +++ b/client/player/coreaudio_player.cpp
-@@ -25,6 +25,9 @@
+@@ -18,6 +18,7 @@
+ 
+ // prototype/interface header file
+ #include "coreaudio_player.hpp"
++#include "coreaudio_volume.hpp"
+ 
+ // local headers
+ #include "common/aixlog.hpp"
+@@ -25,6 +26,11 @@
  // 3rd party headers
  #include <CoreAudio/CoreAudio.h>
  
 +#include <cstdlib>
 +#include <cstring>
++#include <stdexcept>
++#include <string>
 +
  namespace player
  {
  
-@@ -43,7 +46,7 @@ void callback(void* custom_data, AudioQueueRef queue, AudioQueueBufferRef buffer
+@@ -43,7 +49,7 @@ void callback(void* custom_data, AudioQueueRef queue, AudioQueueBufferRef buffer
  
  
  CoreAudioPlayer::CoreAudioPlayer(boost::asio::io_context& io_context, const ClientSettings::Player& settings, std::shared_ptr<Stream> stream)
@@ -1883,7 +3064,65 @@ index a2055de3..ffe26aa0 100644
  {
  }
  
-@@ -113,8 +116,9 @@ void CoreAudioPlayer::playerCallback(AudioQueueRef queue, AudioQueueBufferRef bu
+@@ -52,6 +58,24 @@ CoreAudioPlayer::~CoreAudioPlayer()
+ {
+ }
+ 
++void CoreAudioPlayer::setVolume(const Volume& volume)
++{
++    Player::setVolume(volume);
++
++    float level = 1.0F;
++    if (settings_.mixer.mode == ClientSettings::Mixer::Mode::software)
++    {
++        std::lock_guard<std::mutex> lock(mutex_);
++        level = coreAudioQueueVolume(volume_.volume, volume_.mute);
++    }
++    queueVolume_.store(level, std::memory_order_release);
++
++    std::lock_guard<std::mutex> lock(queueMutex_);
++    AudioQueueRef queue = activeQueue_.load(std::memory_order_acquire);
++    if (queue != nullptr)
++        applyCoreAudioVolume(queue);
++}
++
+ 
+ /// TODO: experimental. No output device can be configured yet.
+ std::vector<PcmDevice> CoreAudioPlayer::pcm_list()
+@@ -101,25 +125,41 @@ std::vector<PcmDevice> CoreAudioPlayer::pcm_list()
+ 
+ void CoreAudioPlayer::playerCallback(AudioQueueRef queue, AudioQueueBufferRef bufferRef)
+ {
++    if (callbackState_.callbackSuppressed())
++        return;
++
+     /// Estimate the playout delay by checking the number of frames left in the buffer
+     /// and add ms_ (= complete buffer size). Based on trying.
+-    AudioTimeStamp timestamp;
+-    AudioQueueGetCurrentTime(queue, timeLine_, &timestamp, NULL);
+-    size_t bufferedFrames = (frames_ - ((uint64_t)timestamp.mSampleTime % frames_)) % frames_;
+-    size_t bufferedMs = bufferedFrames * 1000 / pubStream_->getFormat().rate() + (ms_ * (NUM_BUFFERS - 1));
+-    /// 15ms DAC delay. Based on trying.
+-    bufferedMs += 15;
++    size_t bufferedMs = ms_ * (NUM_BUFFERS - 1) + 15;
++    OSStatus status = noErr;
++    if (queueStarted_)
++    {
++        AudioTimeStamp timestamp = {};
++        Boolean timelineDiscontinuity = false;
++        status = AudioQueueGetCurrentTime(queue, timeLine_, &timestamp, &timelineDiscontinuity);
++        if (coreAudioQueueNeedsRestart(status, timelineDiscontinuity, queueStarted_))
++        {
++            LOG(NOTICE, LOG_TAG) << "CoreAudio timeline changed, restarting Audio Queue (status: " << status << ")\n";
++            requestAudioQueueRestart();
++            return;
++        }
++
++        size_t bufferedFrames = (frames_ - ((uint64_t)timestamp.mSampleTime % frames_)) % frames_;
++        bufferedMs = bufferedFrames * 1000 / pubStream_->getFormat().rate() + (ms_ * (NUM_BUFFERS - 1)) + 15;
++    }
++
+     //    LOG(INFO, LOG_TAG) << "buffered: " << bufferedFrames << ", ms: " << bufferedMs << ", mSampleTime: " << timestamp.mSampleTime << "\n";
  
      /// TODO: sometimes this bufferedMS or AudioTimeStamp wraps around 1s (i.e. we're 1s out of sync (behind)) and recovers later on
      chronos::usec delay(bufferedMs * 1000);
@@ -1895,23 +3134,52 @@ index a2055de3..ffe26aa0 100644
      {
          if (chronos::getTickCount() - lastChunkTick > 5000)
          {
-@@ -127,9 +131,14 @@ void CoreAudioPlayer::playerCallback(AudioQueueRef queue, AudioQueueBufferRef bu
+-            LOG(NOTICE, LOG_TAG) << "No chunk received for 5000ms. Closing Audio Queue.\n";
+-            uninitAudioQueue(queue);
++            LOG(NOTICE, LOG_TAG) << "No chunk received for 5000ms. Restarting Audio Queue.\n";
++            requestAudioQueueRestart();
+             return;
+         }
+         // LOG(INFO, LOG_TAG) << "Failed to get chunk. Playing silence.\n";
+@@ -127,16 +167,23 @@ void CoreAudioPlayer::playerCallback(AudioQueueRef queue, AudioQueueBufferRef bu
      else
      {
          lastChunkTick = chronos::getTickCount();
 -        adjustVolume(buffer, frames_);
-+        adjustVolume(source_buffer_.data(), frames_);
      }
  
+-    //    OSStatus status =
+-    AudioQueueEnqueueBuffer(queue, bufferRef, 0, NULL);
 +    if (format.channels() == 1)
 +        duplicateMonoToStereo(source_buffer_.data(), output, frames_, format.sampleSize());
 +    else
 +        std::memcpy(output, source_buffer_.data(), source_buffer_.size());
-+
-     //    OSStatus status =
-     AudioQueueEnqueueBuffer(queue, bufferRef, 0, NULL);
  
-@@ -175,14 +184,16 @@ void CoreAudioPlayer::initAudioQueue()
+-    if (!active_)
++    status = AudioQueueEnqueueBuffer(queue, bufferRef, 0, NULL);
++    if (status != noErr)
+     {
+-        uninitAudioQueue(queue);
++        LOG(NOTICE, LOG_TAG) << "Could not enqueue CoreAudio buffer, restarting Audio Queue (status: " << status << ")\n";
++        requestAudioQueueRestart();
++        return;
+     }
++
++    if (!active_)
++        requestAudioQueueRestart();
+ }
+ 
+ 
+@@ -168,6 +215,8 @@ void CoreAudioPlayer::worker()
+ 
+ void CoreAudioPlayer::initAudioQueue()
+ {
++    callbackState_.reset();
++    queueStarted_ = false;
+     const SampleFormat& sampleFormat = pubStream_->getFormat();
+ 
+     AudioStreamBasicDescription format;
+@@ -175,15 +224,25 @@ void CoreAudioPlayer::initAudioQueue()
      format.mFormatID = kAudioFormatLinearPCM;
      format.mFormatFlags = kLinearPCMFormatFlagIsSignedInteger; // | kAudioFormatFlagIsPacked;
      format.mBitsPerChannel = sampleFormat.bits();
@@ -1924,13 +3192,25 @@ index a2055de3..ffe26aa0 100644
      format.mBytesPerPacket = format.mBytesPerFrame * format.mFramesPerPacket;
      format.mReserved = 0;
  
-     AudioQueueRef queue;
-     AudioQueueNewOutput(&format, callback, this, CFRunLoopGetCurrent(), kCFRunLoopCommonModes, 0, &queue);
+-    AudioQueueRef queue;
+-    AudioQueueNewOutput(&format, callback, this, CFRunLoopGetCurrent(), kCFRunLoopCommonModes, 0, &queue);
+-    AudioQueueCreateTimeline(queue, &timeLine_);
++    AudioQueueRef queue = nullptr;
++    OSStatus status = AudioQueueNewOutput(&format, callback, this, CFRunLoopGetCurrent(), kCFRunLoopCommonModes, 0, &queue);
++    if (status != noErr)
++        throw std::runtime_error("AudioQueueNewOutput failed with status " + std::to_string(status));
++
 +    configureOutputDevice(queue);
-     AudioQueueCreateTimeline(queue, &timeLine_);
++    status = AudioQueueCreateTimeline(queue, &timeLine_);
++    if (status != noErr)
++    {
++        AudioQueueDispose(queue, true);
++        throw std::runtime_error("AudioQueueCreateTimeline failed with status " + std::to_string(status));
++    }
  
      // Apple recommends this as buffer size:
-@@ -194,8 +205,10 @@ void CoreAudioPlayer::initAudioQueue()
+     // https://developer.apple.com/library/content/documentation/MusicAudio/Conceptual/CoreAudioOverview/CoreAudioEssentials/CoreAudioEssentials.html
+@@ -194,28 +253,97 @@ void CoreAudioPlayer::initAudioQueue()
      // frames: 4800, ms: 100, buffer size: 19200
      frames_ = (sampleFormat.rate() * ms_) / 1000;
      ms_ = frames_ * 1000 / sampleFormat.rate();
@@ -1938,15 +3218,78 @@ index a2055de3..ffe26aa0 100644
 -    LOG(INFO, LOG_TAG) << "frames: " << frames_ << ", ms: " << ms_ << ", buffer size: " << buff_size_ << "\n";
 +    buff_size_ = frames_ * format.mBytesPerFrame;
 +    source_buffer_.resize(frames_ * sampleFormat.frameSize());
++    lastChunkTick = chronos::getTickCount();
 +    LOG(INFO, LOG_TAG) << "frames: " << frames_ << ", ms: " << ms_ << ", input channels: " << sampleFormat.channels()
 +                       << ", output channels: " << output_channels << ", buffer size: " << buff_size_ << "\n";
  
      AudioQueueBufferRef buffers[NUM_BUFFERS];
      for (int i = 0; i < NUM_BUFFERS; i++)
-@@ -211,6 +224,28 @@ void CoreAudioPlayer::initAudioQueue()
-     CFRunLoopRun();
+     {
+-        AudioQueueAllocateBuffer(queue, buff_size_, &buffers[i]);
++        status = AudioQueueAllocateBuffer(queue, buff_size_, &buffers[i]);
++        if (status != noErr)
++        {
++            AudioQueueDispose(queue, true);
++            throw std::runtime_error("AudioQueueAllocateBuffer failed with status " + std::to_string(status));
++        }
+         buffers[i]->mAudioDataByteSize = buff_size_;
+         callback(this, queue, buffers[i]);
++        if (callbackState_.callbackSuppressed())
++            break;
+     }
+ 
+     LOG(DEBUG, LOG_TAG) << "CoreAudioPlayer::worker\n";
+-    AudioQueueCreateTimeline(queue, &timeLine_);
+-    AudioQueueStart(queue, NULL);
+-    CFRunLoopRun();
++    if (!callbackState_.callbackSuppressed())
++    {
++        applyCoreAudioVolume(queue);
++        status = AudioQueueStart(queue, NULL);
++        if (status != noErr)
++        {
++            AudioQueueDispose(queue, true);
++            throw std::runtime_error("AudioQueueStart failed with status " + std::to_string(status));
++        }
++        {
++            std::lock_guard<std::mutex> lock(queueMutex_);
++            activeQueue_.store(queue, std::memory_order_release);
++            applyCoreAudioVolume(queue);
++        }
++        queueStarted_ = true;
++        CFRunLoopRun();
++    }
++
++    {
++        std::lock_guard<std::mutex> lock(queueMutex_);
++        activeQueue_.store(nullptr, std::memory_order_release);
++    }
++    status = AudioQueueStop(queue, true);
++    if (status != noErr && status != kAudioQueueErr_QueueInvalidated)
++        LOG(NOTICE, LOG_TAG) << "AudioQueueStop returned status: " << status << "\n";
++
++    status = AudioQueueDispose(queue, true);
++    if (status != noErr && status != kAudioQueueErr_QueueInvalidated)
++        LOG(NOTICE, LOG_TAG) << "AudioQueueDispose returned status: " << status << "\n";
++
++    timeLine_ = nullptr;
++    queueStarted_ = false;
++    pubStream_->clearChunks();
++    callbackState_.reset();
  }
  
+-void CoreAudioPlayer::uninitAudioQueue(AudioQueueRef queue)
++void CoreAudioPlayer::applyCoreAudioVolume(AudioQueueRef queue)
+ {
+-    AudioQueueStop(queue, false);
+-    AudioQueueDispose(queue, false);
+-    pubStream_->clearChunks();
++    const float level = queueVolume_.load(std::memory_order_acquire);
++    OSStatus status = AudioQueueSetParameter(queue, kAudioQueueParam_Volume, level);
++    if (status != noErr && status != kAudioQueueErr_QueueInvalidated)
++        LOG(NOTICE, LOG_TAG) << "Could not set CoreAudio queue volume, status: " << status << "\n";
++}
++
 +void CoreAudioPlayer::configureOutputDevice(AudioQueueRef queue)
 +{
 +    const char* deviceUid = std::getenv("SNAPCLIENT_COREAUDIO_DEVICE");
@@ -1969,39 +3312,64 @@ index a2055de3..ffe26aa0 100644
 +    CFRelease(uid);
 +}
 +
- void CoreAudioPlayer::uninitAudioQueue(AudioQueueRef queue)
- {
-     AudioQueueStop(queue, false);
++void CoreAudioPlayer::requestAudioQueueRestart()
++{
++    callbackState_.requestRestart();
+     CFRunLoopStop(CFRunLoopGetCurrent());
+ }
+ 
 diff --git a/client/player/coreaudio_player.hpp b/client/player/coreaudio_player.hpp
-index b22cc42d..3940d93c 100644
+index b22cc42d..85aaa7e7 100644
 --- a/client/player/coreaudio_player.hpp
 +++ b/client/player/coreaudio_player.hpp
-@@ -20,6 +20,7 @@
+@@ -20,6 +20,8 @@
  #pragma once
  
  // local headers
++#include "coreaudio_queue_health.hpp"
 +#include "mono_stereo.hpp"
  #include "player.hpp"
  
  // 3rd party headers
-@@ -27,6 +28,8 @@
+@@ -27,6 +29,10 @@
  #include <CoreAudio/CoreAudioTypes.h>
  #include <CoreFoundation/CFRunLoop.h>
  
++#include <atomic>
++#include <mutex>
 +#include <vector>
 +
  
  namespace player
  {
-@@ -60,6 +63,7 @@ private:
+@@ -50,6 +56,8 @@ public:
+     /// d'tor
+     virtual ~CoreAudioPlayer();
+ 
++    void setVolume(const Volume& volume) override;
++
+     /// Callback funtion for audio data to be played
+     void playerCallback(AudioQueueRef queue, AudioQueueBufferRef bufferRef);
+     /// @return list of available pcm devices
+@@ -60,14 +68,22 @@ private:
      bool needsThread() const override;
  
      void initAudioQueue();
+-    void uninitAudioQueue(AudioQueueRef queue);
+-
+-    AudioQueueTimelineRef timeLine_;
 +    void configureOutputDevice(AudioQueueRef queue);
-     void uninitAudioQueue(AudioQueueRef queue);
- 
-     AudioQueueTimelineRef timeLine_;
-@@ -68,6 +72,7 @@ private:
++    void applyCoreAudioVolume(AudioQueueRef queue);
++    void requestAudioQueueRestart();
++
++    AudioQueueTimelineRef timeLine_ = nullptr;
++    CoreAudioCallbackState callbackState_;
++    bool queueStarted_ = false;
++    std::atomic<AudioQueueRef> activeQueue_{nullptr};
++    std::atomic<float> queueVolume_{1.0F};
++    std::mutex queueMutex_;
+     size_t ms_;
+     size_t frames_;
      size_t buff_size_;
      std::shared_ptr<Stream> pubStream_;
      long lastChunkTick;
@@ -2009,6 +3377,70 @@ index b22cc42d..3940d93c 100644
  };
  
  } // namespace player
+diff --git a/client/player/coreaudio_queue_health.hpp b/client/player/coreaudio_queue_health.hpp
+new file mode 100644
+index 00000000..d7f7be0f
+--- /dev/null
++++ b/client/player/coreaudio_queue_health.hpp
+@@ -0,0 +1,37 @@
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++namespace player
++{
++
++inline bool coreAudioQueueNeedsRestart(
++    std::int32_t status, bool timelineDiscontinuity, bool queueStarted)
++{
++    return timelineDiscontinuity || (queueStarted && (status != 0));
++}
++
++class CoreAudioCallbackState
++{
++public:
++    bool callbackSuppressed() const noexcept
++    {
++        return restartRequested_.load(std::memory_order_acquire);
++    }
++
++    bool requestRestart() noexcept
++    {
++        return !restartRequested_.exchange(true, std::memory_order_acq_rel);
++    }
++
++    void reset() noexcept
++    {
++        restartRequested_.store(false, std::memory_order_release);
++    }
++
++private:
++    std::atomic<bool> restartRequested_{false};
++};
++
++} // namespace player
+diff --git a/client/player/coreaudio_volume.hpp b/client/player/coreaudio_volume.hpp
+new file mode 100644
+index 00000000..be0d2290
+--- /dev/null
++++ b/client/player/coreaudio_volume.hpp
+@@ -0,0 +1,15 @@
++#pragma once
++
++namespace player
++{
++
++inline float coreAudioQueueVolume(double volume, bool muted)
++{
++    if (muted || volume <= 0)
++        return 0.0F;
++    if (volume >= 1.0)
++        return 1.0F;
++    return static_cast<float>(volume);
++}
++
++} // namespace player
 diff --git a/client/player/mono_stereo.cpp b/client/player/mono_stereo.cpp
 new file mode 100644
 index 00000000..13e19d27
@@ -2070,10 +3502,10 @@ index 00000000..c0c38912
 +}
 diff --git a/docs/architecture.md b/docs/architecture.md
 new file mode 100644
-index 00000000..c81458b2
+index 00000000..b227e784
 --- /dev/null
 +++ b/docs/architecture.md
-@@ -0,0 +1,126 @@
+@@ -0,0 +1,139 @@
 +# Architecture
 +
 +MacBook Stereo Pair separates the system into a required runtime and an optional
@@ -2144,14 +3576,20 @@ index 00000000..c81458b2
 +stream is duplicated into both channels of the local AudioQueue output.
 +
 +BlackHole and the built-in speaker expose separate CoreAudio volume controls.
-+The runtime helper resolves both by UID and sets each virtual main volume to
-+100%. This prevents the BlackHole output slider from silently attenuating the
-+signal before capture while the independently selected local speaker remains at
-+a different hardware level.
++The runtime helper resolves both by UID and sets the virtual main volume
++(`vmvc`) and physical main-volume scalar (`volm`) to 100%. This prevents the
++BlackHole output slider from silently attenuating the signal before capture
++while the independently selected local speaker remains at a different hardware
++level.
 +
 +Treat Snapcast volume as the normal listening control. The macOS volume slider
 +for BlackHole is a capture-level control and is normalized back to 100% while
 +the pair runtime is active.
++
++The CoreAudio player applies the exponential Snapcast volume curve through
++`AudioQueueSetParameter(kAudioQueueParam_Volume)`. This keeps the received
++24-bit buffer at full scale and lets CoreAudio perform the attenuation in its
++floating-point playback path. Hardware output volume remains at 100%.
 +
 +## Groups and Roles
 +
@@ -2188,6 +3626,13 @@ index 00000000..c81458b2
 +The process source accepts scheduling jitter below 200 ms by reading again
 +while preserving the logical audio timeline. A gap of 200 ms or more is treated
 +as a genuine discontinuity and triggers a real resync.
++
++Both Macs run a lightweight user LaunchAgent that listens for the macOS
++power-on notification. After CoreAudio has settled, the source Mac restores
++BlackHole routing, normalizes both source hardware volumes, and recreates the
++capture and local playback processes. The remote Mac normalizes its speaker and
++recreates Snapclient. This avoids reusing AudioQueues that macOS invalidated
++during sleep.
 +
 +## Network Boundary
 +
@@ -11843,10 +13288,10 @@ HcmV?d00001
 
 diff --git a/docs/installation.md b/docs/installation.md
 new file mode 100644
-index 00000000..0ba06a10
+index 00000000..0fad6abe
 --- /dev/null
 +++ b/docs/installation.md
-@@ -0,0 +1,217 @@
+@@ -0,0 +1,226 @@
 +# Installation
 +
 +This guide assumes the repository that captures audio is called the source Mac
@@ -11965,7 +13410,9 @@ index 00000000..0ba06a10
 +```sh
 +./integration/scripts/build-macos.sh
 +integration/test/test-pair-config.sh
++integration/test/test-audio-levels.sh
 +integration/test/test-pair-routing.sh
++integration/test/test-wake-recovery.sh
 +```
 +
 +Install the source-Mac services:
@@ -11981,7 +13428,8 @@ index 00000000..0ba06a10
 +- creates the left/right FIFOs;
 +- installs the local LaunchAgents;
 +- switches system output to BlackHole;
-+- starts Snapserver, splitter, local Snapclient, route, and pairing services.
++- starts Snapserver, splitter, local Snapclient, route, pairing, and wake
++  recovery services.
 +
 +## Install the Remote Client
 +
@@ -11991,8 +13439,9 @@ index 00000000..0ba06a10
 +./integration/scripts/install-remote.sh
 +```
 +
-+This command resolves the remote home directory, renders the LaunchAgent for
-+that account, copies Snapclient, and bootstraps `com.snapcast.remote-client`.
++This command resolves the remote home directory, renders the LaunchAgents for
++that account, copies Snapclient and the wake listener, and bootstraps
++`com.snapcast.remote-client` and `com.snapcast.remote-wake-recovery`.
 +
 +## Install the Optional Controller
 +
@@ -12035,6 +13484,10 @@ index 00000000..0ba06a10
 +listening; the runtime normalizes both hardware stages to avoid double
 +attenuation.
 +
++CoreAudio applies the controller volume through the AudioQueue floating-point
++volume parameter. The 24-bit PCM received from Snapserver remains at full scale,
++so changing listening volume does not rewrite the integer audio buffer.
++
 +## Complete Removal
 +
 +Return to native audio first:
@@ -12047,7 +13500,7 @@ index 00000000..0ba06a10
 +
 +```sh
 +uid="$(id -u)"
-+for label in local-client capture server route splitter pairing; do
++for label in local-client capture server route splitter pairing wake-recovery; do
 +  launchctl bootout "gui/$uid/com.snapcast.$label" 2>/dev/null || true
 +done
 +```
@@ -12061,15 +13514,16 @@ index 00000000..0ba06a10
 +```
 +
 +The remote installer has no automatic uninstaller. On the remote Mac, boot out
-+`com.snapcast.remote-client` and remove its copied Snapclient and LaunchAgent
-+after confirming the account and paths.
++`com.snapcast.remote-client` and `com.snapcast.remote-wake-recovery`, then remove
++the copied binaries, scripts, and LaunchAgents after confirming the account and
++paths.
 +
 diff --git a/docs/troubleshooting.md b/docs/troubleshooting.md
 new file mode 100644
-index 00000000..249f5ea3
+index 00000000..5fb8265f
 --- /dev/null
 +++ b/docs/troubleshooting.md
-@@ -0,0 +1,178 @@
+@@ -0,0 +1,207 @@
 +# Troubleshooting
 +
 +Start with:
@@ -12175,6 +13629,10 @@ index 00000000..249f5ea3
 +speaker are separate CoreAudio devices: changing the macOS volume while
 +BlackHole is selected does not change the speaker's hardware level.
 +
++The volume helper writes both the virtual main volume (`vmvc`) and the physical
++main volume scalar (`volm`). Health checks report the lower of the two supported
++controls, because macOS can restore them independently after wake.
++
 +Reapply the normalization:
 +
 +```sh
@@ -12183,6 +13641,31 @@ index 00000000..249f5ea3
 +
 +The runtime also reapplies this calibration while routing is active. Use the
 +controller's volume after the hardware stages are normalized.
++
++The controller volume is applied by CoreAudio after the 24-bit PCM chunks have
++been decoded. The stream itself remains at full scale; lowering Snapcast volume
++does not rewrite or truncate the integer audio buffers.
++
++## Crackling, Dropouts, or Low Volume After Wake
++
++macOS can invalidate active CoreAudio queues during sleep and restore the
++speaker's physical volume separately from its virtual main volume. Both Macs
++therefore install a user wake-recovery service.
++
++Verify that it is running:
++
++```sh
++launchctl print "gui/$(id -u)/com.snapcast.wake-recovery"
++```
++
++The service waits briefly for CoreAudio to settle, re-selects BlackHole on the
++source Mac, writes both volume controls, and recreates the audio processes.
++The remote installer installs the equivalent service as
++`com.snapcast.remote-wake-recovery`.
++
++If a failure still occurs, collect
++`~/Library/Logs/Snapcast/wake-recovery.stderr.log` and any `snapclient` crash
++report produced around the wake time.
 +
 +## Dropouts or Periodic Gaps
 +
@@ -12201,7 +13684,7 @@ index 00000000..249f5ea3
 +- Only one Snapserver is running on the source Mac.
 +- The selected source address is reachable from the remote Mac.
 +- No duplicate Snapclient processes use the same role ID.
-+- The remote Mac is not suspending the LaunchAgent during sleep.
++- The wake-recovery LaunchAgents are running on both Macs.
 +
 +If the network genuinely needs a larger buffer, change `buffer` in
 +[`integration/config/snapserver.conf.in`](../integration/config/snapserver.conf.in)
@@ -12250,14 +13733,14 @@ index 00000000..249f5ea3
 +
 diff --git a/docs/upstream-sync.md b/docs/upstream-sync.md
 new file mode 100644
-index 00000000..be816b33
+index 00000000..5a0a0f19
 --- /dev/null
 +++ b/docs/upstream-sync.md
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,110 @@
 +# Upstream Synchronization
 +
-+The public runtime keeps the upstream Snapcast history and adds one macOS
-+stereo-pair integration commit on top of a release tag. Upstream remotes are:
++The public runtime keeps the upstream Snapcast history and adds a macOS
++stereo-pair integration layer on top of a release tag. Upstream remotes are:
 +
 +```text
 +upstream https://github.com/snapcast/snapcast.git
@@ -12291,10 +13774,15 @@ index 00000000..be816b33
 +
 +- CoreAudio output device selection through `SNAPCLIENT_COREAUDIO_DEVICE`.
 +- Mono input expansion to a two-channel AudioQueue output.
++- Floating-point listening volume through `AudioQueueSetParameter` while PCM
++  chunks remain at full scale.
 +- 20 ms CoreAudio buffering.
 +- Initialized CoreAudio watchdog timing.
 +- Process/pipe jitter tolerance and timeline preservation.
++- Deferred AudioQueue disposal outside its callback.
++- Source and remote wake-recovery services.
 +- PortAudio BlackHole capture and dual mono FIFOs.
++- Normalization of both `vmvc` and `volm` hardware controls.
 +- Role-based stream routing.
 +
 +When the upstream base tag changes, update this document, the README
@@ -12305,7 +13793,7 @@ index 00000000..be816b33
 +After the rebased tree passes validation, regenerate the distributable diff:
 +
 +```sh
-+git diff vX.Y.Z -- . \
++git diff --binary vX.Y.Z -- . \
 +  ':(exclude)integration/patches/snapcast-macos-stereo.patch' \
 +  ':(exclude)docs/superpowers/**' \
 +  > integration/patches/snapcast-macos-stereo.patch
@@ -12313,14 +13801,26 @@ index 00000000..be816b33
 +```
 +
 +The reverse check confirms that the patch describes changes already present in
-+the working tree.
++the working tree. On a default case-insensitive macOS filesystem, the upstream
++case-only renames `changelog.md` and `.github/pull_request_template.md` can make
++the reverse check ambiguous. Exclude those paths when validating on such a
++checkout, or run the full reverse check in a case-sensitive checkout:
++
++```sh
++git apply --check --reverse \
++  --exclude=changelog.md \
++  --exclude=.github/pull_request_template.md \
++  integration/patches/snapcast-macos-stereo.patch
++```
 +
 +## Validate the Upgrade
 +
 +```sh
 +./integration/scripts/build-macos.sh
 +integration/test/test-pair-config.sh
++integration/test/test-audio-levels.sh
 +integration/test/test-pair-routing.sh
++integration/test/test-wake-recovery.sh
 +zsh -n integration/scripts/*.sh integration/test/*.sh
 +plutil -lint integration/launchagents/*.plist.in
 +./scripts/check-public-tree.sh
@@ -12336,7 +13836,8 @@ index 00000000..be816b33
 +```
 +
 +Hardware acceptance still requires the two-MacBook setup. Verify both stream
-+formats, routing, mute/volume behavior, click-marker alignment, native-mode
++formats, routing, full-scale PCM with CoreAudio queue volume, `vmvc`/`volm`
++normalization, sleep/wake recovery, click-marker alignment, native-mode
 +restoration, and controller compatibility before merging.
 +
 +## Privacy
@@ -12647,10 +14148,10 @@ index 00000000..afe21c08
 +#endif
 diff --git a/integration/capture/set-audio-volume.c b/integration/capture/set-audio-volume.c
 new file mode 100644
-index 00000000..eb9dac91
+index 00000000..539443a3
 --- /dev/null
 +++ b/integration/capture/set-audio-volume.c
-@@ -0,0 +1,135 @@
+@@ -0,0 +1,227 @@
 +/*
 + * Set or read a CoreAudio output device's virtual main volume by device UID.
 + *
@@ -12668,13 +14169,16 @@ index 00000000..eb9dac91
 +#include <string.h>
 +
 +static const AudioObjectPropertySelector kVirtualMainVolume = 'vmvc';
++static const AudioObjectPropertySelector kMainVolume = 'volm';
 +
 +static void print_usage(FILE* stream, const char* program)
 +{
 +    fprintf(stream,
 +            "Usage:\n"
 +            "  %s get <device-uid>\n"
-+            "  %s set <device-uid> <percent>\n",
++            "  %s set <device-uid> <percent>\n"
++            "  %s inspect <device-uid>\n",
++            program,
 +            program,
 +            program);
 +}
@@ -12704,38 +14208,116 @@ index 00000000..eb9dac91
 +    return device;
 +}
 +
-+static AudioObjectPropertyAddress volume_address(void)
++static AudioObjectPropertyAddress volume_address(AudioObjectPropertySelector selector, AudioObjectPropertyElement element)
 +{
 +    AudioObjectPropertyAddress address = {
-+        kVirtualMainVolume,
++        selector,
 +        kAudioObjectPropertyScopeOutput,
-+        kAudioObjectPropertyElementMain,
++        element,
 +    };
 +    return address;
 +}
 +
-+static int get_volume(const char* uid)
++static int read_volume_property(
++    AudioDeviceID device, AudioObjectPropertySelector selector, Float32* volume)
++{
++    AudioObjectPropertyAddress address = volume_address(selector, kAudioObjectPropertyElementMain);
++    if (AudioObjectHasProperty(device, &address))
++    {
++        UInt32 size = sizeof(*volume);
++        return AudioObjectGetPropertyData(device, &address, 0, NULL, &size, volume) == noErr;
++    }
++
++    int found = 0;
++    Float32 minimum = 1.0f;
++    for (AudioObjectPropertyElement element = 1; element <= 64; ++element)
++    {
++        address.mElement = element;
++        if (!AudioObjectHasProperty(device, &address))
++            continue;
++
++        Float32 channel_volume = 0;
++        UInt32 size = sizeof(channel_volume);
++        if (AudioObjectGetPropertyData(device, &address, 0, NULL, &size, &channel_volume) == noErr)
++        {
++            minimum = channel_volume < minimum ? channel_volume : minimum;
++            found = 1;
++        }
++    }
++
++    if (found)
++        *volume = minimum;
++    return found;
++}
++
++static int write_volume_property(
++    AudioDeviceID device, AudioObjectPropertySelector selector, Float32 volume)
++{
++    AudioObjectPropertyAddress address = volume_address(selector, kAudioObjectPropertyElementMain);
++    if (AudioObjectHasProperty(device, &address))
++        return AudioObjectSetPropertyData(device, &address, 0, NULL, sizeof(volume), &volume) == noErr;
++
++    int found = 0;
++    for (AudioObjectPropertyElement element = 1; element <= 64; ++element)
++    {
++        address.mElement = element;
++        if (!AudioObjectHasProperty(device, &address))
++            continue;
++
++        OSStatus status = AudioObjectSetPropertyData(device, &address, 0, NULL, sizeof(volume), &volume);
++        if (status != noErr)
++            return 0;
++        found = 1;
++    }
++    return found;
++}
++
++static int read_effective_volume(const char* uid)
 +{
 +    AudioDeviceID device = device_for_uid(uid);
 +    if (device == kAudioObjectUnknown)
 +        return 1;
 +
-+    AudioObjectPropertyAddress address = volume_address();
-+    if (!AudioObjectHasProperty(device, &address))
++    Float32 virtual_main = 0;
++    Float32 main = 0;
++    const int has_virtual = read_volume_property(device, kVirtualMainVolume, &virtual_main);
++    const int has_main = read_volume_property(device, kMainVolume, &main);
++    if (!has_virtual && !has_main)
 +    {
-+        fprintf(stderr, "Device '%s' has no virtual main volume control\n", uid);
++        fprintf(stderr, "Device '%s' has no writable main volume control\n", uid);
 +        return 1;
 +    }
 +
-+    Float32 volume = 0;
-+    UInt32 size = sizeof(volume);
-+    OSStatus status = AudioObjectGetPropertyData(device, &address, 0, NULL, &size, &volume);
-+    if (status != noErr)
++    Float32 effective = 1.0f;
++    if (has_virtual && virtual_main < effective)
++        effective = virtual_main;
++    if (has_main && main < effective)
++        effective = main;
++
++    printf("%.2f\n", effective * 100.0);
++    return 0;
++}
++
++static int inspect_volume(const char* uid)
++{
++    AudioDeviceID device = device_for_uid(uid);
++    if (device == kAudioObjectUnknown)
++        return 1;
++
++    Float32 virtual_main = 0;
++    Float32 main = 0;
++    const int has_virtual = read_volume_property(device, kVirtualMainVolume, &virtual_main);
++    const int has_main = read_volume_property(device, kMainVolume, &main);
++    if (!has_virtual && !has_main)
 +    {
-+        fprintf(stderr, "Could not read volume for '%s': OSStatus %d\n", uid, status);
++        fprintf(stderr, "Device '%s' has no writable main volume control\n", uid);
 +        return 1;
 +    }
-+    printf("%.2f\n", volume * 100.0);
++
++    if (has_virtual)
++        printf("virtual_main=%.2f\n", virtual_main * 100.0);
++    if (has_main)
++        printf("main=%.2f\n", main * 100.0);
 +    return 0;
 +}
 +
@@ -12754,20 +14336,29 @@ index 00000000..eb9dac91
 +    if (device == kAudioObjectUnknown)
 +        return 1;
 +
-+    AudioObjectPropertyAddress address = volume_address();
-+    if (!AudioObjectHasProperty(device, &address))
++    Float32 volume = (Float32)(percent / 100.0);
++    const int virtual_set = write_volume_property(device, kVirtualMainVolume, volume);
++    const int main_set = write_volume_property(device, kMainVolume, volume);
++    if (!virtual_set && !main_set)
 +    {
-+        fprintf(stderr, "Device '%s' has no virtual main volume control\n", uid);
++        fprintf(stderr, "Could not set volume for '%s'\n", uid);
 +        return 1;
 +    }
 +
-+    Float32 volume = (Float32)(percent / 100.0);
-+    OSStatus status = AudioObjectSetPropertyData(device, &address, 0, NULL, sizeof(volume), &volume);
-+    if (status != noErr)
++    Float32 readback = 0;
++    if (virtual_set &&
++        (!read_volume_property(device, kVirtualMainVolume, &readback) || readback < volume - 0.001f || readback > volume + 0.001f))
 +    {
-+        fprintf(stderr, "Could not set volume for '%s': OSStatus %d\n", uid, status);
++        fprintf(stderr, "Could not verify virtual main volume for '%s'\n", uid);
 +        return 1;
 +    }
++    if (main_set &&
++        (!read_volume_property(device, kMainVolume, &readback) || readback < volume - 0.001f || readback > volume + 0.001f))
++    {
++        fprintf(stderr, "Could not verify main volume for '%s'\n", uid);
++        return 1;
++    }
++
 +    return 0;
 +}
 +
@@ -12779,12 +14370,101 @@ index 00000000..eb9dac91
 +        return 0;
 +    }
 +    if (argc == 3 && strcmp(argv[1], "get") == 0)
-+        return get_volume(argv[2]);
++        return read_effective_volume(argv[2]);
++    if (argc == 3 && strcmp(argv[1], "inspect") == 0)
++        return inspect_volume(argv[2]);
 +    if (argc == 4 && strcmp(argv[1], "set") == 0)
 +        return set_volume(argv[2], argv[3]);
 +
 +    print_usage(stderr, argv[0]);
 +    return 2;
++}
+diff --git a/integration/capture/wake-recovery-listener.c b/integration/capture/wake-recovery-listener.c
+new file mode 100644
+index 00000000..45057955
+--- /dev/null
++++ b/integration/capture/wake-recovery-listener.c
+@@ -0,0 +1,81 @@
++#include <CoreFoundation/CoreFoundation.h>
++#include <IOKit/IOMessage.h>
++#include <IOKit/pwr_mgt/IOPMLib.h>
++
++#include <signal.h>
++#include <spawn.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <unistd.h>
++
++extern char** environ;
++
++static io_connect_t root_port = MACH_PORT_NULL;
++static io_object_t power_notifier = IO_OBJECT_NULL;
++static IONotificationPortRef notification_port = NULL;
++static const char* recovery_script = NULL;
++static volatile sig_atomic_t running = 1;
++
++static void stop_listener(int signal_number)
++{
++    (void)signal_number;
++    running = 0;
++}
++
++static void run_recovery(void)
++{
++    pid_t child = 0;
++    char* argv[] = {(char*)recovery_script, NULL};
++    int error = posix_spawn(&child, recovery_script, NULL, NULL, argv, environ);
++    if (error != 0)
++        fprintf(stderr, "Could not start wake recovery script '%s': error %d\n", recovery_script, error);
++}
++
++static void power_callback(
++    void* context, io_service_t service, natural_t message_type, void* message_argument)
++{
++    (void)context;
++    (void)service;
++
++    if (message_type == kIOMessageCanSystemSleep || message_type == kIOMessageSystemWillSleep)
++    {
++        IOAllowPowerChange(root_port, (long)message_argument);
++    }
++    else if (message_type == kIOMessageSystemHasPoweredOn)
++    {
++        run_recovery();
++    }
++}
++
++int main(int argc, char** argv)
++{
++    if (argc != 2)
++    {
++        fprintf(stderr, "Usage: %s <wake-recovery-script>\n", argv[0]);
++        return 2;
++    }
++
++    recovery_script = argv[1];
++    signal(SIGINT, stop_listener);
++    signal(SIGTERM, stop_listener);
++
++    io_object_t notifier = IO_OBJECT_NULL;
++    root_port = IORegisterForSystemPower(&power_notifier, &notification_port, power_callback, &notifier);
++    if (root_port == MACH_PORT_NULL)
++    {
++        fprintf(stderr, "Could not register for system power notifications\n");
++        return 1;
++    }
++    power_notifier = notifier;
++
++    CFRunLoopSourceRef source = IONotificationPortGetRunLoopSource(notification_port);
++    CFRunLoopAddSource(CFRunLoopGetCurrent(), source, kCFRunLoopCommonModes);
++
++    while (running)
++        CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1.0, false);
++
++    CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, kCFRunLoopCommonModes);
++    IODeregisterForSystemPower(&power_notifier);
++    IONotificationPortDestroy(notification_port);
++    return 0;
 +}
 diff --git a/integration/config/pair.env.example b/integration/config/pair.env.example
 new file mode 100644
@@ -12958,6 +14638,42 @@ index 00000000..666e93a4
 +  <string>@LOG_DIR@/client.stderr.log</string>
 +</dict>
 +</plist>
+diff --git a/integration/launchagents/remote-wake-recovery.plist.in b/integration/launchagents/remote-wake-recovery.plist.in
+new file mode 100644
+index 00000000..602322e9
+--- /dev/null
++++ b/integration/launchagents/remote-wake-recovery.plist.in
+@@ -0,0 +1,30 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
++<plist version="1.0">
++<dict>
++  <key>Label</key>
++  <string>com.snapcast.remote-wake-recovery</string>
++  <key>ProgramArguments</key>
++  <array>
++    <string>@SUPPORT_DIR@/bin/wake-recovery-listener</string>
++    <string>@SUPPORT_DIR@/wake-recovery-remote.sh</string>
++  </array>
++  <key>EnvironmentVariables</key>
++  <dict>
++    <key>PATH</key>
++    <string>@HOMEBREW_BIN@:/usr/bin:/bin:/usr/sbin:/sbin</string>
++  </dict>
++  <key>RunAtLoad</key>
++  <true/>
++  <key>KeepAlive</key>
++  <true/>
++  <key>ThrottleInterval</key>
++  <integer>3</integer>
++  <key>ProcessType</key>
++  <string>Background</string>
++  <key>StandardOutPath</key>
++  <string>@LOG_DIR@/remote-wake-recovery.log</string>
++  <key>StandardErrorPath</key>
++  <string>@LOG_DIR@/remote-wake-recovery.stderr.log</string>
++</dict>
++</plist>
 diff --git a/integration/launchagents/route.plist.in b/integration/launchagents/route.plist.in
 new file mode 100644
 index 00000000..b4d2eb0a
@@ -13052,6 +14768,42 @@ index 00000000..0b42457e
 +  <string>@LOG_DIR@/splitter.stdout.log</string>
 +  <key>StandardErrorPath</key>
 +  <string>@LOG_DIR@/splitter.stderr.log</string>
++</dict>
++</plist>
+diff --git a/integration/launchagents/wake-recovery.plist.in b/integration/launchagents/wake-recovery.plist.in
+new file mode 100644
+index 00000000..cf2cf8f3
+--- /dev/null
++++ b/integration/launchagents/wake-recovery.plist.in
+@@ -0,0 +1,30 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
++<plist version="1.0">
++<dict>
++  <key>Label</key>
++  <string>com.snapcast.wake-recovery</string>
++  <key>ProgramArguments</key>
++  <array>
++    <string>@SUPPORT_DIR@/bin/wake-recovery-listener</string>
++    <string>@SUPPORT_DIR@/wake-recovery-local.sh</string>
++  </array>
++  <key>EnvironmentVariables</key>
++  <dict>
++    <key>PATH</key>
++    <string>@HOMEBREW_BIN@:/usr/bin:/bin:/usr/sbin:/sbin</string>
++  </dict>
++  <key>RunAtLoad</key>
++  <true/>
++  <key>KeepAlive</key>
++  <true/>
++  <key>ThrottleInterval</key>
++  <integer>3</integer>
++  <key>ProcessType</key>
++  <string>Background</string>
++  <key>StandardOutPath</key>
++  <string>@LOG_DIR@/wake-recovery.log</string>
++  <key>StandardErrorPath</key>
++  <string>@LOG_DIR@/wake-recovery.stderr.log</string>
 +</dict>
 +</plist>
 diff --git a/integration/scripts/analyze_mono_pair.py b/integration/scripts/analyze_mono_pair.py
@@ -13186,10 +14938,10 @@ index 00000000..0c432244
 +}
 diff --git a/integration/scripts/build-macos.sh b/integration/scripts/build-macos.sh
 new file mode 100755
-index 00000000..0047e3f1
+index 00000000..ff4e150f
 --- /dev/null
 +++ b/integration/scripts/build-macos.sh
-@@ -0,0 +1,54 @@
+@@ -0,0 +1,60 @@
 +#!/bin/zsh
 +set -euo pipefail
 +
@@ -13238,18 +14990,24 @@ index 00000000..0047e3f1
 +  "$repo_root/integration/capture/set-audio-volume.c" \
 +  -framework CoreAudio \
 +  -framework CoreFoundation
++clang -O2 -Wall -Wextra \
++  -o "$build_dir/bin/wake-recovery-listener" \
++  "$repo_root/integration/capture/wake-recovery-listener.c" \
++  -framework CoreFoundation \
++  -framework IOKit
 +
 +print "Built:"
 +print "  $build_dir/bin/snapserver"
 +print "  $build_dir/bin/snapclient"
 +print "  $build_dir/bin/capture-blackhole"
 +print "  $build_dir/bin/set-audio-volume"
++print "  $build_dir/bin/wake-recovery-listener"
 diff --git a/integration/scripts/check-health.sh b/integration/scripts/check-health.sh
 new file mode 100755
-index 00000000..478f2069
+index 00000000..2a8816a1
 --- /dev/null
 +++ b/integration/scripts/check-health.sh
-@@ -0,0 +1,115 @@
+@@ -0,0 +1,116 @@
 +#!/bin/zsh
 +set -uo pipefail
 +
@@ -13283,7 +15041,7 @@ index 00000000..478f2069
 +print "Local processes:"
 +pgrep -ifl 'snapserver|snapclient|snapcast-capture-blackhole' || print "  none"
 +
-+for label in com.snapcast.server com.snapcast.splitter com.snapcast.local-client com.snapcast.pairing; do
++for label in com.snapcast.server com.snapcast.splitter com.snapcast.local-client com.snapcast.pairing com.snapcast.wake-recovery; do
 +  print "\n$label:"
 +  launchctl print "gui/$uid/$label" 2>/dev/null | rg 'state =|runs =|pid =' | head -3 || print "  not loaded"
 +done
@@ -13347,7 +15105,8 @@ index 00000000..478f2069
 +  "$HOME/Library/Logs/Snapcast/local-client.log" \
 +  "$HOME/Library/Logs/Snapcast/server.log" \
 +  "$HOME/Library/Logs/Snapcast/splitter.stderr.log" \
-+  "$HOME/Library/Logs/Snapcast/pairing.stderr.log"; do
++  "$HOME/Library/Logs/Snapcast/pairing.stderr.log" \
++  "$HOME/Library/Logs/Snapcast/wake-recovery.stderr.log"; do
 +  if [[ ! -f "$file" ]]; then
 +    continue
 +  fi
@@ -13521,10 +15280,10 @@ index 00000000..58a29d15
 +fi
 diff --git a/integration/scripts/install-local.sh b/integration/scripts/install-local.sh
 new file mode 100755
-index 00000000..9dbe19c3
+index 00000000..eed894e6
 --- /dev/null
 +++ b/integration/scripts/install-local.sh
-@@ -0,0 +1,73 @@
+@@ -0,0 +1,79 @@
 +#!/bin/zsh
 +set -euo pipefail
 +
@@ -13555,13 +15314,14 @@ index 00000000..9dbe19c3
 +install -m 755 "$repo_root/.build/bin/snapserver" "$support_dir/bin/snapserver"
 +install -m 755 "$repo_root/.build/bin/snapclient" "$support_dir/bin/snapclient"
 +install -m 755 "$repo_root/.build/bin/set-audio-volume" "$support_dir/bin/set-audio-volume"
++install -m 755 "$repo_root/.build/bin/wake-recovery-listener" "$support_dir/bin/wake-recovery-listener"
 +install -m 755 "$repo_root/.build/bin/capture-blackhole" "$homebrew_bin/snapcast-capture-blackhole"
 +install -m 644 "$repo_root/integration/capture/capture-blackhole-pa.c" "$support_dir/capture-blackhole-pa.c"
 +render_pair_template \
 +  "$repo_root/integration/config/snapserver.conf.in" \
 +  "$support_dir/snapserver.conf"
 +
-+for name in server local-client route splitter pairing; do
++for name in server local-client route splitter pairing wake-recovery; do
 +  render_pair_template \
 +    "$repo_root/integration/launchagents/$name.plist.in" \
 +    "$launch_dir/com.snapcast.$name.plist"
@@ -13583,8 +15343,12 @@ index 00000000..9dbe19c3
 +  "$repo_root/integration/scripts/route-audio.sh" \
 +  "$support_dir/route-audio.sh"
 +chmod 755 "$support_dir/route-audio.sh"
++render_pair_template \
++  "$repo_root/integration/scripts/wake-recovery-local.sh" \
++  "$support_dir/wake-recovery-local.sh"
++chmod 755 "$support_dir/wake-recovery-local.sh"
 +
-+for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
++for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery; do
 +  launchctl bootout "gui/$uid/$label" 2>/dev/null || true
 +done
 +sleep 1
@@ -13595,15 +15359,16 @@ index 00000000..9dbe19c3
 +launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.splitter.plist"
 +launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.local-client.plist"
 +launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.pairing.plist"
++launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.wake-recovery.plist"
 +
 +print "Installed local Snapcast stereo-pair services."
 +print "Check status with: $repo_root/integration/scripts/check-health.sh"
 diff --git a/integration/scripts/install-remote.sh b/integration/scripts/install-remote.sh
 new file mode 100755
-index 00000000..7cef783c
+index 00000000..deb24f68
 --- /dev/null
 +++ b/integration/scripts/install-remote.sh
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,65 @@
 +#!/bin/zsh
 +set -euo pipefail
 +
@@ -13614,7 +15379,9 @@ index 00000000..7cef783c
 +compute_pair_roles
 +remote="$REMOTE_USER@$REMOTE_HOST"
 +
-+if [[ ! -x "$repo_root/.build/bin/snapclient" ]]; then
++if [[ ! -x "$repo_root/.build/bin/snapclient" ||
++  ! -x "$repo_root/.build/bin/set-audio-volume" ||
++  ! -x "$repo_root/.build/bin/wake-recovery-listener" ]]; then
 +  "$repo_root/integration/scripts/build-macos.sh"
 +fi
 +
@@ -13623,27 +15390,47 @@ index 00000000..7cef783c
 +  export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 +  brew --prefix
 +')/bin"
-+rendered_plist="$(mktemp)"
-+trap 'rm -f "$rendered_plist"' EXIT
++rendered_client_plist="$(mktemp)"
++rendered_wake_plist="$(mktemp)"
++rendered_wake_script="$(mktemp)"
++trap 'rm -f "$rendered_client_plist" "$rendered_wake_plist" "$rendered_wake_script"' EXIT
 +PAIR_RENDER_HOME="$remote_home" \
 +PAIR_RENDER_HOMEBREW_BIN="$remote_brew_bin" \
 +render_pair_template \
 +  "$repo_root/integration/launchagents/remote-client.plist.in" \
-+  "$rendered_plist"
++  "$rendered_client_plist"
++PAIR_RENDER_HOME="$remote_home" \
++PAIR_RENDER_HOMEBREW_BIN="$remote_brew_bin" \
++render_pair_template \
++  "$repo_root/integration/launchagents/remote-wake-recovery.plist.in" \
++  "$rendered_wake_plist"
++PAIR_RENDER_HOME="$remote_home" \
++PAIR_RENDER_HOMEBREW_BIN="$remote_brew_bin" \
++render_pair_template \
++  "$repo_root/integration/scripts/wake-recovery-remote.sh" \
++  "$rendered_wake_script"
 +
 +ssh "$remote" 'mkdir -p "$HOME/Library/Application Support/Snapcast/bin" "$HOME/Library/Logs/Snapcast" "$HOME/Library/LaunchAgents"'
 +scp "$repo_root/.build/bin/snapclient" "$remote:Library/Application Support/Snapcast/bin/snapclient"
 +scp "$repo_root/.build/bin/set-audio-volume" "$remote:Library/Application Support/Snapcast/bin/set-audio-volume"
-+scp "$rendered_plist" "$remote:Library/LaunchAgents/com.snapcast.remote-client.plist"
++scp "$repo_root/.build/bin/wake-recovery-listener" "$remote:Library/Application Support/Snapcast/bin/wake-recovery-listener"
++scp "$rendered_client_plist" "$remote:Library/LaunchAgents/com.snapcast.remote-client.plist"
++scp "$rendered_wake_plist" "$remote:Library/LaunchAgents/com.snapcast.remote-wake-recovery.plist"
++scp "$rendered_wake_script" "$remote:Library/Application Support/Snapcast/wake-recovery-remote.sh"
 +
 +ssh "$remote" env REMOTE_OUTPUT_DEVICE_UID="$REMOTE_OUTPUT_DEVICE_UID" zsh -s <<'REMOTE_SCRIPT'
 +  chmod 755 "$HOME/Library/Application Support/Snapcast/bin/snapclient"
 +  chmod 755 "$HOME/Library/Application Support/Snapcast/bin/set-audio-volume"
++  chmod 755 "$HOME/Library/Application Support/Snapcast/bin/wake-recovery-listener"
++  chmod 755 "$HOME/Library/Application Support/Snapcast/wake-recovery-remote.sh"
 +  "$HOME/Library/Application Support/Snapcast/bin/set-audio-volume" set "$REMOTE_OUTPUT_DEVICE_UID" 100
 +  uid="$(id -u)"
-+  launchctl bootout "gui/$uid/com.snapcast.remote-client" 2>/dev/null || true
++  for label in com.snapcast.remote-client com.snapcast.remote-wake-recovery; do
++    launchctl bootout "gui/$uid/$label" 2>/dev/null || true
++  done
 +  sleep 1
 +  launchctl bootstrap "gui/$uid" "$HOME/Library/LaunchAgents/com.snapcast.remote-client.plist"
++  launchctl bootstrap "gui/$uid" "$HOME/Library/LaunchAgents/com.snapcast.remote-wake-recovery.plist"
 +REMOTE_SCRIPT
 +
 +print "Installed remote Snapcast client on $remote."
@@ -13832,10 +15619,10 @@ index 00000000..96bbf099
 +ensure_audio_levels
 diff --git a/integration/scripts/set-mode.sh b/integration/scripts/set-mode.sh
 new file mode 100755
-index 00000000..5a5ddb14
+index 00000000..d55f30aa
 --- /dev/null
 +++ b/integration/scripts/set-mode.sh
-@@ -0,0 +1,48 @@
+@@ -0,0 +1,49 @@
 +#!/bin/zsh
 +set -euo pipefail
 +
@@ -13844,7 +15631,7 @@ index 00000000..5a5ddb14
 +source "@SUPPORT_DIR@/audio-levels.sh"
 +
 +stop_snapcast() {
-+  for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
++  for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery; do
 +    launchctl bootout "gui/$uid/$label" 2>/dev/null || true
 +  done
 +}
@@ -13852,7 +15639,7 @@ index 00000000..5a5ddb14
 +start_snapcast() {
 +  stop_snapcast
 +  sleep 1
-+  for label in com.snapcast.local-client com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
++  for label in com.snapcast.local-client com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery; do
 +    launchctl enable "gui/$uid/$label"
 +  done
 +  SwitchAudioSource -s "@CAPTURE_DEVICE@" -t output
@@ -13863,6 +15650,7 @@ index 00000000..5a5ddb14
 +  launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.splitter.plist"
 +  launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.local-client.plist"
 +  launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.pairing.plist"
++  launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.wake-recovery.plist"
 +  print "Snapcast stereo-pair mode enabled."
 +}
 +
@@ -13872,7 +15660,7 @@ index 00000000..5a5ddb14
 +    ;;
 +  native)
 +    stop_snapcast
-+    for label in com.snapcast.local-client com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
++    for label in com.snapcast.local-client com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery; do
 +      launchctl disable "gui/$uid/$label"
 +    done
 +    "@SUPPORT_DIR@/bin/set-audio-volume" set "@NATIVE_OUTPUT_DEVICE_UID@" 100
@@ -13886,7 +15674,7 @@ index 00000000..5a5ddb14
 +esac
 diff --git a/integration/scripts/uninstall-local.sh b/integration/scripts/uninstall-local.sh
 new file mode 100755
-index 00000000..085d8160
+index 00000000..24aa2040
 --- /dev/null
 +++ b/integration/scripts/uninstall-local.sh
 @@ -0,0 +1,16 @@
@@ -13899,19 +15687,57 @@ index 00000000..085d8160
 +
 +uid="$(id -u)"
 +
-+for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
++for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery; do
 +  launchctl bootout "gui/$uid/$label" 2>/dev/null || true
 +done
 +
 +SwitchAudioSource -u "$NATIVE_OUTPUT_DEVICE_UID" -t output || true
 +print "Snapcast services stopped and local speaker restored."
 +print "Files in ~/Library/Application Support/Snapcast were preserved."
+diff --git a/integration/scripts/wake-recovery-local.sh b/integration/scripts/wake-recovery-local.sh
+new file mode 100755
+index 00000000..9777a0dd
+--- /dev/null
++++ b/integration/scripts/wake-recovery-local.sh
+@@ -0,0 +1,15 @@
++#!/bin/zsh
++set -euo pipefail
++
++support_dir="${SUPPORT_DIR:-@SUPPORT_DIR@}"
++switch_bin="${SWITCH_AUDIO_SOURCE_BIN:-SwitchAudioSource}"
++launchctl_bin="${LAUNCHCTL_BIN:-launchctl}"
++uid="${WAKE_RECOVERY_UID:-$(id -u)}"
++
++/bin/sleep "${WAKE_RECOVERY_DELAY:-2}"
++source "$support_dir/audio-levels.sh"
++
++"$switch_bin" -s "${CAPTURE_DEVICE:-@CAPTURE_DEVICE@}" -t output
++ensure_audio_levels
++"$launchctl_bin" kickstart -k "gui/$uid/com.snapcast.splitter"
++"$launchctl_bin" kickstart -k "gui/$uid/com.snapcast.local-client"
+diff --git a/integration/scripts/wake-recovery-remote.sh b/integration/scripts/wake-recovery-remote.sh
+new file mode 100755
+index 00000000..c8ea568f
+--- /dev/null
++++ b/integration/scripts/wake-recovery-remote.sh
+@@ -0,0 +1,11 @@
++#!/bin/zsh
++set -euo pipefail
++
++support_dir="${SUPPORT_DIR:-@SUPPORT_DIR@}"
++launchctl_bin="${LAUNCHCTL_BIN:-launchctl}"
++volume_bin="${AUDIO_VOLUME_BIN:-$support_dir/bin/set-audio-volume}"
++uid="${WAKE_RECOVERY_UID:-$(id -u)}"
++
++/bin/sleep "${WAKE_RECOVERY_DELAY:-2}"
++"$volume_bin" set "${REMOTE_OUTPUT_DEVICE_UID:-@REMOTE_OUTPUT_DEVICE_UID@}" 100
++"$launchctl_bin" kickstart -k "gui/$uid/com.snapcast.remote-client"
 diff --git a/integration/test/test-audio-levels.sh b/integration/test/test-audio-levels.sh
 new file mode 100755
-index 00000000..2f1383ca
+index 00000000..b48589ac
 --- /dev/null
 +++ b/integration/test/test-audio-levels.sh
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,48 @@
 +#!/bin/zsh
 +set -euo pipefail
 +
@@ -13919,6 +15745,9 @@ index 00000000..2f1383ca
 +tmp_dir="$(mktemp -d)"
 +
 +cleanup() {
++  if [[ -n "${hardware_uid:-}" && -x "${volume_bin:-}" ]]; then
++    "$volume_bin" set "$hardware_uid" 100 >/dev/null 2>&1 || true
++  fi
 +  rm -rf "$tmp_dir"
 +}
 +trap cleanup EXIT
@@ -13946,6 +15775,15 @@ index 00000000..2f1383ca
 +volume_bin="$repo_root/.build/bin/set-audio-volume"
 +[[ -x "$volume_bin" ]]
 +"$volume_bin" --help >/dev/null
++
++hardware_uid="${AUDIO_VOLUME_HARDWARE_UID:-}"
++if [[ -n "$hardware_uid" ]]; then
++  "$volume_bin" set "$hardware_uid" 37
++  actual="$("$volume_bin" inspect "$hardware_uid")"
++  print -r -- "$actual" | grep -qx 'virtual_main=37.00'
++  print -r -- "$actual" | grep -qx 'main=37.00'
++  "$volume_bin" set "$hardware_uid" 100
++fi
 +
 +print "Audio level tests passed"
 diff --git a/integration/test/test-pair-config.sh b/integration/test/test-pair-config.sh
@@ -14136,6 +15974,76 @@ index 00000000..bd9dcc63
 +
 +[[ "$groups_before" == "$groups_after" ]]
 +print "Pair routing tests passed"
+diff --git a/integration/test/test-wake-recovery.sh b/integration/test/test-wake-recovery.sh
+new file mode 100755
+index 00000000..718b6f17
+--- /dev/null
++++ b/integration/test/test-wake-recovery.sh
+@@ -0,0 +1,64 @@
++#!/bin/zsh
++set -euo pipefail
++
++repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
++tmp_dir="$(mktemp -d)"
++
++cleanup() {
++  rm -rf "$tmp_dir"
++}
++trap cleanup EXIT
++
++cat > "$tmp_dir/set-audio-volume" <<'EOF'
++#!/bin/zsh
++print -r -- "volume $*" >> "$WAKE_RECOVERY_TEST_LOG"
++EOF
++cat > "$tmp_dir/SwitchAudioSource" <<'EOF'
++#!/bin/zsh
++print -r -- "switch $*" >> "$WAKE_RECOVERY_TEST_LOG"
++EOF
++cat > "$tmp_dir/launchctl" <<'EOF'
++#!/bin/zsh
++print -r -- "launchctl $*" >> "$WAKE_RECOVERY_TEST_LOG"
++EOF
++chmod +x "$tmp_dir/set-audio-volume" "$tmp_dir/SwitchAudioSource" "$tmp_dir/launchctl"
++
++export WAKE_RECOVERY_TEST_LOG="$tmp_dir/calls.log"
++export WAKE_RECOVERY_DELAY=0
++export AUDIO_VOLUME_BIN="$tmp_dir/set-audio-volume"
++export SWITCH_AUDIO_SOURCE_BIN="$tmp_dir/SwitchAudioSource"
++export LAUNCHCTL_BIN="$tmp_dir/launchctl"
++export SUPPORT_DIR="$repo_root/integration/scripts"
++export CAPTURE_DEVICE_UID="BlackHole2ch_UID"
++export LOCAL_OUTPUT_DEVICE="BuiltInSpeakerDevice"
++export REMOTE_OUTPUT_DEVICE_UID="RemoteSpeakerDevice"
++export CAPTURE_DEVICE="BlackHole 2ch"
++export LOCAL_CLIENT_ID="local-role"
++export REMOTE_CLIENT_ID="remote-role"
++
++"$repo_root/integration/scripts/wake-recovery-local.sh"
++
++uid="$(id -u)"
++expected_local="switch -s BlackHole 2ch -t output
++volume set BlackHole2ch_UID 100
++volume set BuiltInSpeakerDevice 100
++launchctl kickstart -k gui/$uid/com.snapcast.splitter
++launchctl kickstart -k gui/$uid/com.snapcast.local-client"
++[[ "$(cat "$WAKE_RECOVERY_TEST_LOG")" == "$expected_local" ]]
++
++: > "$WAKE_RECOVERY_TEST_LOG"
++WAKE_RECOVERY_UID=502 "$repo_root/integration/scripts/wake-recovery-remote.sh"
++
++expected_remote=$'volume set RemoteSpeakerDevice 100\nlaunchctl kickstart -k gui/502/com.snapcast.remote-client'
++[[ "$(cat "$WAKE_RECOVERY_TEST_LOG")" == "$expected_remote" ]]
++
++listener="$repo_root/.build/bin/wake-recovery-listener"
++[[ -x "$listener" ]]
++set +e
++usage="$("$listener" 2>&1)"
++listener_status=$?
++set -e
++[[ "$listener_status" -eq 2 ]]
++[[ "$usage" == Usage:* ]]
++
++print "Wake recovery tests passed"
 diff --git a/scripts/check-public-tree.sh b/scripts/check-public-tree.sh
 new file mode 100755
 index 00000000..7ee91684
@@ -14242,20 +16150,22 @@ index f5772b69..cfe8386b 100644
      ${CMAKE_SOURCE_DIR}/common/base64.cpp
      ${CMAKE_SOURCE_DIR}/common/utils/string_utils.cpp
 diff --git a/test/test_main.cpp b/test/test_main.cpp
-index 9116400a..8c89496a 100644
+index 9116400a..18df792a 100644
 --- a/test/test_main.cpp
 +++ b/test/test_main.cpp
-@@ -24,6 +24,9 @@
+@@ -24,6 +24,11 @@
  #include "common/stream_uri.hpp"
  #include "common/utils/file_utils.hpp"
  #include "common/utils/string_utils.hpp"
++#include "client/player/coreaudio_queue_health.hpp"
++#include "client/player/coreaudio_volume.hpp"
 +#include "client/player/mono_stereo.hpp"
 +#include "integration/capture/fifo_io.h"
 +#include "integration/capture/pcm24.h"
  // #include "server/jwt.hpp"
  #include "server/authinfo.hpp"
  #include "server/server_settings.hpp"
-@@ -44,6 +47,78 @@
+@@ -44,6 +49,112 @@
  
  using namespace std;
  
@@ -14316,6 +16226,40 @@ index 9116400a..8c89496a 100644
 +    REQUIRE(output[1] == 100);
 +    REQUIRE(output[2] == -300);
 +    REQUIRE(output[3] == -300);
++}
++
++TEST_CASE("CoreAudio queue restarts after invalidation or a timeline discontinuity")
++{
++    REQUIRE(player::coreAudioQueueNeedsRestart(0, false, true) == false);
++    REQUIRE(player::coreAudioQueueNeedsRestart(-66671, false, true) == true);
++    REQUIRE(player::coreAudioQueueNeedsRestart(0, true, true) == true);
++}
++
++TEST_CASE("CoreAudio pre-start buffers ignore an invalid run-state query")
++{
++    REQUIRE(player::coreAudioQueueNeedsRestart(-66678, false, false) == false);
++    REQUIRE(player::coreAudioQueueNeedsRestart(-66678, false, true) == true);
++}
++
++TEST_CASE("CoreAudio callbacks remain suppressed until a queue is recreated")
++{
++    player::CoreAudioCallbackState state;
++
++    REQUIRE(state.callbackSuppressed() == false);
++    REQUIRE(state.requestRestart() == true);
++    REQUIRE(state.callbackSuppressed() == true);
++    REQUIRE(state.requestRestart() == false);
++
++    state.reset();
++    REQUIRE(state.callbackSuppressed() == false);
++}
++
++TEST_CASE("CoreAudio queue volume clamps levels and honors mute")
++{
++    REQUIRE(player::coreAudioQueueVolume(0.5, false) == 0.5);
++    REQUIRE(player::coreAudioQueueVolume(0.5, true) == 0.0);
++    REQUIRE(player::coreAudioQueueVolume(-0.25, false) == 0.0);
++    REQUIRE(player::coreAudioQueueVolume(1.25, false) == 1.0);
 +}
 +
 +TEST_CASE("16-bit mono PCM duplicates to both stereo channels")

@@ -1,7 +1,7 @@
 # Upstream Synchronization
 
-The public runtime keeps the upstream Snapcast history and adds one macOS
-stereo-pair integration commit on top of a release tag. Upstream remotes are:
+The public runtime keeps the upstream Snapcast history and adds a macOS
+stereo-pair integration layer on top of a release tag. Upstream remotes are:
 
 ```text
 upstream https://github.com/snapcast/snapcast.git
@@ -35,10 +35,15 @@ Resolve conflicts by preserving the project behavior described in
 
 - CoreAudio output device selection through `SNAPCLIENT_COREAUDIO_DEVICE`.
 - Mono input expansion to a two-channel AudioQueue output.
+- Floating-point listening volume through `AudioQueueSetParameter` while PCM
+  chunks remain at full scale.
 - 20 ms CoreAudio buffering.
 - Initialized CoreAudio watchdog timing.
 - Process/pipe jitter tolerance and timeline preservation.
+- Deferred AudioQueue disposal outside its callback.
+- Source and remote wake-recovery services.
 - PortAudio BlackHole capture and dual mono FIFOs.
+- Normalization of both `vmvc` and `volm` hardware controls.
 - Role-based stream routing.
 
 When the upstream base tag changes, update this document, the README
@@ -49,7 +54,7 @@ compatibility table, and CI expectations together.
 After the rebased tree passes validation, regenerate the distributable diff:
 
 ```sh
-git diff vX.Y.Z -- . \
+git diff --binary vX.Y.Z -- . \
   ':(exclude)integration/patches/snapcast-macos-stereo.patch' \
   ':(exclude)docs/superpowers/**' \
   > integration/patches/snapcast-macos-stereo.patch
@@ -57,14 +62,26 @@ git apply --check --reverse integration/patches/snapcast-macos-stereo.patch
 ```
 
 The reverse check confirms that the patch describes changes already present in
-the working tree.
+the working tree. On a default case-insensitive macOS filesystem, the upstream
+case-only renames `changelog.md` and `.github/pull_request_template.md` can make
+the reverse check ambiguous. Exclude those paths when validating on such a
+checkout, or run the full reverse check in a case-sensitive checkout:
+
+```sh
+git apply --check --reverse \
+  --exclude=changelog.md \
+  --exclude=.github/pull_request_template.md \
+  integration/patches/snapcast-macos-stereo.patch
+```
 
 ## Validate the Upgrade
 
 ```sh
 ./integration/scripts/build-macos.sh
 integration/test/test-pair-config.sh
+integration/test/test-audio-levels.sh
 integration/test/test-pair-routing.sh
+integration/test/test-wake-recovery.sh
 zsh -n integration/scripts/*.sh integration/test/*.sh
 plutil -lint integration/launchagents/*.plist.in
 ./scripts/check-public-tree.sh
@@ -80,7 +97,8 @@ cmake --build .build-tests
 ```
 
 Hardware acceptance still requires the two-MacBook setup. Verify both stream
-formats, routing, mute/volume behavior, click-marker alignment, native-mode
+formats, routing, full-scale PCM with CoreAudio queue volume, `vmvc`/`volm`
+normalization, sleep/wake recovery, click-marker alignment, native-mode
 restoration, and controller compatibility before merging.
 
 ## Privacy

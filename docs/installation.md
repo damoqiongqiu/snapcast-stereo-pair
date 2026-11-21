@@ -116,7 +116,9 @@ Build and validate without changing services:
 ```sh
 ./integration/scripts/build-macos.sh
 integration/test/test-pair-config.sh
+integration/test/test-audio-levels.sh
 integration/test/test-pair-routing.sh
+integration/test/test-wake-recovery.sh
 ```
 
 Install the source-Mac services:
@@ -187,6 +189,10 @@ While BlackHole is the active macOS output, its volume slider controls the
 capture level rather than the built-in speakers. Use the controller volume for
 listening; the runtime normalizes both hardware stages to avoid double
 attenuation.
+
+CoreAudio applies the controller volume through the AudioQueue floating-point
+volume parameter. The 24-bit PCM received from Snapserver remains at full scale,
+so changing listening volume does not rewrite the integer audio buffer.
 
 ## Complete Removal
 
