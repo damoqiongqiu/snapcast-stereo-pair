@@ -5,6 +5,38 @@ audio_profile_path() {
   print -r -- "$state_dir/native-audio.json"
 }
 
+audio_persisted_mode() {
+  local state_dir="$1"
+  jq -r '.mode // empty' "$state_dir/audio-mode.json" 2>/dev/null || true
+}
+
+audio_write_persisted_mode() {
+  local state_dir="$1"
+  local mode="$2"
+  mkdir -p "$state_dir"
+  chmod 700 "$state_dir"
+  local temporary
+  temporary="$(mktemp "$state_dir/.audio-mode.XXXXXX")"
+  jq -n \
+    --arg mode "$mode" \
+    --arg updatedAt "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+    '{schemaVersion: 1, mode: $mode, updatedAt: $updatedAt}' > "$temporary"
+  chmod 600 "$temporary"
+  mv "$temporary" "$state_dir/audio-mode.json"
+}
+
+audio_should_capture_native_profile() {
+  local state_dir="$1"
+  local service_running="$2"
+  local persisted_mode
+  persisted_mode="$(audio_persisted_mode "$state_dir")"
+  [[ "$persisted_mode" != "snapcast" ]] || return 1
+  if [[ -z "$persisted_mode" && "$service_running" == "true" ]]; then
+    return 1
+  fi
+  return 0
+}
+
 audio_profile_valid_volume() {
   local value="$1"
   [[ "$value" == <-> || "$value" == <->.<-> ]] || return 1

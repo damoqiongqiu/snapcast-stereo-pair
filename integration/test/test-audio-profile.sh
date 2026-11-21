@@ -81,4 +81,12 @@ audio_restore_native_profile \
 [[ "$(tail -1 "$VOLUME_TEST_LOG")" == "set BuiltInSpeakerDevice 30" ]]
 [[ "$(tail -1 "$SWITCH_TEST_LOG")" == "BuiltInSpeakerDevice" ]]
 
+audio_write_persisted_mode "$tmp_dir/state" snapcast
+! audio_should_capture_native_profile "$tmp_dir/state" false
+audio_write_persisted_mode "$tmp_dir/state" system
+audio_should_capture_native_profile "$tmp_dir/state" false
+rm "$tmp_dir/state/audio-mode.json"
+audio_should_capture_native_profile "$tmp_dir/state" false
+! audio_should_capture_native_profile "$tmp_dir/state" true
+
 print "Audio profile tests passed"
