@@ -9,6 +9,8 @@ let socketURL =
             .appendingPathComponent("Library/Application Support/Snapcast/run/control.sock")
     }
 let runtime = AgentRuntime()
+let modeCoordinator = ModeCoordinator()
+let snapserver = SnapserverClient()
 
 final class SnapshotStore: @unchecked Sendable {
     private let lock = NSLock()
@@ -60,13 +62,48 @@ let server = UnixControlServer(socketURL: socketURL) { request in
     switch request {
     case .snapshot, .subscribe:
         return .snapshot(cachedSnapshot())
-    case .setAudioMode(_, let mode):
-        return .error(
-            requestId: requestID(for: request),
-            message: "Audio mode transition is provided by the mode coordinator: \(mode.rawValue)"
-        )
-    case .restartPair, .setClientVolume, .setClientMute, .setClientLatency, .exportDiagnostics:
-        return .error(requestId: requestID(for: request), message: "Command is not available in this build")
+    case .setAudioMode(let requestId, let mode):
+        do {
+            let result = try await modeCoordinator.setMode(mode)
+            await updateSnapshot()
+            return .modeChanged(requestId: requestId, result: result)
+        } catch {
+            return .error(requestId: requestId, message: error.localizedDescription)
+        }
+    case .restartPair(let requestId):
+        do {
+            let result = try await modeCoordinator.setMode(.snapcast)
+            await updateSnapshot()
+            return .modeChanged(requestId: requestId, result: result)
+        } catch {
+            return .error(requestId: requestId, message: error.localizedDescription)
+        }
+    case .setClientVolume(let requestId, let clientId, let percent):
+        do {
+            try await snapserver.setVolume(clientId: clientId, percent: percent)
+            await updateSnapshot()
+            return .success(requestId: requestId)
+        } catch {
+            return .error(requestId: requestId, message: error.localizedDescription)
+        }
+    case .setClientMute(let requestId, let clientId, let muted):
+        do {
+            try await snapserver.setMute(clientId: clientId, muted: muted)
+            await updateSnapshot()
+            return .success(requestId: requestId)
+        } catch {
+            return .error(requestId: requestId, message: error.localizedDescription)
+        }
+    case .setClientLatency(let requestId, let clientId, let milliseconds):
+        do {
+            try await snapserver.setLatency(clientId: clientId, milliseconds: milliseconds)
+            await updateSnapshot()
+            return .success(requestId: requestId)
+        } catch {
+            return .error(requestId: requestId, message: error.localizedDescription)
+        }
+    case .exportDiagnostics(let requestId, _):
+        return .error(requestId: requestId, message: "Diagnostics export is not available in this build")
     }
 }
 

@@ -15,6 +15,7 @@ public enum ControlRequest: Codable, Equatable, Sendable {
 
 public enum ControlEvent: Codable, Equatable, Sendable {
     case snapshot(RuntimeSnapshot)
+    case modeChanged(requestId: String, result: ModeTransitionResult)
     case error(requestId: String, message: String)
     case success(requestId: String)
 }
