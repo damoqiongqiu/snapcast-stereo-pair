@@ -1,9 +1,10 @@
 import Foundation
 
-public struct AgentRuntime: Sendable {
+public actor AgentRuntime {
     private let healthReader: LocalHealthReader
     private let snapserver: SnapserverClient
     private let metricsReader: MetricsReader
+    private var stabilizer = SnapshotStabilizer()
 
     public init(
         healthReader: LocalHealthReader = LocalHealthReader(),
@@ -16,6 +17,10 @@ public struct AgentRuntime: Sendable {
     }
 
     public func snapshot() async -> RuntimeSnapshot {
+        stabilizer.stabilize(await candidateSnapshot())
+    }
+
+    private func candidateSnapshot() async -> RuntimeSnapshot {
         async let servicesTask = healthReader.readServices()
         let services = await servicesTask
         let metrics = metricsReader.read()

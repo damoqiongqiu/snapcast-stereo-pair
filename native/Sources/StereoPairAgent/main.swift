@@ -163,7 +163,7 @@ Task {
 }
 Task {
     while !Task.isCancelled {
-        if let metrics = runtime.liveMetrics() {
+        if let metrics = await runtime.liveMetrics() {
             store.merge(metrics: metrics)
         }
         try? await Task.sleep(for: .milliseconds(50))
