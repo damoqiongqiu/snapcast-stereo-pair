@@ -5,9 +5,27 @@ api="${SNAPSERVER_HTTP:-http://127.0.0.1:1780}"
 request_id=0
 LEFT_CLIENT_ID="${LEFT_CLIENT_ID:-@LEFT_CLIENT_ID@}"
 RIGHT_CLIENT_ID="${RIGHT_CLIENT_ID:-@RIGHT_CLIENT_ID@}"
+support_dir="${SUPPORT_DIR:-@SUPPORT_DIR@}"
+state_dir="${SNAPCAST_STATE_DIR:-$support_dir/state}"
+marker_message="automatic pairing completed"
 
-if [[ -f "@SUPPORT_DIR@/audio-levels.sh" ]]; then
-  source "@SUPPORT_DIR@/audio-levels.sh"
+if [[ -f "$support_dir/health-marker.sh" ]]; then
+  source "$support_dir/health-marker.sh"
+  finish_health_marker() {
+    local exit_code=$?
+    trap - EXIT
+    if (( exit_code == 0 )); then
+      write_health_marker "$state_dir/pairing.json" true 0 "$marker_message"
+    else
+      write_health_marker "$state_dir/pairing.json" false "$exit_code" "automatic pairing failed"
+    fi
+    exit "$exit_code"
+  }
+  trap finish_health_marker EXIT
+fi
+
+if [[ -f "$support_dir/audio-levels.sh" ]]; then
+  source "$support_dir/audio-levels.sh"
   ensure_audio_levels || print -u2 "Could not normalize CoreAudio hardware levels"
 fi
 
@@ -58,6 +76,7 @@ both_connected="$(print -r -- "$server_status" | jq -r \
   and ([.result.server.groups[].clients[] | select(.id == $right_id and .connected)] | length) == 1
 ')"
 if [[ "$both_connected" != "true" ]]; then
+  marker_message="waiting for both clients"
   exit 0
 fi
 
@@ -88,3 +107,5 @@ fi
 if [[ "$(stream_for_group "$server_status" "$right_group")" != "RightAudio" ]]; then
   rpc "{\"id\":$(next_id),\"jsonrpc\":\"2.0\",\"method\":\"Group.SetStream\",\"params\":{\"id\":\"$right_group\",\"stream_id\":\"RightAudio\"}}" >/dev/null
 fi
+
+marker_message="stereo routes verified"

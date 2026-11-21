@@ -79,6 +79,7 @@ done
 SNAPSERVER_HTTP=http://127.0.0.1:19180 \
 LEFT_CLIENT_ID="$left_test_client_id" \
 RIGHT_CLIENT_ID="$right_test_client_id" \
+SNAPCAST_STATE_DIR="$tmp_dir/state" \
   "$repo_root/integration/scripts/ensure-pair-routing.sh"
 
 status_json="$(curl -fsS http://127.0.0.1:19180/jsonrpc \
@@ -103,6 +104,7 @@ groups_before="$(print -r -- "$status_json" | jq -r '[.result.server.groups[].id
 SNAPSERVER_HTTP=http://127.0.0.1:19180 \
 LEFT_CLIENT_ID="$left_test_client_id" \
 RIGHT_CLIENT_ID="$right_test_client_id" \
+SNAPCAST_STATE_DIR="$tmp_dir/state" \
   "$repo_root/integration/scripts/ensure-pair-routing.sh"
 status_after_json="$(curl -fsS http://127.0.0.1:19180/jsonrpc \
   -H 'Content-Type: application/json' \

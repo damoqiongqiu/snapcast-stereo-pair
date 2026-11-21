@@ -53,6 +53,7 @@ render_pair_template \
   "$repo_root/integration/scripts/audio-levels.sh" \
   "$support_dir/audio-levels.sh"
 chmod 644 "$support_dir/audio-levels.sh"
+install -m 755 "$repo_root/integration/scripts/health-marker.sh" "$support_dir/health-marker.sh"
 render_pair_template \
   "$repo_root/integration/scripts/route-audio.sh" \
   "$support_dir/route-audio.sh"

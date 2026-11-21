@@ -43,6 +43,7 @@ ssh "$remote" 'mkdir -p "$HOME/Library/Application Support/Snapcast/bin" "$HOME/
 scp "$repo_root/.build/bin/snapclient" "$remote:Library/Application Support/Snapcast/bin/snapclient"
 scp "$repo_root/.build/bin/set-audio-volume" "$remote:Library/Application Support/Snapcast/bin/set-audio-volume"
 scp "$repo_root/.build/bin/wake-recovery-listener" "$remote:Library/Application Support/Snapcast/bin/wake-recovery-listener"
+scp "$repo_root/integration/scripts/health-marker.sh" "$remote:Library/Application Support/Snapcast/health-marker.sh"
 scp "$rendered_client_plist" "$remote:Library/LaunchAgents/com.snapcast.remote-client.plist"
 scp "$rendered_wake_plist" "$remote:Library/LaunchAgents/com.snapcast.remote-wake-recovery.plist"
 scp "$rendered_wake_script" "$remote:Library/Application Support/Snapcast/wake-recovery-remote.sh"
@@ -52,6 +53,7 @@ ssh "$remote" env REMOTE_OUTPUT_DEVICE_UID="$REMOTE_OUTPUT_DEVICE_UID" zsh -s <<
   chmod 755 "$HOME/Library/Application Support/Snapcast/bin/set-audio-volume"
   chmod 755 "$HOME/Library/Application Support/Snapcast/bin/wake-recovery-listener"
   chmod 755 "$HOME/Library/Application Support/Snapcast/wake-recovery-remote.sh"
+  chmod 755 "$HOME/Library/Application Support/Snapcast/health-marker.sh"
   "$HOME/Library/Application Support/Snapcast/bin/set-audio-volume" set "$REMOTE_OUTPUT_DEVICE_UID" 100
   uid="$(id -u)"
   for label in com.snapcast.remote-client com.snapcast.remote-wake-recovery; do
