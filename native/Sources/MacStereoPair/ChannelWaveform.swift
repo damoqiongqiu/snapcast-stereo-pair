@@ -4,6 +4,7 @@ import SwiftUI
 struct ChannelWaveform: View {
     let channel: ChannelStatus?
     @State private var history = WaveformHistory(capacity: 72, prefill: true)
+    @EnvironmentObject private var language: AppLanguage
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 0.05)) { timeline in
@@ -20,13 +21,13 @@ struct ChannelWaveform: View {
             history.append(peakDb: channel?.peakDb ?? -120, rmsDb: channel?.rmsDb ?? -120)
         }
         .accessibilityElement()
-        .accessibilityLabel("实时音频波形")
+        .accessibilityLabel(language.text("accessibility.realtimeWaveform"))
         .accessibilityValue(accessibilityValue)
     }
 
     private var accessibilityValue: String {
-        guard let peak = channel?.peakDb else { return "无信号" }
-        return String(format: "峰值 %.1f dBFS", peak)
+        guard let peak = channel?.peakDb else { return language.text("accessibility.noSignal") }
+        return language.format("accessibility.peakFormat", peak)
     }
 
     private func drawWaveform(context: inout GraphicsContext, size: CGSize, phase: TimeInterval) {
