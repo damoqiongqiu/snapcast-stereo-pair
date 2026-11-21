@@ -1,3 +1,4 @@
+# typed: strict
 # frozen_string_literal: true
 
 # Homebrew formula for building the unofficial two-Mac stereo pair console.
