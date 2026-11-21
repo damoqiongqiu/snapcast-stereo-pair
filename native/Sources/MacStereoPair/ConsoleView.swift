@@ -4,6 +4,8 @@ import SwiftUI
 struct ConsoleView: View {
     @ObservedObject var model: ConsoleViewModel
     @EnvironmentObject private var language: AppLanguage
+    @EnvironmentObject private var notifications: NotificationManager
+    @State private var showsAdvanced = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -26,6 +28,16 @@ struct ConsoleView: View {
                 .pickerStyle(.menu)
                 .controlSize(.small)
                 .accessibilityLabel(language.text("accessibility.languagePicker"))
+
+                Button {
+                    showsAdvanced = true
+                } label: {
+                    Image(systemName: "waveform.badge.magnifyingglass")
+                }
+                .buttonStyle(.borderless)
+                .help(language.text("advanced.open"))
+                .accessibilityLabel(language.text("advanced.open"))
+                .keyboardShortcut(",", modifiers: [.command, .shift])
 
                 Text(verbatim: healthText(model.snapshot?.health))
                     .font(.caption.bold())
@@ -50,6 +62,20 @@ struct ConsoleView: View {
             .pickerStyle(.segmented)
             .disabled(model.isWorking)
             .accessibilityLabel(language.text("accessibility.modePicker"))
+
+            if model.showsTransition {
+                HStack(spacing: 9) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(verbatim: language.text("transition.inProgress"))
+                        .font(.caption)
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(Theme.amber.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
 
             HStack(spacing: 14) {
                 ChannelStrip(
@@ -78,6 +104,16 @@ struct ConsoleView: View {
         .background(Theme.background)
         .foregroundStyle(Theme.text)
         .frame(minWidth: 780, minHeight: 560)
+        .onChange(of: model.snapshot) { _, snapshot in
+            guard let snapshot else { return }
+            Task {
+                await notifications.process(snapshot: snapshot, language: language)
+            }
+        }
+        .sheet(isPresented: $showsAdvanced) {
+            AdvancedView(model: model)
+                .environmentObject(language)
+        }
     }
 
     private func modeText(_ mode: AudioMode?) -> String {
@@ -205,74 +241,6 @@ private struct MasterControl: View {
         .padding(14)
         .background(Theme.raised)
         .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-}
-
-private struct StatusBus: View {
-    @ObservedObject var model: ConsoleViewModel
-    @EnvironmentObject private var language: AppLanguage
-
-    var body: some View {
-        HStack(spacing: 0) {
-            zone(language.text("status.control"), items: [
-                (language.text("service.snapserver"), isRunning("server"))
-            ])
-            zone(language.text("status.audioPath"), items: [
-                (language.text("service.splitter"), isRunning("splitter")),
-                (
-                    language.text("service.clients"),
-                    model.left?.connected == true && model.right?.connected == true
-                )
-            ])
-            zone(language.text("status.routing"), items: [
-                (language.text("service.routing"), model.snapshot?.issues.isEmpty == true)
-            ])
-            zone(language.text("status.recovery"), items: [
-                (language.text("service.wakeRecovery"), isRunning("wake"))
-            ])
-        }
-        .padding(.vertical, 9)
-        .background(Theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.separator))
-    }
-
-    private func zone(_ title: String, items: [(String, Bool?)]) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(title).font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.muted)
-            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                HStack(spacing: 6) {
-                    Circle().fill(item.1 == true ? Theme.green : item.1 == false ? Theme.red : Theme.muted)
-                        .frame(width: 6, height: 6)
-                        .shadow(color: item.1 == true ? Theme.green.opacity(0.6) : .clear, radius: 4)
-                        .accessibilityHidden(true)
-                    Text(verbatim: "\(item.0) · \(stateText(item.1))")
-                        .font(.system(size: 10))
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .overlay(alignment: .trailing) { Rectangle().fill(Theme.separator).frame(width: 1) }
-    }
-
-    private func isRunning(_ labelFragment: String) -> Bool? {
-        guard let state = model.snapshot?.services
-            .first(where: { $0.id.contains(labelFragment) })?.state else {
-            return nil
-        }
-        return state == .running
-    }
-
-    private func stateText(_ value: Bool?) -> String {
-        switch value {
-        case true:
-            return language.text("status.healthy")
-        case false:
-            return language.text("status.failed")
-        case nil:
-            return language.text("health.unknown")
-        }
     }
 }
 

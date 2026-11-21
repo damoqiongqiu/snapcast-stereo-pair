@@ -11,6 +11,7 @@ let socketURL =
 let runtime = AgentRuntime()
 let modeCoordinator = ModeCoordinator()
 let snapserver = SnapserverClient()
+let commandRunner = SystemCommandRunner()
 
 final class SnapshotStore: @unchecked Sendable {
     private let lock = NSLock()
@@ -65,7 +66,7 @@ func requestID(for request: ControlRequest) -> String {
     switch request {
     case .snapshot(let id), .subscribe(let id), .setAudioMode(let id, _), .restartPair(let id),
          .setClientVolume(let id, _, _), .setClientMute(let id, _, _), .setClientLatency(let id, _, _),
-         .exportDiagnostics(let id, _):
+         .restartService(let id, _), .exportDiagnostics(let id, _):
         id
     }
 }
@@ -114,8 +115,42 @@ let server = UnixControlServer(socketURL: socketURL) { request in
         } catch {
             return .error(requestId: requestId, message: error.localizedDescription)
         }
-    case .exportDiagnostics(let requestId, _):
-        return .error(requestId: requestId, message: "Diagnostics export is not available in this build")
+    case .restartService(let requestId, let serviceId):
+        guard let arguments = ServiceMaintenance.restartArguments(serviceId: serviceId) else {
+            return .error(requestId: requestId, message: "Unknown runtime service")
+        }
+        do {
+            let result = try await commandRunner.run(
+                executable: "/bin/launchctl",
+                arguments: arguments,
+                environment: [:],
+                timeout: 5
+            )
+            guard result.status == 0 else {
+                return .error(
+                    requestId: requestId,
+                    message: result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+            }
+            await updateSnapshot()
+            return .success(requestId: requestId)
+        } catch {
+            return .error(requestId: requestId, message: error.localizedDescription)
+        }
+    case .exportDiagnostics(let requestId, let redacted):
+        let report = DiagnosticsBuilder.make(snapshot: cachedSnapshot(), redacted: redacted)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        do {
+            let data = try encoder.encode(report)
+            return .diagnostics(
+                requestId: requestId,
+                json: String(decoding: data, as: UTF8.self)
+            )
+        } catch {
+            return .error(requestId: requestId, message: error.localizedDescription)
+        }
     }
 }
 

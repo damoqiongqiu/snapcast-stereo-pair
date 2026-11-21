@@ -2,6 +2,30 @@ import XCTest
 @testable import StereoPairCore
 
 final class ControlProtocolTests: XCTestCase {
+    func testDiagnosticsResponseRoundTripsThroughProtocol() throws {
+        let event = ControlEvent.diagnostics(
+            requestId: "diagnostics-1",
+            json: #"{"health":"healthy","protocolVersion":1}"#
+        )
+
+        let data = try JSONEncoder().encode(event)
+        let decoded = try JSONDecoder().decode(ControlEvent.self, from: data)
+
+        XCTAssertEqual(decoded, event)
+    }
+
+    func testServiceRestartRequestRoundTripsThroughProtocol() throws {
+        let request = ControlRequest.restartService(
+            requestId: "restart-1",
+            serviceId: "com.snapcast.splitter"
+        )
+
+        let data = try JSONEncoder().encode(request)
+        let decoded = try JSONDecoder().decode(ControlRequest.self, from: data)
+
+        XCTAssertEqual(decoded, request)
+    }
+
     func testUnixSocketReturnsSnapshotForRequest() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

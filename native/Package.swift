@@ -21,6 +21,10 @@ let package = Package(
             dependencies: ["StereoPairCore"],
             resources: [.process("Resources")]
         ),
-        .testTarget(name: "StereoPairCoreTests", dependencies: ["StereoPairCore"])
+        .testTarget(name: "StereoPairCoreTests", dependencies: ["StereoPairCore"]),
+        .testTarget(
+            name: "MacStereoPairTests",
+            dependencies: ["StereoPairCore", "MacStereoPair"]
+        )
     ]
 )

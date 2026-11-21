@@ -4,11 +4,13 @@ import SwiftUI
 struct MacStereoPairApp: App {
     @StateObject private var model = ConsoleViewModel()
     @StateObject private var language = AppLanguage()
+    @StateObject private var notifications = NotificationManager()
 
     var body: some Scene {
         WindowGroup("MacBook Stereo Pair", id: "console") {
             ConsoleView(model: model)
                 .environmentObject(language)
+                .environmentObject(notifications)
                 .environment(\.locale, language.locale)
                 .task { await model.start() }
         }
