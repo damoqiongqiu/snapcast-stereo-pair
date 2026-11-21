@@ -4,20 +4,29 @@ public actor AgentRuntime {
     private let healthReader: LocalHealthReader
     private let snapserver: SnapserverClient
     private let metricsReader: MetricsReader
+    private let supportDirectory: URL
     private var stabilizer = SnapshotStabilizer()
 
     public init(
         healthReader: LocalHealthReader = LocalHealthReader(),
         snapserver: SnapserverClient = SnapserverClient(),
-        metricsReader: MetricsReader = MetricsReader()
+        metricsReader: MetricsReader = MetricsReader(),
+        supportDirectory: URL = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/Snapcast")
     ) {
         self.healthReader = healthReader
         self.snapserver = snapserver
         self.metricsReader = metricsReader
+        self.supportDirectory = supportDirectory
     }
 
     public func snapshot() async -> RuntimeSnapshot {
-        stabilizer.stabilize(await candidateSnapshot())
+        let candidate = await candidateSnapshot()
+        let normalized = SystemModeSnapshotNormalizer.normalize(
+            candidate,
+            persistedMode: PersistedAudioModeReader.read(supportDirectory: supportDirectory)
+        )
+        return stabilizer.stabilize(normalized)
     }
 
     private func candidateSnapshot() async -> RuntimeSnapshot {

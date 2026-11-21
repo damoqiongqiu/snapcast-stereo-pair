@@ -7,6 +7,7 @@ mode="${1:-release}"
 cd "$repo_root"
 swift test --package-path native
 integration/test/test-install-lifecycle.sh
+integration/test/test-audio-profile.sh
 integration/test/test-native-app-packaging.sh
 integration/test/test-homebrew-formula.sh
 zsh -n integration/scripts/*.sh integration/test/*.sh

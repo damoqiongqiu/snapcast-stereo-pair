@@ -239,6 +239,10 @@ Expected conditions:
 - The native console shows two connected channels, fresh Splitter activity,
   correct routes, and a healthy recovery zone.
 
+Before switching modes, verify the saved native profile exists on both Macs.
+System mode restores the remembered physical output and exact volume, with a
+30% built-in-speaker fallback when that output is unavailable.
+
 The native app and CLI use the same Agent snapshot:
 
 ```sh

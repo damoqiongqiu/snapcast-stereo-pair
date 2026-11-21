@@ -22,6 +22,8 @@
   downgrade rejection, installation locking, and configuration schema checks.
 - Add a user-visible force-reinstall path that rebuilds all program and service
   files while preserving pair configuration, logs, and preferences.
+- Preserve each Mac's physical output device and exact volume when entering
+  Snapcast mode, and restore that profile before handing audio back to macOS.
 - Normalize BlackHole, local speaker, and remote speaker hardware volumes to
   100% independently of the selected macOS output device.
 - Write and verify both virtual and physical CoreAudio main-volume controls.

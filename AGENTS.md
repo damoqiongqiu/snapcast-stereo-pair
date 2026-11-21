@@ -35,6 +35,7 @@ swift test --package-path native
 swift build --package-path native -c release
 integration/test/test-pair-config.sh
 integration/test/test-audio-levels.sh
+integration/test/test-audio-profile.sh
 integration/test/test-pair-routing.sh
 integration/test/test-wake-recovery.sh
 integration/test/test-control-plane.sh
@@ -79,6 +80,9 @@ macOS and BlackHole versions when changing audio behavior.
   100% hardware volume; use Snapcast volume for normal listening.
 - Keep both CoreAudio main-volume controls (`vmvc` and `volm`) normalized when
   the device exposes them.
+- Before entering Snapcast mode, persist the current physical output UID and
+  exact volume. Restore that profile on both Macs before switching back to
+  system audio; never default a hand-back path to 100%.
 - Apply CoreAudio listening volume through `AudioQueueSetParameter`; do not
   attenuate the integer PCM buffer during software-mixer operation.
 - Recreate capture and playback queues after wake; never dispose an AudioQueue

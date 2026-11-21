@@ -4,6 +4,7 @@ set -euo pipefail
 uid="$(id -u)"
 launch_dir="$HOME/Library/LaunchAgents"
 source "@SUPPORT_DIR@/audio-levels.sh"
+source "@SUPPORT_DIR@/audio-profile.sh"
 
 stop_snapcast() {
   for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery; do
@@ -12,6 +13,14 @@ stop_snapcast() {
 }
 
 start_snapcast() {
+  audio_save_native_profile \
+    "@SUPPORT_DIR@/state" \
+    "@CAPTURE_DEVICE_UID@" \
+    SwitchAudioSource \
+    "@SUPPORT_DIR@/bin/set-audio-volume" || {
+      print -u2 "Could not save the current Mac audio output and volume; mode was not changed."
+      return 1
+    }
   stop_snapcast
   sleep 1
   for label in com.snapcast.local-client com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery; do
@@ -38,8 +47,11 @@ case "${1:-}" in
     for label in com.snapcast.local-client com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery; do
       launchctl disable "gui/$uid/$label"
     done
-    "@SUPPORT_DIR@/bin/set-audio-volume" set "@NATIVE_OUTPUT_DEVICE_UID@" 100
-    SwitchAudioSource -u "@NATIVE_OUTPUT_DEVICE_UID@" -t output
+    audio_restore_native_profile \
+      "@SUPPORT_DIR@/state" \
+      "@NATIVE_OUTPUT_DEVICE_UID@" \
+      SwitchAudioSource \
+      "@SUPPORT_DIR@/bin/set-audio-volume"
     print "Native macOS audio mode enabled across future logins."
     ;;
   *)

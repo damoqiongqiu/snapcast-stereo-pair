@@ -98,6 +98,7 @@ installation_required_assets_exist() {
     "$support_dir/route-audio.sh"
     "$support_dir/wake-recovery-local.sh"
     "$support_dir/health-marker.sh"
+    "$support_dir/audio-profile.sh"
     "$launch_dir/com.snapcast.server.plist"
     "$launch_dir/com.snapcast.local-client.plist"
     "$launch_dir/com.snapcast.route.plist"
@@ -133,6 +134,7 @@ installation_asset_digest() {
     "$support_dir/audio-levels.sh"
     "$support_dir/wake-recovery-local.sh"
     "$support_dir/health-marker.sh"
+    "$support_dir/audio-profile.sh"
     "$launch_dir/com.snapcast.server.plist"
     "$launch_dir/com.snapcast.local-client.plist"
     "$launch_dir/com.snapcast.route.plist"
@@ -243,7 +245,7 @@ backup_installation_assets() {
     ditto "$support_dir/setup" "$backup_dir/setup"
   fi
   local script
-  for script in set-mode.sh ensure-pair-routing.sh audio-levels.sh route-audio.sh wake-recovery-local.sh health-marker.sh; do
+  for script in set-mode.sh ensure-pair-routing.sh audio-levels.sh route-audio.sh wake-recovery-local.sh health-marker.sh audio-profile.sh; do
     [[ -f "$support_dir/$script" ]] && \
       install -m "$(stat -f '%Lp' "$support_dir/$script")" "$support_dir/$script" "$backup_dir/scripts/$script"
   done
@@ -283,7 +285,7 @@ restore_installation_assets() {
     ditto "$backup_dir/setup" "$support_dir/setup"
   fi
   local script
-  for script in set-mode.sh ensure-pair-routing.sh audio-levels.sh route-audio.sh wake-recovery-local.sh health-marker.sh; do
+  for script in set-mode.sh ensure-pair-routing.sh audio-levels.sh route-audio.sh wake-recovery-local.sh health-marker.sh audio-profile.sh; do
     if [[ -f "$backup_dir/scripts/$script" ]]; then
       install -m "$(stat -f '%Lp' "$backup_dir/scripts/$script")" \
         "$backup_dir/scripts/$script" "$support_dir/$script"

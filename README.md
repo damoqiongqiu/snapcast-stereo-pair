@@ -21,6 +21,8 @@ desk. Playback on both Macs follows one Snapcast clock.
   continues to flow through BlackHole.
 - Applies listening volume in CoreAudio after decoding, leaving the received
   PCM chunks at full scale.
+- Saves the exact non-BlackHole output device and volume on both Macs before
+  entering pair mode, then restores them before handing audio back to macOS.
 - Ships a native SwiftUI menu-bar console with a dual-channel layout, live
   meters, health LEDs, mode switching, first-run setup, bilingual resources,
   and redacted diagnostics.
@@ -390,6 +392,7 @@ swift test --package-path native
 swift build --package-path native -c release
 integration/test/test-pair-config.sh
 integration/test/test-audio-levels.sh
+integration/test/test-audio-profile.sh
 integration/test/test-pair-routing.sh
 integration/test/test-wake-recovery.sh
 integration/test/test-control-plane.sh

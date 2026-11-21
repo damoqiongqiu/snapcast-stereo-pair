@@ -39,6 +39,7 @@ for file in \
   "$SNAPCAST_SUPPORT_DIR/route-audio.sh" \
   "$SNAPCAST_SUPPORT_DIR/wake-recovery-local.sh" \
   "$SNAPCAST_SUPPORT_DIR/health-marker.sh" \
+  "$SNAPCAST_SUPPORT_DIR/audio-profile.sh" \
   "$SNAPCAST_LAUNCH_DIR/com.snapcast.server.plist" \
   "$SNAPCAST_LAUNCH_DIR/com.snapcast.local-client.plist" \
   "$SNAPCAST_LAUNCH_DIR/com.snapcast.route.plist" \

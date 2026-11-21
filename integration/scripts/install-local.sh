@@ -9,6 +9,7 @@ run_dir="$support_dir/run"
 uid="$(id -u)"
 
 source "$repo_root/integration/scripts/pair-config.sh"
+source "$repo_root/integration/scripts/audio-profile.sh"
 load_pair_config
 if [[ "${PAIR_LOCAL_ONLY:-0}" == "1" ]]; then
   prepare_local_only_config
@@ -60,6 +61,7 @@ render_pair_template \
   "$support_dir/audio-levels.sh"
 chmod 644 "$support_dir/audio-levels.sh"
 install -m 755 "$repo_root/integration/scripts/health-marker.sh" "$support_dir/health-marker.sh"
+install -m 755 "$repo_root/integration/scripts/audio-profile.sh" "$support_dir/audio-profile.sh"
 render_pair_template \
   "$repo_root/integration/scripts/route-audio.sh" \
   "$support_dir/route-audio.sh"
@@ -69,8 +71,17 @@ render_pair_template \
   "$support_dir/wake-recovery-local.sh"
 chmod 755 "$support_dir/wake-recovery-local.sh"
 
+audio_save_native_profile \
+  "$support_dir/state" \
+  "$CAPTURE_DEVICE_UID" \
+  SwitchAudioSource \
+  "$support_dir/bin/set-audio-volume"
+
 for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing com.snapcast.wake-recovery com.snapcast.control-agent; do
   launchctl bootout "gui/$uid/$label" 2>/dev/null || true
+done
+for label in com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.local-client com.snapcast.pairing com.snapcast.wake-recovery com.snapcast.control-agent; do
+  launchctl enable "gui/$uid/$label" 2>/dev/null || true
 done
 sleep 1
 

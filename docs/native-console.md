@@ -42,6 +42,10 @@ The high-level modes are:
   disabled, and the last non-BlackHole output is restored. If that device is no
   longer available, the configured built-in speaker is used.
 
+The exact physical output volume is restored before switching back. This applies
+to both Macs and prevents a hand-back transition from unexpectedly jumping to
+100%.
+
 BlackHole remains installed in system mode. It is only made inactive by the
 audio route, and the runtime never unloads or deletes the driver.
 

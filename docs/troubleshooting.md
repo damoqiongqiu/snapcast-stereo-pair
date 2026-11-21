@@ -208,6 +208,16 @@ Expected disabled services in system mode do not generate notifications. A
 notification is sent once when Snapserver, a playback route, a client, or wake
 recovery actually fails in Snapcast mode, then resets after recovery.
 
+Each Mac stores its pre-Snapcast physical output and exact volume at:
+
+```text
+~/Library/Application Support/Snapcast/state/native-audio.json
+```
+
+Both Macs restore that volume before switching output back. If the remembered
+device is unavailable, the fallback volume is 30%. Do not raise the saved
+fallback to 100%; use the normal system volume after the transition.
+
 ## Collect a Safe Bug Report
 
 Include:
