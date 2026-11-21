@@ -22,7 +22,7 @@ public enum UnixSocketError: Error, LocalizedError {
 }
 
 public final class UnixControlServer: @unchecked Sendable {
-    public typealias Handler = @Sendable (ControlRequest) -> ControlEvent
+    public typealias Handler = @Sendable (ControlRequest) async -> ControlEvent
 
     private let socketURL: URL
     private let handler: Handler
@@ -92,13 +92,13 @@ public final class UnixControlServer: @unchecked Sendable {
                 if errno == EINTR { continue }
                 return
             }
-            queue.async { [weak self] in
-                self?.serve(clientFD: clientFD)
+            Task { [weak self] in
+                await self?.serve(clientFD: clientFD)
             }
         }
     }
 
-    private func serve(clientFD: Int32) {
+    private func serve(clientFD: Int32) async {
         defer { close(clientFD) }
         var peerUID: uid_t = 0
         var peerGID: gid_t = 0
@@ -117,7 +117,7 @@ public final class UnixControlServer: @unchecked Sendable {
               let request = try? JSONDecoder().decode(ControlRequest.self, from: Data(line)) else {
             return
         }
-        let response = handler(request)
+        let response = await handler(request)
         guard var encoded = try? JSONEncoder().encode(response) else { return }
         encoded.append(0x0A)
         encoded.withUnsafeBytes { raw in
