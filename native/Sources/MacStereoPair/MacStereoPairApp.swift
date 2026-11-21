@@ -8,11 +8,10 @@ struct MacStereoPairApp: App {
 
     var body: some Scene {
         WindowGroup("MacBook Stereo Pair", id: "console") {
-            ConsoleView(model: model)
+            AppRootView(model: model, notifications: notifications)
                 .environmentObject(language)
                 .environmentObject(notifications)
                 .environment(\.locale, language.locale)
-                .task { await model.start() }
         }
         .windowStyle(.hiddenTitleBar)
 
