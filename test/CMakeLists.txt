@@ -17,6 +17,7 @@ endif()
 set(TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/test_main.cpp
     ${CMAKE_SOURCE_DIR}/client/player/mono_stereo.cpp
+    ${CMAKE_SOURCE_DIR}/integration/capture/audio_metrics.c
     ${CMAKE_SOURCE_DIR}/common/stream_uri.cpp
     ${CMAKE_SOURCE_DIR}/common/base64.cpp
     ${CMAKE_SOURCE_DIR}/common/utils/string_utils.cpp

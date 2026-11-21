@@ -28,6 +28,7 @@
 #include "client/player/coreaudio_volume.hpp"
 #include "client/player/mono_stereo.hpp"
 #include "integration/capture/fifo_io.h"
+#include "integration/capture/audio_metrics.h"
 #include "integration/capture/pcm24.h"
 // #include "server/jwt.hpp"
 #include "server/authinfo.hpp"
@@ -40,10 +41,13 @@
 
 // standard headers
 #include <cstddef>
+#include <fcntl.h>
 #include <iostream>
 #include <optional>
 #include <regex>
+#include <sys/mman.h>
 #include <system_error>
+#include <unistd.h>
 #include <vector>
 
 
@@ -78,6 +82,79 @@ TEST_CASE("Float stereo input extracts one 24-bit channel")
     REQUIRE(left[1] == -4194304);
     REQUIRE(right[0] == -2097152);
     REQUIRE(right[1] == 2097152);
+}
+
+TEST_CASE("Audio metrics report silence and full scale in dBFS")
+{
+    const float silence[] = {0.0F, 0.0F, 0.0F, 0.0F};
+    SnapcastChannelMetrics quiet = {};
+    audioMetricsCalculateChannel(silence, 2, 0, 2, &quiet);
+    REQUIRE(quiet.peakDb == -120.0F);
+    REQUIRE(quiet.rmsDb == -120.0F);
+    REQUIRE(quiet.clipped == 0);
+
+    const float fullScale[] = {1.0F, -1.0F, 1.0F, -1.0F};
+    SnapcastChannelMetrics loud = {};
+    audioMetricsCalculateChannel(fullScale, 2, 0, 2, &loud);
+    REQUIRE(loud.peakDb == 0.0F);
+    REQUIRE(loud.rmsDb == 0.0F);
+    REQUIRE(loud.clipped == 0);
+}
+
+TEST_CASE("Audio metrics mark samples above full scale as clipped")
+{
+    const float hot[] = {1.2F, 0.0F, -1.1F, 0.0F};
+    SnapcastChannelMetrics metrics = {};
+    audioMetricsCalculateChannel(hot, 2, 0, 2, &metrics);
+    REQUIRE(metrics.peakDb == 0.0F);
+    REQUIRE(metrics.clipped == 1);
+}
+
+TEST_CASE("Audio metrics publisher can be recreated after the splitter exits")
+{
+    const char* name = "/snapcast-metrics-test";
+    shm_unlink(name);
+    const int stale = shm_open(name, O_CREAT | O_RDWR, 0600);
+    REQUIRE(stale >= 0);
+    close(stale);
+
+    SnapcastAudioMetricsPublisher publisher = {};
+    publisher.fd = -1;
+    publisher.metrics = nullptr;
+    REQUIRE(audioMetricsPublisherOpen(&publisher, name));
+    audioMetricsPublisherClose(&publisher);
+
+    REQUIRE(audioMetricsPublisherOpen(&publisher, name));
+    audioMetricsPublisherClose(&publisher);
+}
+
+TEST_CASE("Audio metrics publisher exposes a stable shared-memory snapshot")
+{
+    const char* name = "/snapcast-metrics-publish";
+    shm_unlink(name);
+    SnapcastAudioMetricsPublisher publisher = {};
+    publisher.fd = -1;
+    REQUIRE(audioMetricsPublisherOpen(&publisher, name));
+
+    SnapcastChannelMetrics left = {-6.0F, -12.0F, 0};
+    SnapcastChannelMetrics right = {-3.0F, -9.0F, 1};
+    audioMetricsPublisherPublish(&publisher, &left, &right, 48000);
+
+    const int reader = shm_open(name, O_RDONLY, 0);
+    REQUIRE(reader >= 0);
+    SnapcastAudioMetrics* metrics =
+        static_cast<SnapcastAudioMetrics*>(mmap(nullptr, sizeof(SnapcastAudioMetrics), PROT_READ, MAP_SHARED, reader, 0));
+    REQUIRE(metrics != MAP_FAILED);
+    REQUIRE(metrics->sequence == 2);
+    REQUIRE(metrics->flags == 1);
+    REQUIRE(metrics->sampleRate == 48000);
+    REQUIRE(metrics->leftPeakDb == -6.0F);
+    REQUIRE(metrics->rightRmsDb == -9.0F);
+    REQUIRE(metrics->rightClipped == 1);
+
+    munmap(metrics, sizeof(SnapcastAudioMetrics));
+    close(reader);
+    audioMetricsPublisherClose(&publisher);
 }
 
 TEST_CASE("FIFO helper writes the complete buffer")
