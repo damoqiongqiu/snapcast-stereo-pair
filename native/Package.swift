@@ -7,13 +7,15 @@ let package = Package(
     products: [
         .library(name: "StereoPairCore", targets: ["StereoPairCore"]),
         .executable(name: "StereoPairAgent", targets: ["StereoPairAgent"]),
-        .executable(name: "mac-stereo-pairctl", targets: ["mac-stereo-pairctl"])
+        .executable(name: "mac-stereo-pairctl", targets: ["mac-stereo-pairctl"]),
+        .executable(name: "MacStereoPair", targets: ["MacStereoPair"])
     ],
     targets: [
         .target(name: "StereoPairMetricsBridge"),
         .target(name: "StereoPairCore", dependencies: ["StereoPairMetricsBridge"]),
         .executableTarget(name: "StereoPairAgent", dependencies: ["StereoPairCore"]),
         .executableTarget(name: "mac-stereo-pairctl", dependencies: ["StereoPairCore"]),
+        .executableTarget(name: "MacStereoPair", dependencies: ["StereoPairCore"]),
         .testTarget(name: "StereoPairCoreTests", dependencies: ["StereoPairCore"])
     ]
 )
