@@ -36,6 +36,18 @@ final class SnapshotStore: @unchecked Sendable {
         defer { lock.unlock() }
         return snapshot
     }
+
+    func merge(metrics: AudioMetricsSnapshot) {
+        lock.lock()
+        snapshot.channels = snapshot.channels.map { channel in
+            var channel = channel
+            channel.peakDb = channel.side == "left" ? metrics.leftPeakDb : metrics.rightPeakDb
+            channel.rmsDb = channel.side == "left" ? metrics.leftRmsDb : metrics.rightRmsDb
+            channel.clipped = channel.side == "left" ? metrics.leftClipped : metrics.rightClipped
+            return channel
+        }
+        lock.unlock()
+    }
 }
 
 let store = SnapshotStore()
@@ -112,6 +124,14 @@ Task {
     while !Task.isCancelled {
         await updateSnapshot()
         try? await Task.sleep(for: .seconds(1))
+    }
+}
+Task {
+    while !Task.isCancelled {
+        if let metrics = runtime.liveMetrics() {
+            store.merge(metrics: metrics)
+        }
+        try? await Task.sleep(for: .milliseconds(50))
     }
 }
 dispatchMain()

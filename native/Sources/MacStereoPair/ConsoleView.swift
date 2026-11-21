@@ -66,16 +66,8 @@ private struct ChannelStrip: View {
                 Spacer()
                 Text(channel?.streamId ?? "—").font(.caption).foregroundStyle(Theme.muted)
             }
-            HStack(alignment: .bottom, spacing: 4) {
-                ForEach(0..<18, id: \.self) { index in
-                    let level = meterLevel(index)
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(index > 15 ? Theme.red : index > 12 ? Theme.amber : Theme.green)
-                        .frame(width: 7, height: 8 + CGFloat(index % 4) * 6)
-                        .opacity(level)
-                }
-            }
-            .frame(height: 70, alignment: .bottom)
+            ChannelWaveform(channel: channel)
+                .padding(.horizontal, 2)
             Slider(
                 value: Binding(
                     get: { Double(channel?.volume ?? 0) },
@@ -116,11 +108,6 @@ private struct ChannelStrip: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.separator))
     }
 
-    private func meterLevel(_ index: Int) -> Double {
-        guard let peak = channel?.peakDb, peak > -60 else { return 0.12 }
-        let normalized = (peak + 60) / 60
-        return Double(index) / 18.0 < normalized ? 1 : 0.12
-    }
 }
 
 private struct MasterControl: View {

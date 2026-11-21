@@ -64,6 +64,10 @@ public struct AgentRuntime: Sendable {
             )
         }
     }
+
+    public func liveMetrics() -> AudioMetricsSnapshot? {
+        metricsReader.read()
+    }
 }
 
 private extension AudioMode {

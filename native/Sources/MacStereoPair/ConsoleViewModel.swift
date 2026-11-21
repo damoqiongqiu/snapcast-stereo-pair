@@ -25,7 +25,7 @@ final class ConsoleViewModel: ObservableObject {
         pollingTask = Task {
             while !Task.isCancelled {
                 await refresh()
-                try? await Task.sleep(for: .seconds(1))
+                try? await Task.sleep(for: .milliseconds(100))
             }
         }
     }
