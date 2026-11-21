@@ -6,6 +6,13 @@ Start with:
 ./integration/scripts/check-health.sh
 ```
 
+The native console and CLI share the same Agent snapshot. Use Advanced
+Diagnostics for redacted export, service state, versions, and logs:
+
+```sh
+~/Library/Application\ Support/Snapcast/bin/mac-stereo-pairctl status --json
+```
+
 ## Missing LeftAudio or RightAudio
 
 Confirm the stream format:
@@ -176,6 +183,9 @@ left/right timing relationship.
 
 ## Return to Native Audio
 
+Choose **Mac system audio** in the native console or use the command below.
+System mode intentionally stops the pair runtime;
+
 Use the generated mode switcher:
 
 ```sh
@@ -190,7 +200,13 @@ UID. To resume the pair:
 ```
 
 The local script does not modify the remote Mac's installed LaunchAgent. With
-the server stopped, the remote client has no stream to play.
+the server stopped, the remote client has no stream to play. The native Agent
+attempts a bounded, key-only remote stop and reports a degraded warning when the
+remote Mac is unavailable without rolling back the local switch.
+
+Expected disabled services in system mode do not generate notifications. A
+notification is sent once when Snapserver, a playback route, a client, or wake
+recovery actually fails in Snapcast mode, then resets after recovery.
 
 ## Collect a Safe Bug Report
 

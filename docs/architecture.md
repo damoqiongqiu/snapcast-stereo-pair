@@ -3,6 +3,21 @@
 MacBook Stereo Pair separates the system into a required runtime and an optional
 browser controller. This repository owns everything on the audio path.
 
+The primary interface is now the native SwiftUI application in this repository.
+Snapweb remains an optional browser diagnostics interface during the transition.
+
+```text
+MacStereoPair.app ─┐
+                   ├─ owner-only Unix socket ─ StereoPairAgent
+mac-stereo-pairctl ┘                           ├─ launchctl
+                                               ├─ Snapserver JSON-RPC
+                                               └─ shared audio meters
+```
+
+The Agent and GUI are control-plane processes. Audio capture, Snapserver, and
+both Snapclients remain independent launchd jobs. Closing or crashing the GUI
+does not interrupt playback.
+
 ```text
 macOS applications
        |

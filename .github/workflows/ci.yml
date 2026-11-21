@@ -33,12 +33,22 @@ jobs:
           ./bin/snapcast_test --reporter compact
       - name: Build macOS integration
         run: ./integration/scripts/build-macos.sh
+      - name: Native tests and release build
+        run: |
+          swift test --package-path native
+          swift build --package-path native -c release
       - name: Pair tests
         run: |
           integration/test/test-pair-config.sh
           integration/test/test-audio-levels.sh
           integration/test/test-pair-routing.sh
           integration/test/test-wake-recovery.sh
+          integration/test/test-control-plane.sh
+          integration/test/test-mode-transitions.sh
+          integration/test/test-control-agent-install.sh
+          integration/test/test-native-app-packaging.sh
+          integration/test/test-homebrew-formula.sh
+          integration/test/test-native-release.sh --automated-only
       - name: Validate shell and plists
         run: |
           zsh -n integration/scripts/*.sh integration/test/*.sh
