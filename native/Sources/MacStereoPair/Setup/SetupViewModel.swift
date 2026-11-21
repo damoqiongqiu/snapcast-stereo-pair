@@ -120,6 +120,19 @@ enum SetupRemoteMarker {
     }
 }
 
+enum SetupReusePolicy {
+    static func completedSteps(
+        hasPairConfiguration: Bool,
+        hasRemoteControl: Bool,
+        runtimeReady: Bool
+    ) -> Set<SetupStep>? {
+        guard hasPairConfiguration, hasRemoteControl, runtimeReady else {
+            return nil
+        }
+        return [.welcome, .dependencies, .localRuntime, .remoteMac]
+    }
+}
+
 @MainActor
 final class SetupViewModel: ObservableObject {
     @Published private(set) var flow: SetupFlowState
@@ -157,6 +170,7 @@ final class SetupViewModel: ObservableObject {
     func start() async {
         TerminalScriptBuilder.removeExpiredScripts(in: supportDirectory)
         await refreshChecks()
+        reuseExistingConfigurationIfAvailable()
         guard pollingTask == nil else { return }
         pollingTask = Task {
             while !Task.isCancelled {
@@ -293,5 +307,34 @@ final class SetupViewModel: ObservableObject {
         let url = supportDirectory.appendingPathComponent("state/remote-control.json")
         guard let data = try? Data(contentsOf: url) else { return false }
         return SetupRemoteMarker.matches(data, user: remoteUser, host: remoteHost)
+    }
+
+    private func reuseExistingConfigurationIfAvailable() {
+        guard flow.completed.isEmpty,
+              flow.currentStep == .welcome,
+              let completed = SetupReusePolicy.completedSteps(
+                hasPairConfiguration: pairConfigurationExists,
+                hasRemoteControl: FileManager.default.fileExists(
+                    atPath: supportDirectory.appendingPathComponent("state/remote-control.json").path
+                ),
+                runtimeReady: checks.first(where: { $0.dependency == .runtime })?.status == .ready
+              ) else {
+            return
+        }
+        flow = SetupFlowState(completed: completed)
+        persist(completed)
+    }
+
+    private var pairConfigurationExists: Bool {
+        if let override = ProcessInfo.processInfo.environment["PAIR_CONFIG_FILE"] {
+            return FileManager.default.fileExists(atPath: override)
+        }
+        let base = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"]
+            .map { URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".config", isDirectory: true)
+        return FileManager.default.fileExists(
+            atPath: base.appendingPathComponent("snapcast-stereo-pair/pair.env").path
+        )
     }
 }

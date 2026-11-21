@@ -91,6 +91,24 @@ final class SetupViewModelTests: XCTestCase {
         XCTAssertTrue(flow.isConsoleEnabled)
     }
 
+    func testExistingHealthyConfigurationResumesAtVerification() {
+        XCTAssertEqual(
+            SetupReusePolicy.completedSteps(
+                hasPairConfiguration: true,
+                hasRemoteControl: true,
+                runtimeReady: true
+            ),
+            [.welcome, .dependencies, .localRuntime, .remoteMac]
+        )
+        XCTAssertNil(
+            SetupReusePolicy.completedSteps(
+                hasPairConfiguration: true,
+                hasRemoteControl: false,
+                runtimeReady: true
+            )
+        )
+    }
+
     private func check(
         _ dependency: SetupDependency,
         _ status: SetupCheckStatus
