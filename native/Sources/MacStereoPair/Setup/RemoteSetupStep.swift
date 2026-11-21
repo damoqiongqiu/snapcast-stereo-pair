@@ -44,7 +44,10 @@ struct RemoteSetupStep: View {
                 Button(language.text("setup.remote.completed")) {
                     setup.completeRemoteSetup()
                 }
-                .disabled(setup.flow.pendingAction == nil)
+                .disabled(
+                    setup.flow.pendingAction == nil ||
+                        !setup.remoteConfigurationReady
+                )
             }
         }
     }

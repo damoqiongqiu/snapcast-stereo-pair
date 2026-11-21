@@ -12,7 +12,7 @@ stop_runtime() {
     launchctl disable "gui/$uid/$label" 2>/dev/null || true
   done
   "$support_dir/bin/set-audio-volume" set "@REMOTE_OUTPUT_DEVICE_UID@" 100
-  SwitchAudioSource -u "@REMOTE_OUTPUT_DEVICE_UID@" -t output
+  "@HOMEBREW_BIN@/SwitchAudioSource" -u "@REMOTE_OUTPUT_DEVICE_UID@" -t output
 }
 
 start_runtime() {

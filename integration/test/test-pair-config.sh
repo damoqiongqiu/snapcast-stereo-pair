@@ -45,6 +45,13 @@ compute_pair_roles
 [[ "$LEFT_CLIENT_ID" == "local-role" ]]
 [[ "$RIGHT_CLIENT_ID" == "remote-role" ]]
 
+unset REMOTE_USER REMOTE_HOST SOURCE_HOST LEFT_IS_REMOTE
+prepare_local_only_config
+[[ "$REMOTE_USER" == "pending-remote" ]]
+[[ "$REMOTE_HOST" == "pending.invalid" ]]
+[[ "$LEFT_IS_REMOTE" == "true" ]]
+require_pair_config
+
 source "$repo_root/integration/scripts/pair-config.sh"
 render_pair_template \
   "$repo_root/integration/launchagents/local-client.plist.in" \

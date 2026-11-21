@@ -85,6 +85,13 @@ require_pair_config() {
   fi
 }
 
+prepare_local_only_config() {
+  REMOTE_USER="${REMOTE_USER:-pending-remote}"
+  REMOTE_HOST="${REMOTE_HOST:-pending.invalid}"
+  SOURCE_HOST="${SOURCE_HOST:-$(detect_source_host || true)}"
+  LEFT_IS_REMOTE="${LEFT_IS_REMOTE:-true}"
+}
+
 save_pair_config() {
   local config_file
   config_file="$(pair_config_default_path)"

@@ -2,7 +2,7 @@ import Foundation
 import StereoPairCore
 import UserNotifications
 
-enum IncidentKind: String, Hashable, Sendable {
+enum IncidentKind: String, Codable, Hashable, Sendable {
     case serviceFailure
     case channelOffline
     case routing
@@ -22,7 +22,7 @@ enum IncidentKind: String, Hashable, Sendable {
     }
 }
 
-struct Incident: Hashable, Sendable {
+struct Incident: Codable, Hashable, Sendable {
     let kind: IncidentKind
     let subject: String
 
@@ -40,7 +40,13 @@ struct IncidentTracker {
     private var pendingSince: [Incident: Date] = [:]
     private var active: Set<Incident> = []
 
-    init(now: Date = Date()) {}
+    init(activeIncidents: Set<Incident> = [], now: Date = Date()) {
+        active = activeIncidents
+    }
+
+    var activeIncidents: Set<Incident> {
+        active
+    }
 
     mutating func update(snapshot: RuntimeSnapshot, now: Date) -> [IncidentTransition] {
         let candidates = candidateIncidents(in: snapshot)
@@ -104,10 +110,11 @@ final class NotificationManager: ObservableObject {
     @Published private(set) var authorizationGranted = false
 
     private let center: UNUserNotificationCenter
-    private var tracker = IncidentTracker()
+    private var tracker: IncidentTracker
     private let defaults: UserDefaults
 
     private static let setupCompleteKey = "stereo-pair.setup-complete"
+    private static let activeIncidentsKey = "stereo-pair.active-incidents"
 
     init(
         center: UNUserNotificationCenter = .current(),
@@ -115,6 +122,11 @@ final class NotificationManager: ObservableObject {
     ) {
         self.center = center
         self.defaults = defaults
+        let data = defaults.data(forKey: Self.activeIncidentsKey)
+        let active = data.flatMap {
+            try? JSONDecoder().decode(Set<Incident>.self, from: $0)
+        } ?? []
+        tracker = IncidentTracker(activeIncidents: active)
     }
 
     var setupComplete: Bool {
@@ -133,6 +145,9 @@ final class NotificationManager: ObservableObject {
     func process(snapshot: RuntimeSnapshot, language: AppLanguage) async {
         guard setupComplete else { return }
         let transitions = tracker.update(snapshot: snapshot, now: Date())
+        if let data = try? JSONEncoder().encode(tracker.activeIncidents) {
+            defaults.set(data, forKey: Self.activeIncidentsKey)
+        }
         for transition in transitions {
             switch transition {
             case .raised(let incident):

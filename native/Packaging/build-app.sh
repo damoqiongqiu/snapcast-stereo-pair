@@ -19,6 +19,14 @@ while (( $# > 0 )); do
       ;;
   esac
 done
+[[ "$output" == *.app ]] || {
+  print -u2 "Output must be an .app bundle path: $output"
+  exit 2
+}
+[[ "$output" != "/" && "$output" != "$HOME" ]] || {
+  print -u2 "Refusing unsafe output path: $output"
+  exit 2
+}
 temporary="${output}.tmp"
 
 swift build --package-path "$repo_root/native" -c release --product MacStereoPair

@@ -22,6 +22,8 @@ class MacbookStereoPair < Formula
   depends_on "switchaudio-osx"
 
   def install
+    ENV["SNAPCAST_BREW_PREFIX"] = HOMEBREW_PREFIX
+    ENV["SNAPCAST_PORTAUDIO_PREFIX"] = formula_opt_prefix("portaudio")
     system "integration/scripts/build-macos.sh"
     system "native/Packaging/build-native.sh"
     system "native/Packaging/build-app.sh", "--output", buildpath/"MacBook Stereo Pair.app"

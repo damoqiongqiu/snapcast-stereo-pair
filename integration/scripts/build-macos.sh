@@ -4,15 +4,20 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 build_dir="$repo_root/.build"
 
-for command_name in brew cmake ninja pkg-config clang; do
+command_names=(cmake ninja pkg-config clang)
+if [[ -z "${SNAPCAST_BREW_PREFIX:-}" || -z "${SNAPCAST_PORTAUDIO_PREFIX:-}" ]]; then
+  command_names+=(brew)
+fi
+
+for command_name in "${command_names[@]}"; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     print -u2 "Missing build dependency: $command_name"
     exit 1
   fi
 done
 
-brew_prefix="$(brew --prefix)"
-portaudio_prefix="$(brew --prefix portaudio)"
+brew_prefix="${SNAPCAST_BREW_PREFIX:-$(brew --prefix)}"
+portaudio_prefix="${SNAPCAST_PORTAUDIO_PREFIX:-$(brew --prefix portaudio)}"
 export PKG_CONFIG_PATH="$brew_prefix/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 
 cmake -S "$repo_root" -B "$build_dir" -G Ninja \

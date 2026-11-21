@@ -22,7 +22,7 @@ validate_remote_host() {
 
 install_local() {
   "$repo_root/integration/scripts/install-native.sh"
-  "$repo_root/integration/scripts/install-local.sh"
+  PAIR_LOCAL_ONLY=1 "$repo_root/integration/scripts/install-local.sh"
   print
   print "Local stereo-pair runtime installation completed."
 }

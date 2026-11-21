@@ -62,7 +62,6 @@ struct SetupFlowState: Equatable {
     }
 
     mutating func show(_ step: SetupStep) {
-        guard !completed.contains(step) else { return }
         currentStep = step
     }
 
@@ -197,6 +196,10 @@ final class SetupViewModel: ObservableObject {
         externalSetupDependencies.allSatisfy { dependency in
             checks.first(where: { $0.dependency == dependency })?.status == .ready
         }
+    }
+
+    var remoteConfigurationReady: Bool {
+        remoteSetupMarkerReady
     }
 
     func completeDependencies() {

@@ -10,6 +10,9 @@ uid="$(id -u)"
 
 source "$repo_root/integration/scripts/pair-config.sh"
 load_pair_config
+if [[ "${PAIR_LOCAL_ONLY:-0}" == "1" ]]; then
+  prepare_local_only_config
+fi
 require_pair_config
 compute_pair_roles
 

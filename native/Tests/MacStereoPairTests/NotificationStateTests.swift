@@ -78,6 +78,25 @@ final class NotificationStateTests: XCTestCase {
         )
     }
 
+    func testPersistedActiveIncidentIsNotRepeatedAfterAppRestart() {
+        let incident = Incident(kind: .channelOffline, subject: "RightAudio")
+        var tracker = IncidentTracker(
+            activeIncidents: [incident],
+            now: .reference
+        )
+        let offline = makeSnapshot(rightConnected: false)
+        let recovered = makeSnapshot(rightConnected: true)
+
+        XCTAssertEqual(
+            tracker.update(snapshot: offline, now: .reference.addingTimeInterval(8)),
+            []
+        )
+        XCTAssertEqual(
+            tracker.update(snapshot: recovered, now: .reference.addingTimeInterval(9)),
+            [.resolved(incident)]
+        )
+    }
+
     private func makeSnapshot(
         mode: AudioMode = .snapcast,
         health: HealthLevel = .healthy,
