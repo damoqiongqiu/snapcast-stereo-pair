@@ -191,6 +191,7 @@ http://127.0.0.1:1780
 ## Audio and Network Model
 
 - Capture device: BlackHole 2ch.
+- Hardware level: BlackHole and both built-in speakers are kept at 100%.
 - Internal capture format: 48 kHz, 32-bit float.
 - Stream format: 48 kHz / 24-bit / mono PCM for each side.
 - Capture callback: 10 ms.
@@ -204,6 +205,11 @@ http://127.0.0.1:1780
 The 200 ms buffer was the lowest stable setting on the validated Wi-Fi setup.
 150 ms produced occasional underruns, and 100 ms produced immediate
 discontinuities in that environment.
+
+Hardware volume is normalized before the services start. In pair mode, changing
+the macOS output-volume slider while BlackHole is selected only changes the
+capture level; it does not represent the built-in speaker volume. Use the
+controller's total or per-device volume for normal listening.
 
 ## Operations
 
@@ -254,6 +260,8 @@ launchctl print gui/$(id -u)/com.snapcast.server
 - If one side is reversed, change `LEFT_IS_REMOTE` and reinstall the routing
   configuration.
 - If audio drops out, inspect the 200 ms buffer and recent underrun warnings.
+- If one side is quieter, run the health check and confirm both hardware levels
+  are 100% before changing Snapcast volume.
 
 See [docs/troubleshooting.md](docs/troubleshooting.md) for recovery commands.
 

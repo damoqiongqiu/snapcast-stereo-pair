@@ -1,13 +1,13 @@
 diff --git a/.gitattributes b/.gitattributes
 new file mode 100644
-index 0000000..52e6fe6
+index 00000000..52e6fe6c
 --- /dev/null
 +++ b/.gitattributes
 @@ -0,0 +1 @@
 +integration/patches/*.patch -whitespace
 diff --git a/.github/ISSUE_TEMPLATE/bug_report.md b/.github/ISSUE_TEMPLATE/bug_report.md
 deleted file mode 100644
-index dadca42..0000000
+index dadca42c..00000000
 --- a/.github/ISSUE_TEMPLATE/bug_report.md
 +++ /dev/null
 @@ -1,28 +0,0 @@
@@ -41,7 +41,7 @@ index dadca42..0000000
 -```
 diff --git a/.github/ISSUE_TEMPLATE/bug_report.yml b/.github/ISSUE_TEMPLATE/bug_report.yml
 new file mode 100644
-index 0000000..21dc86a
+index 00000000..21dc86a1
 --- /dev/null
 +++ b/.github/ISSUE_TEMPLATE/bug_report.yml
 @@ -0,0 +1,76 @@
@@ -123,7 +123,7 @@ index 0000000..21dc86a
 +
 diff --git a/.github/ISSUE_TEMPLATE/feature_request.md b/.github/ISSUE_TEMPLATE/feature_request.md
 deleted file mode 100644
-index d11ccab..0000000
+index d11ccab8..00000000
 --- a/.github/ISSUE_TEMPLATE/feature_request.md
 +++ /dev/null
 @@ -1,20 +0,0 @@
@@ -149,7 +149,7 @@ index d11ccab..0000000
 -Add any other context or screenshots about the feature request here.
 diff --git a/.github/ISSUE_TEMPLATE/feature_request.yml b/.github/ISSUE_TEMPLATE/feature_request.yml
 new file mode 100644
-index 0000000..8da24cd
+index 00000000..8da24cde
 --- /dev/null
 +++ b/.github/ISSUE_TEMPLATE/feature_request.yml
 @@ -0,0 +1,39 @@
@@ -193,10 +193,10 @@ index 0000000..8da24cd
 +      label: Quality, latency, security, or compatibility risks
 +
 diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
-index 141ec1e..3a2511d 100644
+index 141ec1e7..0155cb77 100644
 --- a/.github/workflows/ci.yml
 +++ b/.github/workflows/ci.yml
-@@ -4,403 +4,44 @@ on:
+@@ -4,403 +4,45 @@ on:
    push:
    pull_request:
  
@@ -629,6 +629,7 @@ index 141ec1e..3a2511d 100644
 +      - name: Pair tests
 +        run: |
 +          integration/test/test-pair-config.sh
++          integration/test/test-audio-levels.sh
 +          integration/test/test-pair-routing.sh
 +      - name: Validate shell and plists
 +        run: |
@@ -639,7 +640,7 @@ index 141ec1e..3a2511d 100644
 +      - name: Public tree scan
 +        run: ./scripts/check-public-tree.sh
 diff --git a/.gitignore b/.gitignore
-index a21f71d..70a452e 100644
+index a21f71d9..70a452e6 100644
 --- a/.gitignore
 +++ b/.gitignore
 @@ -36,6 +36,8 @@ GRTAGS
@@ -666,10 +667,10 @@ index a21f71d..70a452e 100644
  extras/package/debian/snap*.debhelper.log
 diff --git a/AGENTS.md b/AGENTS.md
 new file mode 100644
-index 0000000..69986f9
+index 00000000..9f779c3e
 --- /dev/null
 +++ b/AGENTS.md
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,88 @@
 +# Repository Instructions
 +
 +This repository is the required macOS audio runtime for the
@@ -702,6 +703,7 @@ index 0000000..69986f9
 +```sh
 +./integration/scripts/build-macos.sh
 +integration/test/test-pair-config.sh
++integration/test/test-audio-levels.sh
 +integration/test/test-pair-routing.sh
 +zsh -n integration/scripts/*.sh integration/test/*.sh
 +plutil -lint integration/launchagents/*.plist.in
@@ -734,6 +736,8 @@ index 0000000..69986f9
 +  and buffer unless a reviewed design changes both sides.
 +- Keep the local Snapclient explicitly bound to a real output device while
 +  system output is BlackHole.
++- Keep BlackHole, the local built-in speaker, and the remote output device at
++  100% hardware volume; use Snapcast volume for normal listening.
 +- Preserve timeline continuity for scheduling jitter below the discontinuity
 +  threshold.
 +- Do not add lossy codecs or resampling to the default path without measured
@@ -757,7 +761,7 @@ index 0000000..69986f9
 +
 diff --git a/CODE_OF_CONDUCT.md b/CODE_OF_CONDUCT.md
 new file mode 100644
-index 0000000..9673d47
+index 00000000..9673d47a
 --- /dev/null
 +++ b/CODE_OF_CONDUCT.md
 @@ -0,0 +1,70 @@
@@ -832,7 +836,7 @@ index 0000000..9673d47
 +```
 +
 diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
-index 016e8f8..a517a5c 100644
+index 016e8f84..a517a5c4 100644
 --- a/CONTRIBUTING.md
 +++ b/CONTRIBUTING.md
 @@ -1,89 +1,67 @@
@@ -974,7 +978,7 @@ index 016e8f8..a517a5c 100644
 +Participation is governed by [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 diff --git a/NOTICE.md b/NOTICE.md
 new file mode 100644
-index 0000000..879f51e
+index 00000000..879f51e9
 --- /dev/null
 +++ b/NOTICE.md
 @@ -0,0 +1,24 @@
@@ -1003,10 +1007,10 @@ index 0000000..879f51e
 +```
 +
 diff --git a/README.md b/README.md
-index 2af80ea..4262225 100644
+index 2af80ea5..e1344054 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,250 +1,335 @@
+@@ -1,250 +1,343 @@
 -# Snapcast
 -
 -<picture>
@@ -1315,6 +1319,7 @@ index 2af80ea..4262225 100644
 +## Audio and Network Model
 +
 +- Capture device: BlackHole 2ch.
++- Hardware level: BlackHole and both built-in speakers are kept at 100%.
 +- Internal capture format: 48 kHz, 32-bit float.
 +- Stream format: 48 kHz / 24-bit / mono PCM for each side.
 +- Capture callback: 10 ms.
@@ -1328,6 +1333,11 @@ index 2af80ea..4262225 100644
 +The 200 ms buffer was the lowest stable setting on the validated Wi-Fi setup.
 +150 ms produced occasional underruns, and 100 ms produced immediate
 +discontinuities in that environment.
++
++Hardware volume is normalized before the services start. In pair mode, changing
++the macOS output-volume slider while BlackHole is selected only changes the
++capture level; it does not represent the built-in speaker volume. Use the
++controller's total or per-device volume for normal listening.
 +
 +## Operations
 +
@@ -1398,6 +1408,8 @@ index 2af80ea..4262225 100644
 +- If one side is reversed, change `LEFT_IS_REMOTE` and reinstall the routing
 +  configuration.
 +- If audio drops out, inspect the 200 ms buffer and recent underrun warnings.
++- If one side is quieter, run the health check and confirm both hardware levels
++  are 100% before changing Snapcast volume.
  
 -### Android client
 +See [docs/troubleshooting.md](docs/troubleshooting.md) for recovery commands.
@@ -1528,7 +1540,7 @@ index 2af80ea..4262225 100644
 -- [ ] **Protocol specification** Snapcast binary streaming protocol, JSON-RPC protocol
 diff --git a/README.snapcast.md b/README.snapcast.md
 new file mode 100644
-index 0000000..2af80ea
+index 00000000..2af80ea5
 --- /dev/null
 +++ b/README.snapcast.md
 @@ -0,0 +1,250 @@
@@ -1784,7 +1796,7 @@ index 0000000..2af80ea
 +- [ ] **Protocol specification** Snapcast binary streaming protocol, JSON-RPC protocol
 diff --git a/SECURITY.md b/SECURITY.md
 new file mode 100644
-index 0000000..6fbbeb8
+index 00000000..6fbbeb82
 --- /dev/null
 +++ b/SECURITY.md
 @@ -0,0 +1,47 @@
@@ -1836,7 +1848,7 @@ index 0000000..6fbbeb8
 +```
 +
 diff --git a/client/CMakeLists.txt b/client/CMakeLists.txt
-index c0bbf34..06b2c3f 100644
+index c0bbf34e..06b2c3fb 100644
 --- a/client/CMakeLists.txt
 +++ b/client/CMakeLists.txt
 @@ -23,7 +23,7 @@ if(MACOSX)
@@ -1849,7 +1861,7 @@ index c0bbf34..06b2c3f 100644
    find_library(COREFOUNDATION_LIB CoreFoundation)
    find_library(IOKIT_LIB IOKit)
 diff --git a/client/player/coreaudio_player.cpp b/client/player/coreaudio_player.cpp
-index a2055de..ffe26aa 100644
+index a2055de3..ffe26aa0 100644
 --- a/client/player/coreaudio_player.cpp
 +++ b/client/player/coreaudio_player.cpp
 @@ -25,6 +25,9 @@
@@ -1961,7 +1973,7 @@ index a2055de..ffe26aa 100644
  {
      AudioQueueStop(queue, false);
 diff --git a/client/player/coreaudio_player.hpp b/client/player/coreaudio_player.hpp
-index b22cc42..3940d93 100644
+index b22cc42d..3940d93c 100644
 --- a/client/player/coreaudio_player.hpp
 +++ b/client/player/coreaudio_player.hpp
 @@ -20,6 +20,7 @@
@@ -1999,7 +2011,7 @@ index b22cc42..3940d93 100644
  } // namespace player
 diff --git a/client/player/mono_stereo.cpp b/client/player/mono_stereo.cpp
 new file mode 100644
-index 0000000..13e19d2
+index 00000000..13e19d27
 --- /dev/null
 +++ b/client/player/mono_stereo.cpp
 @@ -0,0 +1,36 @@
@@ -2041,7 +2053,7 @@ index 0000000..13e19d2
 +} // namespace player
 diff --git a/client/player/mono_stereo.hpp b/client/player/mono_stereo.hpp
 new file mode 100644
-index 0000000..c0c3891
+index 00000000..c0c38912
 --- /dev/null
 +++ b/client/player/mono_stereo.hpp
 @@ -0,0 +1,11 @@
@@ -2058,10 +2070,10 @@ index 0000000..c0c3891
 +}
 diff --git a/docs/architecture.md b/docs/architecture.md
 new file mode 100644
-index 0000000..71ed28a
+index 00000000..c81458b2
 --- /dev/null
 +++ b/docs/architecture.md
-@@ -0,0 +1,116 @@
+@@ -0,0 +1,126 @@
 +# Architecture
 +
 +MacBook Stereo Pair separates the system into a required runtime and an optional
@@ -2131,6 +2143,16 @@ index 0000000..71ed28a
 +device explicitly. The default is `BuiltInSpeakerDevice`. A mono Snapcast
 +stream is duplicated into both channels of the local AudioQueue output.
 +
++BlackHole and the built-in speaker expose separate CoreAudio volume controls.
++The runtime helper resolves both by UID and sets each virtual main volume to
++100%. This prevents the BlackHole output slider from silently attenuating the
++signal before capture while the independently selected local speaker remains at
++a different hardware level.
++
++Treat Snapcast volume as the normal listening control. The macOS volume slider
++for BlackHole is a capture-level control and is normalized back to 100% while
++the pair runtime is active.
++
 +## Groups and Roles
 +
 +The pair uses stable role IDs rather than IP-derived names:
@@ -2180,7 +2202,7 @@ index 0000000..71ed28a
 +authentication. A trusted LAN, VPN, or restrictive firewall is required.
 diff --git a/docs/github-settings.md b/docs/github-settings.md
 new file mode 100644
-index 0000000..7cf5fcb
+index 00000000..7cf5fcb6
 --- /dev/null
 +++ b/docs/github-settings.md
 @@ -0,0 +1,25 @@
@@ -11821,10 +11843,10 @@ HcmV?d00001
 
 diff --git a/docs/installation.md b/docs/installation.md
 new file mode 100644
-index 0000000..7293a7d
+index 00000000..0ba06a10
 --- /dev/null
 +++ b/docs/installation.md
-@@ -0,0 +1,206 @@
+@@ -0,0 +1,217 @@
 +# Installation
 +
 +This guide assumes the repository that captures audio is called the source Mac
@@ -11898,8 +11920,10 @@ index 0000000..7293a7d
 +SOURCE_HOST=""
 +LEFT_IS_REMOTE=true
 +CAPTURE_DEVICE="BlackHole 2ch"
++CAPTURE_DEVICE_UID="BlackHole2ch_UID"
 +LOCAL_OUTPUT_DEVICE="BuiltInSpeakerDevice"
 +NATIVE_OUTPUT_DEVICE_UID="BuiltInSpeakerDevice"
++REMOTE_OUTPUT_DEVICE_UID="BuiltInSpeakerDevice"
 +LOCAL_CLIENT_ID="stereo-local"
 +REMOTE_CLIENT_ID="stereo-remote"
 +```
@@ -11914,9 +11938,11 @@ index 0000000..7293a7d
 +SwitchAudioSource -a -t output
 +```
 +
-+`LOCAL_OUTPUT_DEVICE` is used while Snapcast captures through BlackHole.
-+`NATIVE_OUTPUT_DEVICE_UID` is restored by native mode. Both default to the
-+built-in speaker.
++`CAPTURE_DEVICE_UID` is normalized to 100% before capture.
++`LOCAL_OUTPUT_DEVICE` selects and normalizes the source Mac's physical output.
++`REMOTE_OUTPUT_DEVICE_UID` performs the same step on the remote Mac.
++`NATIVE_OUTPUT_DEVICE_UID` is restored and normalized by native mode. The three
++output fields default to the built-in speaker.
 +
 +Environment variables override file values for automation:
 +
@@ -11951,6 +11977,7 @@ index 0000000..7293a7d
 +The installer:
 +
 +- renders templates into `~/Library/Application Support/Snapcast/`;
++- keeps BlackHole and the built-in speaker at 100% hardware volume;
 +- creates the left/right FIFOs;
 +- installs the local LaunchAgents;
 +- switches system output to BlackHole;
@@ -11996,11 +12023,17 @@ index 0000000..7293a7d
 +Expected conditions:
 +
 +- `LeftAudio` and `RightAudio` both report `48000:24:1`.
++- Capture and local output hardware volumes both report `100.00%`.
 +- `LeftAudio` lists the client role mapped to physical left.
 +- `RightAudio` lists the client role mapped to physical right.
 +- No recent `Not enough`, `age >`, `No chunk available`, or `onResync` warnings
 +  appear in the local logs.
 +- The controller shows two connected devices and a complete stereo stage.
++
++While BlackHole is the active macOS output, its volume slider controls the
++capture level rather than the built-in speakers. Use the controller volume for
++listening; the runtime normalizes both hardware stages to avoid double
++attenuation.
 +
 +## Complete Removal
 +
@@ -12033,10 +12066,10 @@ index 0000000..7293a7d
 +
 diff --git a/docs/troubleshooting.md b/docs/troubleshooting.md
 new file mode 100644
-index 0000000..84b0864
+index 00000000..249f5ea3
 --- /dev/null
 +++ b/docs/troubleshooting.md
-@@ -0,0 +1,157 @@
+@@ -0,0 +1,178 @@
 +# Troubleshooting
 +
 +Start with:
@@ -12130,6 +12163,27 @@ index 0000000..84b0864
 +is wrong, run `SwitchAudioSource -a -t output`, update
 +`LOCAL_OUTPUT_DEVICE`, and reinstall.
 +
++## One Side Is Much Quieter
++
++Run:
++
++```sh
++./integration/scripts/check-health.sh
++```
++
++Both hardware volume lines must report `100.00%`. BlackHole and the built-in
++speaker are separate CoreAudio devices: changing the macOS volume while
++BlackHole is selected does not change the speaker's hardware level.
++
++Reapply the normalization:
++
++```sh
++"$HOME/Library/Application Support/Snapcast/route-audio.sh"
++```
++
++The runtime also reapplies this calibration while routing is active. Use the
++controller's volume after the hardware stages are normalized.
++
 +## Dropouts or Periodic Gaps
 +
 +The validated 200 ms buffer covers normal Wi-Fi jitter. Symptoms include
@@ -12196,7 +12250,7 @@ index 0000000..84b0864
 +
 diff --git a/docs/upstream-sync.md b/docs/upstream-sync.md
 new file mode 100644
-index 0000000..be816b3
+index 00000000..be816b33
 --- /dev/null
 +++ b/docs/upstream-sync.md
 @@ -0,0 +1,92 @@
@@ -12294,7 +12348,7 @@ index 0000000..be816b3
 +
 diff --git a/integration/capture/capture-blackhole-pa.c b/integration/capture/capture-blackhole-pa.c
 new file mode 100644
-index 0000000..2434f67
+index 00000000..2434f671
 --- /dev/null
 +++ b/integration/capture/capture-blackhole-pa.c
 @@ -0,0 +1,209 @@
@@ -12509,7 +12563,7 @@ index 0000000..2434f67
 +}
 diff --git a/integration/capture/fifo_io.h b/integration/capture/fifo_io.h
 new file mode 100644
-index 0000000..3a4a4a3
+index 00000000..3a4a4a34
 --- /dev/null
 +++ b/integration/capture/fifo_io.h
 @@ -0,0 +1,26 @@
@@ -12541,7 +12595,7 @@ index 0000000..3a4a4a3
 +}
 diff --git a/integration/capture/pcm24.h b/integration/capture/pcm24.h
 new file mode 100644
-index 0000000..afe21c0
+index 00000000..afe21c08
 --- /dev/null
 +++ b/integration/capture/pcm24.h
 @@ -0,0 +1,46 @@
@@ -12591,24 +12645,167 @@ index 0000000..afe21c0
 +#ifdef __cplusplus
 +}
 +#endif
+diff --git a/integration/capture/set-audio-volume.c b/integration/capture/set-audio-volume.c
+new file mode 100644
+index 00000000..eb9dac91
+--- /dev/null
++++ b/integration/capture/set-audio-volume.c
+@@ -0,0 +1,135 @@
++/*
++ * Set or read a CoreAudio output device's virtual main volume by device UID.
++ *
++ * The source Mac uses BlackHole for capture while the local Snapclient renders
++ * to the built-in speaker. macOS exposes those as separate volume controls, so
++ * a normal "system volume" change can attenuate the wrong stage of the path.
++ */
++
++#include <CoreAudio/CoreAudio.h>
++#include <CoreFoundation/CoreFoundation.h>
++
++#include <errno.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++static const AudioObjectPropertySelector kVirtualMainVolume = 'vmvc';
++
++static void print_usage(FILE* stream, const char* program)
++{
++    fprintf(stream,
++            "Usage:\n"
++            "  %s get <device-uid>\n"
++            "  %s set <device-uid> <percent>\n",
++            program,
++            program);
++}
++
++static AudioDeviceID device_for_uid(const char* uid)
++{
++    CFStringRef uid_string = CFStringCreateWithCString(kCFAllocatorDefault, uid, kCFStringEncodingUTF8);
++    if (uid_string == NULL)
++        return kAudioObjectUnknown;
++
++    AudioObjectPropertyAddress address = {
++        kAudioHardwarePropertyTranslateUIDToDevice,
++        kAudioObjectPropertyScopeGlobal,
++        kAudioObjectPropertyElementMain,
++    };
++    AudioDeviceID device = kAudioObjectUnknown;
++    UInt32 size = sizeof(device);
++    OSStatus status = AudioObjectGetPropertyData(
++        kAudioObjectSystemObject, &address, sizeof(uid_string), &uid_string, &size, &device);
++    CFRelease(uid_string);
++
++    if (status != noErr)
++    {
++        fprintf(stderr, "Could not resolve device UID '%s': OSStatus %d\n", uid, status);
++        return kAudioObjectUnknown;
++    }
++    return device;
++}
++
++static AudioObjectPropertyAddress volume_address(void)
++{
++    AudioObjectPropertyAddress address = {
++        kVirtualMainVolume,
++        kAudioObjectPropertyScopeOutput,
++        kAudioObjectPropertyElementMain,
++    };
++    return address;
++}
++
++static int get_volume(const char* uid)
++{
++    AudioDeviceID device = device_for_uid(uid);
++    if (device == kAudioObjectUnknown)
++        return 1;
++
++    AudioObjectPropertyAddress address = volume_address();
++    if (!AudioObjectHasProperty(device, &address))
++    {
++        fprintf(stderr, "Device '%s' has no virtual main volume control\n", uid);
++        return 1;
++    }
++
++    Float32 volume = 0;
++    UInt32 size = sizeof(volume);
++    OSStatus status = AudioObjectGetPropertyData(device, &address, 0, NULL, &size, &volume);
++    if (status != noErr)
++    {
++        fprintf(stderr, "Could not read volume for '%s': OSStatus %d\n", uid, status);
++        return 1;
++    }
++    printf("%.2f\n", volume * 100.0);
++    return 0;
++}
++
++static int set_volume(const char* uid, const char* percent_text)
++{
++    char* end = NULL;
++    errno = 0;
++    double percent = strtod(percent_text, &end);
++    if (errno != 0 || end == percent_text || *end != '\0' || percent < 0 || percent > 100)
++    {
++        fprintf(stderr, "Volume must be a percentage between 0 and 100\n");
++        return 2;
++    }
++
++    AudioDeviceID device = device_for_uid(uid);
++    if (device == kAudioObjectUnknown)
++        return 1;
++
++    AudioObjectPropertyAddress address = volume_address();
++    if (!AudioObjectHasProperty(device, &address))
++    {
++        fprintf(stderr, "Device '%s' has no virtual main volume control\n", uid);
++        return 1;
++    }
++
++    Float32 volume = (Float32)(percent / 100.0);
++    OSStatus status = AudioObjectSetPropertyData(device, &address, 0, NULL, sizeof(volume), &volume);
++    if (status != noErr)
++    {
++        fprintf(stderr, "Could not set volume for '%s': OSStatus %d\n", uid, status);
++        return 1;
++    }
++    return 0;
++}
++
++int main(int argc, char** argv)
++{
++    if (argc == 2 && strcmp(argv[1], "--help") == 0)
++    {
++        print_usage(stdout, argv[0]);
++        return 0;
++    }
++    if (argc == 3 && strcmp(argv[1], "get") == 0)
++        return get_volume(argv[2]);
++    if (argc == 4 && strcmp(argv[1], "set") == 0)
++        return set_volume(argv[2], argv[3]);
++
++    print_usage(stderr, argv[0]);
++    return 2;
++}
 diff --git a/integration/config/pair.env.example b/integration/config/pair.env.example
 new file mode 100644
-index 0000000..58fb4dc
+index 00000000..e8bef0e6
 --- /dev/null
 +++ b/integration/config/pair.env.example
-@@ -0,0 +1,9 @@
+@@ -0,0 +1,11 @@
 +REMOTE_USER="<ssh-user>"
 +REMOTE_HOST="<remote-mac-address>"
 +SOURCE_HOST=""
 +LEFT_IS_REMOTE=true
 +CAPTURE_DEVICE="BlackHole 2ch"
++CAPTURE_DEVICE_UID="BlackHole2ch_UID"
 +LOCAL_OUTPUT_DEVICE="BuiltInSpeakerDevice"
 +NATIVE_OUTPUT_DEVICE_UID="BuiltInSpeakerDevice"
++REMOTE_OUTPUT_DEVICE_UID="BuiltInSpeakerDevice"
 +LOCAL_CLIENT_ID="stereo-local"
 +REMOTE_CLIENT_ID="stereo-remote"
 diff --git a/integration/config/snapserver.conf.in b/integration/config/snapserver.conf.in
 new file mode 100644
-index 0000000..fa6d334
+index 00000000..fa6d3341
 --- /dev/null
 +++ b/integration/config/snapserver.conf.in
 @@ -0,0 +1,32 @@
@@ -12646,7 +12843,7 @@ index 0000000..fa6d334
 +filter = *:info
 diff --git a/integration/launchagents/local-client.plist.in b/integration/launchagents/local-client.plist.in
 new file mode 100644
-index 0000000..9ccb5f1
+index 00000000..9ccb5f19
 --- /dev/null
 +++ b/integration/launchagents/local-client.plist.in
 @@ -0,0 +1,38 @@
@@ -12690,7 +12887,7 @@ index 0000000..9ccb5f1
 +</plist>
 diff --git a/integration/launchagents/pairing.plist.in b/integration/launchagents/pairing.plist.in
 new file mode 100644
-index 0000000..e15f71b
+index 00000000..e15f71b3
 --- /dev/null
 +++ b/integration/launchagents/pairing.plist.in
 @@ -0,0 +1,23 @@
@@ -12719,10 +12916,10 @@ index 0000000..e15f71b
 +</plist>
 diff --git a/integration/launchagents/remote-client.plist.in b/integration/launchagents/remote-client.plist.in
 new file mode 100644
-index 0000000..8a00ab8
+index 00000000..666e93a4
 --- /dev/null
 +++ b/integration/launchagents/remote-client.plist.in
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,38 @@
 +<?xml version="1.0" encoding="UTF-8"?>
 +<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 +<plist version="1.0">
@@ -12744,6 +12941,8 @@ index 0000000..8a00ab8
 +  <dict>
 +    <key>PATH</key>
 +    <string>@HOMEBREW_BIN@:/usr/bin:/bin:/usr/sbin:/sbin</string>
++    <key>SNAPCLIENT_COREAUDIO_DEVICE</key>
++    <string>@REMOTE_OUTPUT_DEVICE_UID@</string>
 +  </dict>
 +  <key>RunAtLoad</key>
 +  <true/>
@@ -12761,10 +12960,10 @@ index 0000000..8a00ab8
 +</plist>
 diff --git a/integration/launchagents/route.plist.in b/integration/launchagents/route.plist.in
 new file mode 100644
-index 0000000..0634b20
+index 00000000..b4d2eb0a
 --- /dev/null
 +++ b/integration/launchagents/route.plist.in
-@@ -0,0 +1,20 @@
+@@ -0,0 +1,21 @@
 +<?xml version="1.0" encoding="UTF-8"?>
 +<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 +<plist version="1.0">
@@ -12773,12 +12972,13 @@ index 0000000..0634b20
 +  <string>com.snapcast.route</string>
 +  <key>ProgramArguments</key>
 +  <array>
-+    <string>@HOMEBREW_BIN@/SwitchAudioSource</string>
-+    <string>-s</string>
-+    <string>@CAPTURE_DEVICE@</string>
-+    <string>-t</string>
-+    <string>output</string>
++    <string>@SUPPORT_DIR@/route-audio.sh</string>
 +  </array>
++  <key>EnvironmentVariables</key>
++  <dict>
++    <key>PATH</key>
++    <string>@HOMEBREW_BIN@:/usr/bin:/bin:/usr/sbin:/sbin</string>
++  </dict>
 +  <key>RunAtLoad</key>
 +  <true/>
 +  <key>ProcessType</key>
@@ -12787,7 +12987,7 @@ index 0000000..0634b20
 +</plist>
 diff --git a/integration/launchagents/server.plist.in b/integration/launchagents/server.plist.in
 new file mode 100644
-index 0000000..6fd5c5b
+index 00000000..6fd5c5b1
 --- /dev/null
 +++ b/integration/launchagents/server.plist.in
 @@ -0,0 +1,24 @@
@@ -12817,7 +13017,7 @@ index 0000000..6fd5c5b
 +</plist>
 diff --git a/integration/launchagents/splitter.plist.in b/integration/launchagents/splitter.plist.in
 new file mode 100644
-index 0000000..0b42457
+index 00000000..0b42457e
 --- /dev/null
 +++ b/integration/launchagents/splitter.plist.in
 @@ -0,0 +1,33 @@
@@ -12856,7 +13056,7 @@ index 0000000..0b42457
 +</plist>
 diff --git a/integration/scripts/analyze_mono_pair.py b/integration/scripts/analyze_mono_pair.py
 new file mode 100755
-index 0000000..3216697
+index 00000000..32166977
 --- /dev/null
 +++ b/integration/scripts/analyze_mono_pair.py
 @@ -0,0 +1,88 @@
@@ -12948,12 +13148,48 @@ index 0000000..3216697
 +print(f"relative_offset_ms={abs(lag) * 1000 / RATE:.4f}")
 +print(f"length_delta_ms={length_delta_ms:.4f}")
 +print(f"channels_differ={left[:common_frames] != right[:common_frames]}")
+diff --git a/integration/scripts/audio-levels.sh b/integration/scripts/audio-levels.sh
+new file mode 100644
+index 00000000..0c432244
+--- /dev/null
++++ b/integration/scripts/audio-levels.sh
+@@ -0,0 +1,30 @@
++#!/bin/zsh
++
++CAPTURE_DEVICE_UID="${CAPTURE_DEVICE_UID:-@CAPTURE_DEVICE_UID@}"
++LOCAL_OUTPUT_DEVICE="${LOCAL_OUTPUT_DEVICE:-@LOCAL_OUTPUT_DEVICE@}"
++REMOTE_OUTPUT_DEVICE_UID="${REMOTE_OUTPUT_DEVICE_UID:-@REMOTE_OUTPUT_DEVICE_UID@}"
++
++audio_volume_bin() {
++  print -r -- "${AUDIO_VOLUME_BIN:-${SUPPORT_DIR:-$HOME/Library/Application Support/Snapcast}/bin/set-audio-volume}"
++}
++
++ensure_audio_levels() {
++  local volume_bin
++  volume_bin="$(audio_volume_bin)"
++  if [[ ! -x "$volume_bin" ]]; then
++    print -u2 "CoreAudio volume helper is missing: $volume_bin"
++    return 1
++  fi
++  "$volume_bin" set "$CAPTURE_DEVICE_UID" 100
++  "$volume_bin" set "$LOCAL_OUTPUT_DEVICE" 100
++}
++
++ensure_remote_audio_level() {
++  local volume_bin
++  volume_bin="$(audio_volume_bin)"
++  if [[ ! -x "$volume_bin" ]]; then
++    print -u2 "CoreAudio volume helper is missing: $volume_bin"
++    return 1
++  fi
++  "$volume_bin" set "$REMOTE_OUTPUT_DEVICE_UID" 100
++}
 diff --git a/integration/scripts/build-macos.sh b/integration/scripts/build-macos.sh
 new file mode 100755
-index 0000000..8e03a0b
+index 00000000..0047e3f1
 --- /dev/null
 +++ b/integration/scripts/build-macos.sh
-@@ -0,0 +1,48 @@
+@@ -0,0 +1,54 @@
 +#!/bin/zsh
 +set -euo pipefail
 +
@@ -12997,17 +13233,23 @@ index 0000000..8e03a0b
 +  -o "$build_dir/bin/capture-blackhole" \
 +  "$repo_root/integration/capture/capture-blackhole-pa.c" \
 +  -lportaudio
++clang -O2 -Wall -Wextra \
++  -o "$build_dir/bin/set-audio-volume" \
++  "$repo_root/integration/capture/set-audio-volume.c" \
++  -framework CoreAudio \
++  -framework CoreFoundation
 +
 +print "Built:"
 +print "  $build_dir/bin/snapserver"
 +print "  $build_dir/bin/snapclient"
 +print "  $build_dir/bin/capture-blackhole"
++print "  $build_dir/bin/set-audio-volume"
 diff --git a/integration/scripts/check-health.sh b/integration/scripts/check-health.sh
 new file mode 100755
-index 0000000..219fc6d
+index 00000000..478f2069
 --- /dev/null
 +++ b/integration/scripts/check-health.sh
-@@ -0,0 +1,101 @@
+@@ -0,0 +1,115 @@
 +#!/bin/zsh
 +set -uo pipefail
 +
@@ -13024,6 +13266,20 @@ index 0000000..219fc6d
 +health_status=0
 +
 +print "System output: $(SwitchAudioSource -c -t output 2>/dev/null || print unknown)"
++volume_bin="${AUDIO_VOLUME_BIN:-$HOME/Library/Application Support/Snapcast/bin/set-audio-volume}"
++if [[ -x "$volume_bin" ]]; then
++  capture_volume="$("$volume_bin" get "$CAPTURE_DEVICE_UID" 2>/dev/null || print unknown)"
++  output_volume="$("$volume_bin" get "$LOCAL_OUTPUT_DEVICE" 2>/dev/null || print unknown)"
++  print "Capture volume ($CAPTURE_DEVICE_UID): $capture_volume%"
++  print "Local output volume ($LOCAL_OUTPUT_DEVICE): $output_volume%"
++  if [[ "$capture_volume" != "100.00" || "$output_volume" != "100.00" ]]; then
++    print -u2 "  capture and local output hardware volumes must both be 100%"
++    health_status=1
++  fi
++else
++  print -u2 "  CoreAudio volume helper is not installed: $volume_bin"
++  health_status=1
++fi
 +print "Local processes:"
 +pgrep -ifl 'snapserver|snapclient|snapcast-capture-blackhole' || print "  none"
 +
@@ -13111,10 +13367,10 @@ index 0000000..219fc6d
 +exit "$health_status"
 diff --git a/integration/scripts/configure-pair.sh b/integration/scripts/configure-pair.sh
 new file mode 100755
-index 0000000..c3c85cb
+index 00000000..06e05be0
 --- /dev/null
 +++ b/integration/scripts/configure-pair.sh
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,52 @@
 +#!/bin/zsh
 +set -euo pipefail
 +
@@ -13152,8 +13408,10 @@ index 0000000..c3c85cb
 +  print "SOURCE_HOST=\"$SOURCE_HOST\""
 +  print "LEFT_IS_REMOTE=\"$LEFT_IS_REMOTE\""
 +  print "CAPTURE_DEVICE=\"$CAPTURE_DEVICE\""
++  print "CAPTURE_DEVICE_UID=\"$CAPTURE_DEVICE_UID\""
 +  print "LOCAL_OUTPUT_DEVICE=\"$LOCAL_OUTPUT_DEVICE\""
 +  print "NATIVE_OUTPUT_DEVICE_UID=\"$NATIVE_OUTPUT_DEVICE_UID\""
++  print "REMOTE_OUTPUT_DEVICE_UID=\"$REMOTE_OUTPUT_DEVICE_UID\""
 +  print "LOCAL_CLIENT_ID=\"$LOCAL_CLIENT_ID\""
 +  print "REMOTE_CLIENT_ID=\"$REMOTE_CLIENT_ID\""
 +  print "LEFT_CLIENT_ID=\"$LEFT_CLIENT_ID\""
@@ -13167,10 +13425,10 @@ index 0000000..c3c85cb
 +print "Right client: $RIGHT_CLIENT_ID"
 diff --git a/integration/scripts/ensure-pair-routing.sh b/integration/scripts/ensure-pair-routing.sh
 new file mode 100755
-index 0000000..95ea79b
+index 00000000..58a29d15
 --- /dev/null
 +++ b/integration/scripts/ensure-pair-routing.sh
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,90 @@
 +#!/bin/zsh
 +set -euo pipefail
 +
@@ -13178,6 +13436,11 @@ index 0000000..95ea79b
 +request_id=0
 +LEFT_CLIENT_ID="${LEFT_CLIENT_ID:-@LEFT_CLIENT_ID@}"
 +RIGHT_CLIENT_ID="${RIGHT_CLIENT_ID:-@RIGHT_CLIENT_ID@}"
++
++if [[ -f "@SUPPORT_DIR@/audio-levels.sh" ]]; then
++  source "@SUPPORT_DIR@/audio-levels.sh"
++  ensure_audio_levels || print -u2 "Could not normalize CoreAudio hardware levels"
++fi
 +
 +rpc() {
 +  local payload="$1"
@@ -13258,10 +13521,10 @@ index 0000000..95ea79b
 +fi
 diff --git a/integration/scripts/install-local.sh b/integration/scripts/install-local.sh
 new file mode 100755
-index 0000000..bfaa11d
+index 00000000..9dbe19c3
 --- /dev/null
 +++ b/integration/scripts/install-local.sh
-@@ -0,0 +1,64 @@
+@@ -0,0 +1,73 @@
 +#!/bin/zsh
 +set -euo pipefail
 +
@@ -13291,6 +13554,7 @@ index 0000000..bfaa11d
 +
 +install -m 755 "$repo_root/.build/bin/snapserver" "$support_dir/bin/snapserver"
 +install -m 755 "$repo_root/.build/bin/snapclient" "$support_dir/bin/snapclient"
++install -m 755 "$repo_root/.build/bin/set-audio-volume" "$support_dir/bin/set-audio-volume"
 +install -m 755 "$repo_root/.build/bin/capture-blackhole" "$homebrew_bin/snapcast-capture-blackhole"
 +install -m 644 "$repo_root/integration/capture/capture-blackhole-pa.c" "$support_dir/capture-blackhole-pa.c"
 +render_pair_template \
@@ -13311,6 +13575,14 @@ index 0000000..bfaa11d
 +  "$repo_root/integration/scripts/ensure-pair-routing.sh" \
 +  "$support_dir/ensure-pair-routing.sh"
 +chmod 755 "$support_dir/ensure-pair-routing.sh"
++render_pair_template \
++  "$repo_root/integration/scripts/audio-levels.sh" \
++  "$support_dir/audio-levels.sh"
++chmod 644 "$support_dir/audio-levels.sh"
++render_pair_template \
++  "$repo_root/integration/scripts/route-audio.sh" \
++  "$support_dir/route-audio.sh"
++chmod 755 "$support_dir/route-audio.sh"
 +
 +for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
 +  launchctl bootout "gui/$uid/$label" 2>/dev/null || true
@@ -13328,10 +13600,10 @@ index 0000000..bfaa11d
 +print "Check status with: $repo_root/integration/scripts/check-health.sh"
 diff --git a/integration/scripts/install-remote.sh b/integration/scripts/install-remote.sh
 new file mode 100755
-index 0000000..d92ba5c
+index 00000000..7cef783c
 --- /dev/null
 +++ b/integration/scripts/install-remote.sh
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,43 @@
 +#!/bin/zsh
 +set -euo pipefail
 +
@@ -13347,7 +13619,10 @@ index 0000000..d92ba5c
 +fi
 +
 +remote_home="$(ssh "$remote" 'print -r -- "$HOME"')"
-+remote_brew_bin="$(ssh "$remote" 'print -r -- "$(brew --prefix)/bin"')"
++remote_brew_bin="$(ssh "$remote" '
++  export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
++  brew --prefix
++')/bin"
 +rendered_plist="$(mktemp)"
 +trap 'rm -f "$rendered_plist"' EXIT
 +PAIR_RENDER_HOME="$remote_home" \
@@ -13358,20 +13633,23 @@ index 0000000..d92ba5c
 +
 +ssh "$remote" 'mkdir -p "$HOME/Library/Application Support/Snapcast/bin" "$HOME/Library/Logs/Snapcast" "$HOME/Library/LaunchAgents"'
 +scp "$repo_root/.build/bin/snapclient" "$remote:Library/Application Support/Snapcast/bin/snapclient"
++scp "$repo_root/.build/bin/set-audio-volume" "$remote:Library/Application Support/Snapcast/bin/set-audio-volume"
 +scp "$rendered_plist" "$remote:Library/LaunchAgents/com.snapcast.remote-client.plist"
 +
-+ssh "$remote" '
++ssh "$remote" env REMOTE_OUTPUT_DEVICE_UID="$REMOTE_OUTPUT_DEVICE_UID" zsh -s <<'REMOTE_SCRIPT'
 +  chmod 755 "$HOME/Library/Application Support/Snapcast/bin/snapclient"
++  chmod 755 "$HOME/Library/Application Support/Snapcast/bin/set-audio-volume"
++  "$HOME/Library/Application Support/Snapcast/bin/set-audio-volume" set "$REMOTE_OUTPUT_DEVICE_UID" 100
 +  uid="$(id -u)"
 +  launchctl bootout "gui/$uid/com.snapcast.remote-client" 2>/dev/null || true
 +  sleep 1
 +  launchctl bootstrap "gui/$uid" "$HOME/Library/LaunchAgents/com.snapcast.remote-client.plist"
-+'
++REMOTE_SCRIPT
 +
 +print "Installed remote Snapcast client on $remote."
 diff --git a/integration/scripts/install-snapweb.sh b/integration/scripts/install-snapweb.sh
 new file mode 100755
-index 0000000..4915e8a
+index 00000000..4915e8a0
 --- /dev/null
 +++ b/integration/scripts/install-snapweb.sh
 @@ -0,0 +1,24 @@
@@ -13401,10 +13679,10 @@ index 0000000..4915e8a
 +print "Installed the MacBook stereo-pair interface at http://127.0.0.1:1780"
 diff --git a/integration/scripts/pair-config.sh b/integration/scripts/pair-config.sh
 new file mode 100755
-index 0000000..13d93e4
+index 00000000..af414efa
 --- /dev/null
 +++ b/integration/scripts/pair-config.sh
-@@ -0,0 +1,127 @@
+@@ -0,0 +1,135 @@
 +#!/bin/zsh
 +
 +pair_config_default_path() {
@@ -13434,8 +13712,10 @@ index 0000000..13d93e4
 +    SOURCE_HOST
 +    LEFT_IS_REMOTE
 +    CAPTURE_DEVICE
++    CAPTURE_DEVICE_UID
 +    LOCAL_OUTPUT_DEVICE
 +    NATIVE_OUTPUT_DEVICE_UID
++    REMOTE_OUTPUT_DEVICE_UID
 +    LOCAL_CLIENT_ID
 +    REMOTE_CLIENT_ID
 +  )
@@ -13460,8 +13740,10 @@ index 0000000..13d93e4
 +  SOURCE_HOST="${SOURCE_HOST:-}"
 +  LEFT_IS_REMOTE="${LEFT_IS_REMOTE:-true}"
 +  CAPTURE_DEVICE="${CAPTURE_DEVICE:-BlackHole 2ch}"
++  CAPTURE_DEVICE_UID="${CAPTURE_DEVICE_UID:-BlackHole2ch_UID}"
 +  LOCAL_OUTPUT_DEVICE="${LOCAL_OUTPUT_DEVICE:-BuiltInSpeakerDevice}"
 +  NATIVE_OUTPUT_DEVICE_UID="${NATIVE_OUTPUT_DEVICE_UID:-BuiltInSpeakerDevice}"
++  REMOTE_OUTPUT_DEVICE_UID="${REMOTE_OUTPUT_DEVICE_UID:-BuiltInSpeakerDevice}"
 +  LOCAL_CLIENT_ID="${LOCAL_CLIENT_ID:-stereo-local}"
 +  REMOTE_CLIENT_ID="${REMOTE_CLIENT_ID:-stereo-remote}"
 +  compute_pair_roles
@@ -13499,8 +13781,10 @@ index 0000000..13d93e4
 +SOURCE_HOST="$SOURCE_HOST"
 +LEFT_IS_REMOTE="$LEFT_IS_REMOTE"
 +CAPTURE_DEVICE="$CAPTURE_DEVICE"
++CAPTURE_DEVICE_UID="$CAPTURE_DEVICE_UID"
 +LOCAL_OUTPUT_DEVICE="$LOCAL_OUTPUT_DEVICE"
 +NATIVE_OUTPUT_DEVICE_UID="$NATIVE_OUTPUT_DEVICE_UID"
++REMOTE_OUTPUT_DEVICE_UID="$REMOTE_OUTPUT_DEVICE_UID"
 +LOCAL_CLIENT_ID="$LOCAL_CLIENT_ID"
 +REMOTE_CLIENT_ID="$REMOTE_CLIENT_ID"
 +EOF
@@ -13528,21 +13812,36 @@ index 0000000..13d93e4
 +    -e "s|@RIGHT_CLIENT_ID@|$RIGHT_CLIENT_ID|g" \
 +    -e "s|@LOCAL_OUTPUT_DEVICE@|$LOCAL_OUTPUT_DEVICE|g" \
 +    -e "s|@NATIVE_OUTPUT_DEVICE_UID@|$NATIVE_OUTPUT_DEVICE_UID|g" \
++    -e "s|@REMOTE_OUTPUT_DEVICE_UID@|$REMOTE_OUTPUT_DEVICE_UID|g" \
 +    -e "s|@CAPTURE_DEVICE@|$CAPTURE_DEVICE|g" \
++    -e "s|@CAPTURE_DEVICE_UID@|$CAPTURE_DEVICE_UID|g" \
 +    -e "s|@SOURCE_HOST@|$SOURCE_HOST|g" \
 +    "$source_file" > "$output_file"
 +}
+diff --git a/integration/scripts/route-audio.sh b/integration/scripts/route-audio.sh
+new file mode 100644
+index 00000000..96bbf099
+--- /dev/null
++++ b/integration/scripts/route-audio.sh
+@@ -0,0 +1,6 @@
++#!/bin/zsh
++set -euo pipefail
++
++source "@SUPPORT_DIR@/audio-levels.sh"
++SwitchAudioSource -s "@CAPTURE_DEVICE@" -t output
++ensure_audio_levels
 diff --git a/integration/scripts/set-mode.sh b/integration/scripts/set-mode.sh
 new file mode 100755
-index 0000000..330a888
+index 00000000..5a5ddb14
 --- /dev/null
 +++ b/integration/scripts/set-mode.sh
-@@ -0,0 +1,45 @@
+@@ -0,0 +1,48 @@
 +#!/bin/zsh
 +set -euo pipefail
 +
 +uid="$(id -u)"
 +launch_dir="$HOME/Library/LaunchAgents"
++source "@SUPPORT_DIR@/audio-levels.sh"
 +
 +stop_snapcast() {
 +  for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
@@ -13557,6 +13856,7 @@ index 0000000..330a888
 +    launchctl enable "gui/$uid/$label"
 +  done
 +  SwitchAudioSource -s "@CAPTURE_DEVICE@" -t output
++  ensure_audio_levels
 +  launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.route.plist"
 +  launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.server.plist"
 +  sleep 1
@@ -13575,6 +13875,7 @@ index 0000000..330a888
 +    for label in com.snapcast.local-client com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
 +      launchctl disable "gui/$uid/$label"
 +    done
++    "@SUPPORT_DIR@/bin/set-audio-volume" set "@NATIVE_OUTPUT_DEVICE_UID@" 100
 +    SwitchAudioSource -u "@NATIVE_OUTPUT_DEVICE_UID@" -t output
 +    print "Native macOS audio mode enabled across future logins."
 +    ;;
@@ -13585,7 +13886,7 @@ index 0000000..330a888
 +esac
 diff --git a/integration/scripts/uninstall-local.sh b/integration/scripts/uninstall-local.sh
 new file mode 100755
-index 0000000..085d816
+index 00000000..085d8160
 --- /dev/null
 +++ b/integration/scripts/uninstall-local.sh
 @@ -0,0 +1,16 @@
@@ -13605,12 +13906,54 @@ index 0000000..085d816
 +SwitchAudioSource -u "$NATIVE_OUTPUT_DEVICE_UID" -t output || true
 +print "Snapcast services stopped and local speaker restored."
 +print "Files in ~/Library/Application Support/Snapcast were preserved."
+diff --git a/integration/test/test-audio-levels.sh b/integration/test/test-audio-levels.sh
+new file mode 100755
+index 00000000..2f1383ca
+--- /dev/null
++++ b/integration/test/test-audio-levels.sh
+@@ -0,0 +1,36 @@
++#!/bin/zsh
++set -euo pipefail
++
++repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
++tmp_dir="$(mktemp -d)"
++
++cleanup() {
++  rm -rf "$tmp_dir"
++}
++trap cleanup EXIT
++
++cat > "$tmp_dir/set-audio-volume" <<'EOF'
++#!/bin/zsh
++set -euo pipefail
++print -r -- "$*" >> "$AUDIO_VOLUME_TEST_LOG"
++EOF
++chmod +x "$tmp_dir/set-audio-volume"
++
++export AUDIO_VOLUME_BIN="$tmp_dir/set-audio-volume"
++export AUDIO_VOLUME_TEST_LOG="$tmp_dir/calls.log"
++export CAPTURE_DEVICE_UID="BlackHole2ch_UID"
++export LOCAL_OUTPUT_DEVICE="BuiltInSpeakerDevice"
++export REMOTE_OUTPUT_DEVICE_UID="RemoteSpeakerDevice"
++
++source "$repo_root/integration/scripts/audio-levels.sh"
++ensure_audio_levels
++ensure_remote_audio_level
++
++expected=$'set BlackHole2ch_UID 100\nset BuiltInSpeakerDevice 100\nset RemoteSpeakerDevice 100'
++[[ "$(cat "$AUDIO_VOLUME_TEST_LOG")" == "$expected" ]]
++
++volume_bin="$repo_root/.build/bin/set-audio-volume"
++[[ -x "$volume_bin" ]]
++"$volume_bin" --help >/dev/null
++
++print "Audio level tests passed"
 diff --git a/integration/test/test-pair-config.sh b/integration/test/test-pair-config.sh
 new file mode 100755
-index 0000000..a348c81
+index 00000000..704aa35d
 --- /dev/null
 +++ b/integration/test/test-pair-config.sh
-@@ -0,0 +1,51 @@
+@@ -0,0 +1,63 @@
 +#!/bin/zsh
 +set -euo pipefail
 +
@@ -13629,7 +13972,9 @@ index 0000000..a348c81
 +SOURCE_HOST="10.0.0.10"
 +LEFT_IS_REMOTE=true
 +CAPTURE_DEVICE="BlackHole 2ch"
++CAPTURE_DEVICE_UID="BlackHole2ch_UID"
 +LOCAL_OUTPUT_DEVICE="BuiltInSpeakerDevice"
++REMOTE_OUTPUT_DEVICE_UID="BuiltInSpeakerDevice"
 +LOCAL_CLIENT_ID="local-role"
 +REMOTE_CLIENT_ID="remote-role"
 +EOF
@@ -13642,6 +13987,8 @@ index 0000000..a348c81
 +
 +[[ "$REMOTE_USER" == "tester" ]]
 +[[ "$REMOTE_HOST" == "remote.local" ]]
++[[ "$CAPTURE_DEVICE_UID" == "BlackHole2ch_UID" ]]
++[[ "$REMOTE_OUTPUT_DEVICE_UID" == "BuiltInSpeakerDevice" ]]
 +[[ "$LEFT_CLIENT_ID" == "remote-role" ]]
 +[[ "$RIGHT_CLIENT_ID" == "local-role" ]]
 +
@@ -13661,10 +14008,18 @@ index 0000000..a348c81
 +plutil -lint "$tmp_dir/local.plist"
 +plutil -p "$tmp_dir/local.plist" | grep -q "local-role"
 +
++render_pair_template \
++  "$repo_root/integration/scripts/audio-levels.sh" \
++  "$tmp_dir/audio-levels.sh"
++grep -q "BlackHole2ch_UID" "$tmp_dir/audio-levels.sh"
++grep -q "BuiltInSpeakerDevice" "$tmp_dir/audio-levels.sh"
++! grep -q "@CAPTURE_DEVICE_UID@" "$tmp_dir/audio-levels.sh"
++! grep -q "@REMOTE_OUTPUT_DEVICE_UID@" "$tmp_dir/audio-levels.sh"
++
 +print "Pair configuration tests passed"
 diff --git a/integration/test/test-pair-routing.sh b/integration/test/test-pair-routing.sh
 new file mode 100755
-index 0000000..bd9dcc6
+index 00000000..bd9dcc63
 --- /dev/null
 +++ b/integration/test/test-pair-routing.sh
 @@ -0,0 +1,113 @@
@@ -13783,7 +14138,7 @@ index 0000000..bd9dcc6
 +print "Pair routing tests passed"
 diff --git a/scripts/check-public-tree.sh b/scripts/check-public-tree.sh
 new file mode 100755
-index 0000000..7ee9168
+index 00000000..7ee91684
 --- /dev/null
 +++ b/scripts/check-public-tree.sh
 @@ -0,0 +1,61 @@
@@ -13849,7 +14204,7 @@ index 0000000..7ee9168
 +exit "$failed"
 +
 diff --git a/server/streamreader/asio_stream.hpp b/server/streamreader/asio_stream.hpp
-index 2457dda..ad9048b 100644
+index 2457ddac..ad9048bb 100644
 --- a/server/streamreader/asio_stream.hpp
 +++ b/server/streamreader/asio_stream.hpp
 @@ -269,11 +269,18 @@ void AsioStream<ReadStream>::do_read()
@@ -13875,7 +14230,7 @@ index 2457dda..ad9048b 100644
          }
      });
 diff --git a/test/CMakeLists.txt b/test/CMakeLists.txt
-index f5772b6..cfe8386 100644
+index f5772b69..cfe8386b 100644
 --- a/test/CMakeLists.txt
 +++ b/test/CMakeLists.txt
 @@ -16,6 +16,7 @@ endif()
@@ -13887,7 +14242,7 @@ index f5772b6..cfe8386 100644
      ${CMAKE_SOURCE_DIR}/common/base64.cpp
      ${CMAKE_SOURCE_DIR}/common/utils/string_utils.cpp
 diff --git a/test/test_main.cpp b/test/test_main.cpp
-index 9116400..8c89496 100644
+index 9116400a..8c89496a 100644
 --- a/test/test_main.cpp
 +++ b/test/test_main.cpp
 @@ -24,6 +24,9 @@

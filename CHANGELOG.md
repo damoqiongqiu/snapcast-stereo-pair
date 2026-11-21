@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Normalize BlackHole, local speaker, and remote speaker hardware volumes to
+  100% independently of the selected macOS output device.
+- Add CoreAudio volume diagnostics and prevent pre-capture attenuation from
+  making Snapcast volume appear quieter than native playback.
+
 ## v0.1.0 - 2026-11-20
 
 First public source release.

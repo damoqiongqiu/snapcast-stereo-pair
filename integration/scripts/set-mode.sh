@@ -3,6 +3,7 @@ set -euo pipefail
 
 uid="$(id -u)"
 launch_dir="$HOME/Library/LaunchAgents"
+source "@SUPPORT_DIR@/audio-levels.sh"
 
 stop_snapcast() {
   for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
@@ -17,6 +18,7 @@ start_snapcast() {
     launchctl enable "gui/$uid/$label"
   done
   SwitchAudioSource -s "@CAPTURE_DEVICE@" -t output
+  ensure_audio_levels
   launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.route.plist"
   launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.server.plist"
   sleep 1
@@ -35,6 +37,7 @@ case "${1:-}" in
     for label in com.snapcast.local-client com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
       launchctl disable "gui/$uid/$label"
     done
+    "@SUPPORT_DIR@/bin/set-audio-volume" set "@NATIVE_OUTPUT_DEVICE_UID@" 100
     SwitchAudioSource -u "@NATIVE_OUTPUT_DEVICE_UID@" -t output
     print "Native macOS audio mode enabled across future logins."
     ;;

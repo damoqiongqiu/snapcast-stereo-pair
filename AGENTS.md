@@ -30,6 +30,7 @@ Run the checks that cover the change; run the complete set before release:
 ```sh
 ./integration/scripts/build-macos.sh
 integration/test/test-pair-config.sh
+integration/test/test-audio-levels.sh
 integration/test/test-pair-routing.sh
 zsh -n integration/scripts/*.sh integration/test/*.sh
 plutil -lint integration/launchagents/*.plist.in
@@ -62,6 +63,8 @@ macOS and BlackHole versions when changing audio behavior.
   and buffer unless a reviewed design changes both sides.
 - Keep the local Snapclient explicitly bound to a real output device while
   system output is BlackHole.
+- Keep BlackHole, the local built-in speaker, and the remote output device at
+  100% hardware volume; use Snapcast volume for normal listening.
 - Preserve timeline continuity for scheduling jitter below the discontinuity
   threshold.
 - Do not add lossy codecs or resampling to the default path without measured

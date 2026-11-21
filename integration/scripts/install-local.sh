@@ -27,6 +27,7 @@ done
 
 install -m 755 "$repo_root/.build/bin/snapserver" "$support_dir/bin/snapserver"
 install -m 755 "$repo_root/.build/bin/snapclient" "$support_dir/bin/snapclient"
+install -m 755 "$repo_root/.build/bin/set-audio-volume" "$support_dir/bin/set-audio-volume"
 install -m 755 "$repo_root/.build/bin/capture-blackhole" "$homebrew_bin/snapcast-capture-blackhole"
 install -m 644 "$repo_root/integration/capture/capture-blackhole-pa.c" "$support_dir/capture-blackhole-pa.c"
 render_pair_template \
@@ -47,6 +48,14 @@ render_pair_template \
   "$repo_root/integration/scripts/ensure-pair-routing.sh" \
   "$support_dir/ensure-pair-routing.sh"
 chmod 755 "$support_dir/ensure-pair-routing.sh"
+render_pair_template \
+  "$repo_root/integration/scripts/audio-levels.sh" \
+  "$support_dir/audio-levels.sh"
+chmod 644 "$support_dir/audio-levels.sh"
+render_pair_template \
+  "$repo_root/integration/scripts/route-audio.sh" \
+  "$support_dir/route-audio.sh"
+chmod 755 "$support_dir/route-audio.sh"
 
 for label in com.snapcast.local-client com.snapcast.capture com.snapcast.server com.snapcast.route com.snapcast.splitter com.snapcast.pairing; do
   launchctl bootout "gui/$uid/$label" 2>/dev/null || true

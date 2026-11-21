@@ -71,8 +71,10 @@ REMOTE_HOST="<remote-mac-address>"
 SOURCE_HOST=""
 LEFT_IS_REMOTE=true
 CAPTURE_DEVICE="BlackHole 2ch"
+CAPTURE_DEVICE_UID="BlackHole2ch_UID"
 LOCAL_OUTPUT_DEVICE="BuiltInSpeakerDevice"
 NATIVE_OUTPUT_DEVICE_UID="BuiltInSpeakerDevice"
+REMOTE_OUTPUT_DEVICE_UID="BuiltInSpeakerDevice"
 LOCAL_CLIENT_ID="stereo-local"
 REMOTE_CLIENT_ID="stereo-remote"
 ```
@@ -87,9 +89,11 @@ devices:
 SwitchAudioSource -a -t output
 ```
 
-`LOCAL_OUTPUT_DEVICE` is used while Snapcast captures through BlackHole.
-`NATIVE_OUTPUT_DEVICE_UID` is restored by native mode. Both default to the
-built-in speaker.
+`CAPTURE_DEVICE_UID` is normalized to 100% before capture.
+`LOCAL_OUTPUT_DEVICE` selects and normalizes the source Mac's physical output.
+`REMOTE_OUTPUT_DEVICE_UID` performs the same step on the remote Mac.
+`NATIVE_OUTPUT_DEVICE_UID` is restored and normalized by native mode. The three
+output fields default to the built-in speaker.
 
 Environment variables override file values for automation:
 
@@ -124,6 +128,7 @@ Install the source-Mac services:
 The installer:
 
 - renders templates into `~/Library/Application Support/Snapcast/`;
+- keeps BlackHole and the built-in speaker at 100% hardware volume;
 - creates the left/right FIFOs;
 - installs the local LaunchAgents;
 - switches system output to BlackHole;
@@ -169,11 +174,17 @@ Run:
 Expected conditions:
 
 - `LeftAudio` and `RightAudio` both report `48000:24:1`.
+- Capture and local output hardware volumes both report `100.00%`.
 - `LeftAudio` lists the client role mapped to physical left.
 - `RightAudio` lists the client role mapped to physical right.
 - No recent `Not enough`, `age >`, `No chunk available`, or `onResync` warnings
   appear in the local logs.
 - The controller shows two connected devices and a complete stereo stage.
+
+While BlackHole is the active macOS output, its volume slider controls the
+capture level rather than the built-in speakers. Use the controller volume for
+listening; the runtime normalizes both hardware stages to avoid double
+attenuation.
 
 ## Complete Removal
 

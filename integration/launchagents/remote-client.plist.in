@@ -19,6 +19,8 @@
   <dict>
     <key>PATH</key>
     <string>@HOMEBREW_BIN@:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>SNAPCLIENT_COREAUDIO_DEVICE</key>
+    <string>@REMOTE_OUTPUT_DEVICE_UID@</string>
   </dict>
   <key>RunAtLoad</key>
   <true/>

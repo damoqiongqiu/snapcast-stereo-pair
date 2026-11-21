@@ -14,6 +14,20 @@ uid="$(id -u)"
 health_status=0
 
 print "System output: $(SwitchAudioSource -c -t output 2>/dev/null || print unknown)"
+volume_bin="${AUDIO_VOLUME_BIN:-$HOME/Library/Application Support/Snapcast/bin/set-audio-volume}"
+if [[ -x "$volume_bin" ]]; then
+  capture_volume="$("$volume_bin" get "$CAPTURE_DEVICE_UID" 2>/dev/null || print unknown)"
+  output_volume="$("$volume_bin" get "$LOCAL_OUTPUT_DEVICE" 2>/dev/null || print unknown)"
+  print "Capture volume ($CAPTURE_DEVICE_UID): $capture_volume%"
+  print "Local output volume ($LOCAL_OUTPUT_DEVICE): $output_volume%"
+  if [[ "$capture_volume" != "100.00" || "$output_volume" != "100.00" ]]; then
+    print -u2 "  capture and local output hardware volumes must both be 100%"
+    health_status=1
+  fi
+else
+  print -u2 "  CoreAudio volume helper is not installed: $volume_bin"
+  health_status=1
+fi
 print "Local processes:"
 pgrep -ifl 'snapserver|snapclient|snapcast-capture-blackhole' || print "  none"
 

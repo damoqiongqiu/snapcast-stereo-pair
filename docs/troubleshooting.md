@@ -91,6 +91,27 @@ be running with `SNAPCLIENT_COREAUDIO_DEVICE` set. If the configured device UID
 is wrong, run `SwitchAudioSource -a -t output`, update
 `LOCAL_OUTPUT_DEVICE`, and reinstall.
 
+## One Side Is Much Quieter
+
+Run:
+
+```sh
+./integration/scripts/check-health.sh
+```
+
+Both hardware volume lines must report `100.00%`. BlackHole and the built-in
+speaker are separate CoreAudio devices: changing the macOS volume while
+BlackHole is selected does not change the speaker's hardware level.
+
+Reapply the normalization:
+
+```sh
+"$HOME/Library/Application Support/Snapcast/route-audio.sh"
+```
+
+The runtime also reapplies this calibration while routing is active. Use the
+controller's volume after the hardware stages are normalized.
+
 ## Dropouts or Periodic Gaps
 
 The validated 200 ms buffer covers normal Wi-Fi jitter. Symptoms include

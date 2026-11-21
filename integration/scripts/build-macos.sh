@@ -41,8 +41,14 @@ clang -O2 -Wall -Wextra \
   -o "$build_dir/bin/capture-blackhole" \
   "$repo_root/integration/capture/capture-blackhole-pa.c" \
   -lportaudio
+clang -O2 -Wall -Wextra \
+  -o "$build_dir/bin/set-audio-volume" \
+  "$repo_root/integration/capture/set-audio-volume.c" \
+  -framework CoreAudio \
+  -framework CoreFoundation
 
 print "Built:"
 print "  $build_dir/bin/snapserver"
 print "  $build_dir/bin/snapclient"
 print "  $build_dir/bin/capture-blackhole"
+print "  $build_dir/bin/set-audio-volume"

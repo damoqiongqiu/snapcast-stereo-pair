@@ -36,6 +36,7 @@ jobs:
       - name: Pair tests
         run: |
           integration/test/test-pair-config.sh
+          integration/test/test-audio-levels.sh
           integration/test/test-pair-routing.sh
       - name: Validate shell and plists
         run: |

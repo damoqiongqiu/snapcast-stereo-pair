@@ -6,6 +6,11 @@ request_id=0
 LEFT_CLIENT_ID="${LEFT_CLIENT_ID:-@LEFT_CLIENT_ID@}"
 RIGHT_CLIENT_ID="${RIGHT_CLIENT_ID:-@RIGHT_CLIENT_ID@}"
 
+if [[ -f "@SUPPORT_DIR@/audio-levels.sh" ]]; then
+  source "@SUPPORT_DIR@/audio-levels.sh"
+  ensure_audio_levels || print -u2 "Could not normalize CoreAudio hardware levels"
+fi
+
 rpc() {
   local payload="$1"
   local response

@@ -6,12 +6,13 @@
   <string>com.snapcast.route</string>
   <key>ProgramArguments</key>
   <array>
-    <string>@HOMEBREW_BIN@/SwitchAudioSource</string>
-    <string>-s</string>
-    <string>@CAPTURE_DEVICE@</string>
-    <string>-t</string>
-    <string>output</string>
+    <string>@SUPPORT_DIR@/route-audio.sh</string>
   </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>@HOMEBREW_BIN@:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
   <key>RunAtLoad</key>
   <true/>
   <key>ProcessType</key>

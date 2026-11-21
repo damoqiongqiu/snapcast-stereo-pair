@@ -67,6 +67,16 @@ The patched CoreAudio player reads `SNAPCLIENT_COREAUDIO_DEVICE` and selects tha
 device explicitly. The default is `BuiltInSpeakerDevice`. A mono Snapcast
 stream is duplicated into both channels of the local AudioQueue output.
 
+BlackHole and the built-in speaker expose separate CoreAudio volume controls.
+The runtime helper resolves both by UID and sets each virtual main volume to
+100%. This prevents the BlackHole output slider from silently attenuating the
+signal before capture while the independently selected local speaker remains at
+a different hardware level.
+
+Treat Snapcast volume as the normal listening control. The macOS volume slider
+for BlackHole is a capture-level control and is normalized back to 100% while
+the pair runtime is active.
+
 ## Groups and Roles
 
 The pair uses stable role IDs rather than IP-derived names:

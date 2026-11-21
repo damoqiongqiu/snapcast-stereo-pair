@@ -16,7 +16,9 @@ REMOTE_HOST="remote.local"
 SOURCE_HOST="10.0.0.10"
 LEFT_IS_REMOTE=true
 CAPTURE_DEVICE="BlackHole 2ch"
+CAPTURE_DEVICE_UID="BlackHole2ch_UID"
 LOCAL_OUTPUT_DEVICE="BuiltInSpeakerDevice"
+REMOTE_OUTPUT_DEVICE_UID="BuiltInSpeakerDevice"
 LOCAL_CLIENT_ID="local-role"
 REMOTE_CLIENT_ID="remote-role"
 EOF
@@ -29,6 +31,8 @@ route_sample=$'route to: default\n  interface: en7\n'
 
 [[ "$REMOTE_USER" == "tester" ]]
 [[ "$REMOTE_HOST" == "remote.local" ]]
+[[ "$CAPTURE_DEVICE_UID" == "BlackHole2ch_UID" ]]
+[[ "$REMOTE_OUTPUT_DEVICE_UID" == "BuiltInSpeakerDevice" ]]
 [[ "$LEFT_CLIENT_ID" == "remote-role" ]]
 [[ "$RIGHT_CLIENT_ID" == "local-role" ]]
 
@@ -47,5 +51,13 @@ render_pair_template \
   "$tmp_dir/local.plist"
 plutil -lint "$tmp_dir/local.plist"
 plutil -p "$tmp_dir/local.plist" | grep -q "local-role"
+
+render_pair_template \
+  "$repo_root/integration/scripts/audio-levels.sh" \
+  "$tmp_dir/audio-levels.sh"
+grep -q "BlackHole2ch_UID" "$tmp_dir/audio-levels.sh"
+grep -q "BuiltInSpeakerDevice" "$tmp_dir/audio-levels.sh"
+! grep -q "@CAPTURE_DEVICE_UID@" "$tmp_dir/audio-levels.sh"
+! grep -q "@REMOTE_OUTPUT_DEVICE_UID@" "$tmp_dir/audio-levels.sh"
 
 print "Pair configuration tests passed"
