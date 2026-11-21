@@ -68,6 +68,8 @@ macOS and BlackHole versions when changing audio behavior.
   100% hardware volume; use Snapcast volume for normal listening.
 - Keep both CoreAudio main-volume controls (`vmvc` and `volm`) normalized when
   the device exposes them.
+- Apply CoreAudio listening volume through `AudioQueueSetParameter`; do not
+  attenuate the integer PCM buffer during software-mixer operation.
 - Recreate capture and playback queues after wake; never dispose an AudioQueue
   from one of its own callbacks.
 - Preserve timeline continuity for scheduling jitter below the discontinuity

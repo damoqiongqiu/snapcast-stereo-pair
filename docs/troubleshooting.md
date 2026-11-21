@@ -116,6 +116,10 @@ Reapply the normalization:
 The runtime also reapplies this calibration while routing is active. Use the
 controller's volume after the hardware stages are normalized.
 
+The controller volume is applied by CoreAudio after the 24-bit PCM chunks have
+been decoded. The stream itself remains at full scale; lowering Snapcast volume
+does not rewrite or truncate the integer audio buffers.
+
 ## Crackling, Dropouts, or Low Volume After Wake
 
 macOS can invalidate active CoreAudio queues during sleep and restore the

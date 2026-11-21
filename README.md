@@ -204,6 +204,8 @@ http://127.0.0.1:1780
 - Stream listening port: TCP `1704`.
 - HTTP controller and TCP control APIs: localhost only.
 - Approximate PCM payload: 192,000 bytes/s or 1.54 Mbit/s per mono stream.
+- Listening volume: CoreAudio AudioQueue parameter, after PCM decoding and
+  channel expansion; the integer stream buffer is not attenuated.
 
 The 200 ms buffer was the lowest stable setting on the validated Wi-Fi setup.
 150 ms produced occasional underruns, and 100 ms produced immediate

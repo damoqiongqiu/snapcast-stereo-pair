@@ -78,6 +78,11 @@ Treat Snapcast volume as the normal listening control. The macOS volume slider
 for BlackHole is a capture-level control and is normalized back to 100% while
 the pair runtime is active.
 
+The CoreAudio player applies the exponential Snapcast volume curve through
+`AudioQueueSetParameter(kAudioQueueParam_Volume)`. This keeps the received
+24-bit buffer at full scale and lets CoreAudio perform the attenuation in its
+floating-point playback path. Hardware output volume remains at 100%.
+
 ## Groups and Roles
 
 The pair uses stable role IDs rather than IP-derived names:

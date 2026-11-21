@@ -11,6 +11,8 @@
   queues when the timeline is invalidated.
 - Add source and remote wake-recovery LaunchAgents that restore routing,
   hardware volume, capture, and playback after sleep.
+- Apply CoreAudio listening volume through the AudioQueue floating-point volume
+  parameter so network PCM remains at full scale.
 
 ## v0.1.0 - 2026-11-20
 

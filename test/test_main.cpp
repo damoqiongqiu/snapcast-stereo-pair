@@ -25,6 +25,7 @@
 #include "common/utils/file_utils.hpp"
 #include "common/utils/string_utils.hpp"
 #include "client/player/coreaudio_queue_health.hpp"
+#include "client/player/coreaudio_volume.hpp"
 #include "client/player/mono_stereo.hpp"
 #include "integration/capture/fifo_io.h"
 #include "integration/capture/pcm24.h"
@@ -131,6 +132,14 @@ TEST_CASE("CoreAudio callbacks remain suppressed until a queue is recreated")
 
     state.reset();
     REQUIRE(state.callbackSuppressed() == false);
+}
+
+TEST_CASE("CoreAudio queue volume clamps levels and honors mute")
+{
+    REQUIRE(player::coreAudioQueueVolume(0.5, false) == 0.5);
+    REQUIRE(player::coreAudioQueueVolume(0.5, true) == 0.0);
+    REQUIRE(player::coreAudioQueueVolume(-0.25, false) == 0.0);
+    REQUIRE(player::coreAudioQueueVolume(1.25, false) == 1.0);
 }
 
 TEST_CASE("16-bit mono PCM duplicates to both stereo channels")

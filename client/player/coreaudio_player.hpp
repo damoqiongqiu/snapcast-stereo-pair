@@ -29,6 +29,8 @@
 #include <CoreAudio/CoreAudioTypes.h>
 #include <CoreFoundation/CFRunLoop.h>
 
+#include <atomic>
+#include <mutex>
 #include <vector>
 
 
@@ -54,6 +56,8 @@ public:
     /// d'tor
     virtual ~CoreAudioPlayer();
 
+    void setVolume(const Volume& volume) override;
+
     /// Callback funtion for audio data to be played
     void playerCallback(AudioQueueRef queue, AudioQueueBufferRef bufferRef);
     /// @return list of available pcm devices
@@ -65,11 +69,15 @@ private:
 
     void initAudioQueue();
     void configureOutputDevice(AudioQueueRef queue);
+    void applyCoreAudioVolume(AudioQueueRef queue);
     void requestAudioQueueRestart();
 
     AudioQueueTimelineRef timeLine_ = nullptr;
     CoreAudioCallbackState callbackState_;
     bool queueStarted_ = false;
+    std::atomic<AudioQueueRef> activeQueue_{nullptr};
+    std::atomic<float> queueVolume_{1.0F};
+    std::mutex queueMutex_;
     size_t ms_;
     size_t frames_;
     size_t buff_size_;

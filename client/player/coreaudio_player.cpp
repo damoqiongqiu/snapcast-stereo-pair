@@ -18,6 +18,7 @@
 
 // prototype/interface header file
 #include "coreaudio_player.hpp"
+#include "coreaudio_volume.hpp"
 
 // local headers
 #include "common/aixlog.hpp"
@@ -55,6 +56,24 @@ CoreAudioPlayer::CoreAudioPlayer(boost::asio::io_context& io_context, const Clie
 
 CoreAudioPlayer::~CoreAudioPlayer()
 {
+}
+
+void CoreAudioPlayer::setVolume(const Volume& volume)
+{
+    Player::setVolume(volume);
+
+    float level = 1.0F;
+    if (settings_.mixer.mode == ClientSettings::Mixer::Mode::software)
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        level = coreAudioQueueVolume(volume_.volume, volume_.mute);
+    }
+    queueVolume_.store(level, std::memory_order_release);
+
+    std::lock_guard<std::mutex> lock(queueMutex_);
+    AudioQueueRef queue = activeQueue_.load(std::memory_order_acquire);
+    if (queue != nullptr)
+        applyCoreAudioVolume(queue);
 }
 
 
@@ -148,7 +167,6 @@ void CoreAudioPlayer::playerCallback(AudioQueueRef queue, AudioQueueBufferRef bu
     else
     {
         lastChunkTick = chronos::getTickCount();
-        adjustVolume(source_buffer_.data(), frames_);
     }
 
     if (format.channels() == 1)
@@ -259,16 +277,26 @@ void CoreAudioPlayer::initAudioQueue()
     LOG(DEBUG, LOG_TAG) << "CoreAudioPlayer::worker\n";
     if (!callbackState_.callbackSuppressed())
     {
+        applyCoreAudioVolume(queue);
         status = AudioQueueStart(queue, NULL);
         if (status != noErr)
         {
             AudioQueueDispose(queue, true);
             throw std::runtime_error("AudioQueueStart failed with status " + std::to_string(status));
         }
+        {
+            std::lock_guard<std::mutex> lock(queueMutex_);
+            activeQueue_.store(queue, std::memory_order_release);
+            applyCoreAudioVolume(queue);
+        }
         queueStarted_ = true;
         CFRunLoopRun();
     }
 
+    {
+        std::lock_guard<std::mutex> lock(queueMutex_);
+        activeQueue_.store(nullptr, std::memory_order_release);
+    }
     status = AudioQueueStop(queue, true);
     if (status != noErr && status != kAudioQueueErr_QueueInvalidated)
         LOG(NOTICE, LOG_TAG) << "AudioQueueStop returned status: " << status << "\n";
@@ -281,6 +309,14 @@ void CoreAudioPlayer::initAudioQueue()
     queueStarted_ = false;
     pubStream_->clearChunks();
     callbackState_.reset();
+}
+
+void CoreAudioPlayer::applyCoreAudioVolume(AudioQueueRef queue)
+{
+    const float level = queueVolume_.load(std::memory_order_acquire);
+    OSStatus status = AudioQueueSetParameter(queue, kAudioQueueParam_Volume, level);
+    if (status != noErr && status != kAudioQueueErr_QueueInvalidated)
+        LOG(NOTICE, LOG_TAG) << "Could not set CoreAudio queue volume, status: " << status << "\n";
 }
 
 void CoreAudioPlayer::configureOutputDevice(AudioQueueRef queue)
