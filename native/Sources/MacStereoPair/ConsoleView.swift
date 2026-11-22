@@ -400,8 +400,7 @@ private struct VolumeSliderControl: View {
     let commit: @MainActor (Int) async -> Void
 
     @State private var draft = VolumeSliderDraft()
-    @State private var commitTask: Task<Void, Never>?
-    @State private var revision = 0
+    @State private var pump = VolumeCommitPump()
     @State private var interactionActive = false
 
     var body: some View {
@@ -434,10 +433,10 @@ private struct VolumeSliderControl: View {
                     },
                     set: { value in
                         draft.update(value)
-                        beginInteraction()
-                        scheduleCommit(
-                            afterDebounce: true,
-                            target: Int(value.rounded())
+                        startCommitSession()
+                        pump.finish(
+                            Int(value.rounded()),
+                            delay: .milliseconds(180)
                         )
                     }
                 ),
@@ -459,8 +458,7 @@ private struct VolumeSliderControl: View {
             }
         }
         .onDisappear {
-            revision += 1
-            commitTask?.cancel()
+            pump.cancel()
             endInteraction()
         }
     }
@@ -486,22 +484,18 @@ private struct VolumeSliderControl: View {
             VolumeSliderSurface(
                 value: draft.displayValue(published: publishedValue),
                 onEditingStarted: {
-                    revision += 1
-                    commitTask?.cancel()
-                    beginInteraction()
+                    startCommitSession()
                     draft.beginDragging(
                         published: draft.displayValue(published: publishedValue)
                     )
                 },
                 onValueChanged: { value in
                     draft.update(value)
+                    pump.preview(Int(value.rounded()))
                 },
                 onEditingEnded: { value in
                     draft.update(value)
-                    scheduleCommit(
-                        afterDebounce: false,
-                        target: Int(value.rounded())
-                    )
+                    pump.finish(Int(value.rounded()))
                 },
                 onAdjust: { delta in
                     adjust(by: delta)
@@ -517,32 +511,22 @@ private struct VolumeSliderControl: View {
     private func adjust(by delta: Int) {
         let target = min(100, max(0, currentValue + delta))
         draft.update(Double(target))
-        beginInteraction()
-        scheduleCommit(afterDebounce: true, target: target)
+        startCommitSession()
+        pump.finish(target, delay: .milliseconds(180))
     }
 
-    private func scheduleCommit(afterDebounce: Bool, target explicitTarget: Int? = nil) {
-        commitTask?.cancel()
-        revision += 1
-        let scheduledRevision = revision
-        commitTask = Task {
-            if afterDebounce {
-                try? await Task.sleep(for: .milliseconds(180))
-                guard !Task.isCancelled else { return }
-            }
-            let draftTarget = draft.finishDragging()
-            guard let target = explicitTarget ?? draftTarget else { return }
-            await commit(target)
-            guard revision == scheduledRevision else { return }
-            draft.completeCommit()
-            endInteraction()
+    private func startCommitSession() {
+        if !interactionActive {
+            interactionActive = true
+            interactionChanged(true)
         }
-    }
-
-    private func beginInteraction() {
-        guard !interactionActive else { return }
-        interactionActive = true
-        interactionChanged(true)
+        pump.begin(
+            commit: commit,
+            onFinalCommit: {
+                draft.completeCommit()
+                endInteraction()
+            }
+        )
     }
 
     private func endInteraction() {

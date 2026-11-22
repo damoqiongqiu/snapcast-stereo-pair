@@ -75,14 +75,17 @@ to reject duplicate application instances, and the app also holds a user-level
 file lock for direct binary launches. Opening the app again activates the
 existing console instead of creating another menu-bar process.
 
-Snapcast volume sliders update locally while dragging. One final value is sent
-when the drag ends, rather than sending a request for every pointer movement.
-This keeps the knob responsive even while the 100 ms status refresh is still
-returning the previous volume. Out-of-order status responses are discarded, so
-an older poll cannot overwrite the committed value and make the knob jump
-backward. Each slider has 5% reference ticks, with longer and labeled marks at
-0%, 25%, 50%, 75%, and 100%. The scale shares the slider track endpoints so
-neither end protrudes beyond the other.
+Snapcast volume sliders update locally for every pointer movement. During a
+sustained drag, serialized audio previews are sent a few times per second rather
+than once per movement. Releasing the pointer sends the final rounded value
+after any in-flight preview completes. A direct click moves the handle
+immediately and coalesces its asynchronous update. This keeps the knob
+responsive even while the 100 ms status refresh is still returning the previous
+volume. Out-of-order status responses are discarded, so an older poll cannot
+overwrite the committed value and make the knob jump backward. Each slider has
+5% reference ticks, with longer and labeled marks at 0%, 25%, 50%, 75%, and
+100%. The scale shares the slider track endpoints so neither end protrudes
+beyond the other.
 
 ## Health and Notifications
 
@@ -154,13 +157,15 @@ labels and keyboard actions.
 
 Side and master Snapcast sliders follow the pointer continuously for smooth
 dragging. The visible percentage and committed Snapcast value use whole-percent
-precision, and the final value is sent once after release. Periodic status
-polling and waveform animation pause during the drag, then resume after the
-committed value is acknowledged. The handle center, track endpoints, and scale
-marks use one shared inset geometry, so the handle is centered on the active
-scale position at every volume. VoiceOver and keyboard increment and decrement
-actions move one percentage point at a time. Keyboard focus styling appears only
-for keyboard interaction and is suppressed during pointer drags.
+precision. Drag previews are throttled and serialized, while the final value is
+trailing-debounced after release. Direct clicks jump the handle immediately and
+submit one coalesced update. Periodic status polling and waveform animation
+pause during the drag, then resume after the final value is acknowledged. The
+handle center, track endpoints, and scale marks use one shared inset geometry,
+so the handle is centered on the active scale position at every volume.
+VoiceOver and keyboard increment and decrement actions move one percentage
+point at a time. Keyboard focus styling appears only for keyboard interaction
+and is suppressed during pointer drags.
 
 ## System Volume Observation
 

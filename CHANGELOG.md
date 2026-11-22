@@ -9,8 +9,9 @@
   volume-slider feedback with 5% reference ticks, and separate read-only
   physical system-volume indicators for both Macs.
 - Make Snapcast volume sliders track continuously at pointer resolution while
-  committing rounded percentages on release, and suppress periodic status and
-  waveform updates during an active drag to keep interaction responsive.
+  serializing throttled audio previews, coalescing click updates, and committing
+  the final rounded percentage after release. Periodic status and waveform
+  updates pause during an active drag to keep interaction responsive.
 - Align the volume handle, track endpoints, and scale marks to one shared
   geometry while preserving native slider accessibility semantics and keeping
   keyboard focus styling out of pointer drags.
