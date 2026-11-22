@@ -77,7 +77,7 @@ Then reinstall the local runtime so templates and routing use the new roles:
 ./integration/scripts/install-product.sh --force-reinstall
 ```
 
-The controller derives the visible sides from `LeftAudio` and `RightAudio`, not
+The native console derives the visible sides from `LeftAudio` and `RightAudio`, not
 from client IDs.
 
 ## Local MacBook Is Silent
@@ -121,9 +121,9 @@ Reapply the normalization:
 ```
 
 The runtime also reapplies this calibration while routing is active. Use the
-controller's volume after the hardware stages are normalized.
+console's volume after the hardware stages are normalized.
 
-The controller volume is applied by CoreAudio after the 24-bit PCM chunks have
+The console volume is applied by CoreAudio after the 24-bit PCM chunks have
 been decoded. The stream itself remains at full scale; lowering Snapcast volume
 does not rewrite or truncate the integer audio buffers.
 
@@ -222,7 +222,7 @@ fallback to 100%; use the normal system volume after the transition.
 
 Include:
 
-- Runtime and controller release tags.
+- Runtime and native console release tags.
 - Mac model, CPU architecture, and macOS version.
 - BlackHole version.
 - Exact reproduction steps.

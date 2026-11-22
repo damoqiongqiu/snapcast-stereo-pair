@@ -10,7 +10,14 @@ stage. The source Mac captures its system audio once, splits it into two mono
 streams, and sends each stream to the MacBook on the corresponding side of the
 desk. Playback on both Macs follows one Snapcast clock.
 
-![MacBook Stereo Pair controller](docs/images/interface-en.png)
+![English native console](docs/images/native-console-en.png)
+
+<details>
+<summary>简体中文界面</summary>
+
+![Native console in Simplified Chinese](docs/images/native-console-zh-Hans.png)
+
+</details>
 
 ## What It Does
 
@@ -23,51 +30,20 @@ desk. Playback on both Macs follows one Snapcast clock.
   PCM chunks at full scale.
 - Saves the exact non-BlackHole output device and volume on both Macs before
   entering pair mode, then restores them before handing audio back to macOS.
-- Ships a native SwiftUI menu-bar console with a dual-channel layout, live
-  meters, health LEDs, mode switching, first-run setup, bilingual resources,
-  redacted diagnostics, bounded window sizing, and single-instance protection.
+- Ships a native SwiftUI Dock and menu-bar console with a dual-channel layout,
+  live meters, health LEDs, mode switching, first-run setup, bilingual
+  resources, redacted diagnostics, bounded window sizing, and single-instance
+  protection.
 - Shows each Mac's physical output volume separately from Snapcast volume, with
-  normal, low, unread, and stale states plus a manual refresh action.
+  normal, low, unread, and stale states plus a manual refresh action. Snapcast
+  sliders include 5% reference scales and integer control.
 - Installs and configures a remote Snapclient over SSH without storing a
   password.
 - Uses stable role names and stream-based routing, so client IDs and left/right
   placement are configurable.
-- Works with the optional browser diagnostics controller in
-  [snapweb-stereo-pair](https://github.com/damoqiongqiu/snapweb-stereo-pair).
 
 The validated reference setup uses 48 kHz / 24-bit mono PCM, 20 ms chunks, and a
 200 ms buffer for each stream.
-
-## How the Two Projects Fit Together
-
-```text
-snapcast-stereo-pair
-  audio capture
-  left/right stream publication
-  Snapcast server and clients
-  launchd services
-  native macOS console and control Agent
-  installation and pairing
-              |
-              | local Snapserver control API
-              v
-snapweb-stereo-pair
-  optional browser diagnostics
-  bilingual presentation
-  pair status and controls
-```
-
-This repository is the required audio runtime and owns the primary native
-interface. `snapweb-stereo-pair` is an optional browser interface and does not
-capture, transport, or output audio by itself.
-
-You can run the runtime without the browser controller. The controller cannot
-produce a stereo-pair system unless this runtime is installed and running.
-
-The compatible first release is:
-
-- `snapcast-stereo-pair` `v0.2.0`
-- `snapweb-stereo-pair` `v0.1.0`
 
 ## Architecture
 
@@ -131,11 +107,10 @@ applications after installing BlackHole so they can see the virtual device.
 
 ## Configure the Pair
 
-Clone both repositories beside each other if you plan to use the controller:
+Clone the runtime repository:
 
 ```sh
 git clone https://github.com/damoqiongqiu/snapcast-stereo-pair.git
-git clone https://github.com/damoqiongqiu/snapweb-stereo-pair.git
 ```
 
 On the source Mac, run the configurator from the runtime repository:
@@ -222,23 +197,6 @@ Check the pair:
 See [docs/installation.md](docs/installation.md) for prerequisites, device
 identifiers, manual configuration, and health validation.
 
-## Install the Optional Browser Interface
-
-The native console is the primary interface. Snapweb remains useful for
-diagnostics while native feature parity is completed. With both repositories
-cloned beside each other:
-
-```sh
-./integration/scripts/install-snapweb.sh
-```
-
-Set `SNAPWEB_SOURCE` if the interface checkout is elsewhere. The installer runs
-the controller checks, deploys its production build, and serves it locally at:
-
-```text
-http://127.0.0.1:1780
-```
-
 ## Audio and Network Model
 
 - Capture device: BlackHole 2ch.
@@ -250,7 +208,7 @@ http://127.0.0.1:1780
 - Stream buffer: 200 ms.
 - Codec: uncompressed PCM.
 - Stream listening port: TCP `1704`.
-- HTTP controller and TCP control APIs: localhost only.
+- Snapserver HTTP and TCP control APIs: localhost only.
 - Approximate PCM payload: 192,000 bytes/s or 1.54 Mbit/s per mono stream.
 - Listening volume: CoreAudio AudioQueue parameter, after PCM decoding and
   channel expansion; the integer stream buffer is not attenuated.
@@ -262,7 +220,7 @@ discontinuities in that environment.
 Hardware volume is normalized before the services start and after wake. In pair
 mode, changing the macOS output-volume slider while BlackHole is selected only
 changes the capture level; it does not represent the built-in speaker volume.
-Use the controller's total or per-device volume for normal listening.
+Use the native console's total or per-device volume for normal listening.
 
 ## Operations
 
@@ -317,7 +275,7 @@ launchctl print gui/$(id -u)/com.snapcast.server
 ## Troubleshooting
 
 - Run `./integration/scripts/check-health.sh` first.
-- Confirm the controller shows both `LeftAudio` and `RightAudio`.
+- Confirm the native console shows both `LeftAudio` and `RightAudio`.
 - Confirm only the intended client is connected to each stream.
 - Check that BlackHole is the source Mac's selected output in snapcast mode.
 - Check FIFO permissions and recent launchd logs if either stream is missing.
@@ -377,14 +335,9 @@ after confirming its resolved remote path and user.
 
 ## Compatibility
 
-| Component | First public release | Upstream base |
+| Component | Version | Upstream base |
 | --- | --- | --- |
 | Runtime and native console | `v0.2.0` | Snapcast `v0.35.0` |
-| Optional browser controller | `v0.1.0` | Snapweb `v0.9.3` |
-
-The native console follows the runtime repository. Use a `v0.1.x` browser
-controller with the `v0.1.x` runtime until the optional Snapweb controller is
-updated for the native-first `v0.2.0` release.
 
 ## Development
 

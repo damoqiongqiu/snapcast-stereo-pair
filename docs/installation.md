@@ -34,18 +34,12 @@ ssh <ssh-user>@<remote-mac-address>
 The installer uses normal SSH configuration and does not prompt for or store a
 password.
 
-## Clone Both Repositories
-
-The optional controller installer looks beside the runtime checkout by
-default:
+## Clone the Repository
 
 ```sh
 git clone https://github.com/damoqiongqiu/snapcast-stereo-pair.git
-git clone https://github.com/damoqiongqiu/snapweb-stereo-pair.git
 cd snapcast-stereo-pair
 ```
-
-If the controller lives elsewhere, set `SNAPWEB_SOURCE` when installing it.
 
 ## Configure Roles
 
@@ -203,24 +197,6 @@ The native app also exposes **Advanced Diagnostics → Installation maintenance*
 with a confirmed force-reinstall action. This exists because file and version
 detection can occasionally be wrong; the user must retain an explicit override.
 
-## Install the Optional Controller
-
-With the controller checked out beside this repository:
-
-```sh
-./integration/scripts/install-snapweb.sh
-```
-
-Or point to another checkout:
-
-```sh
-SNAPWEB_SOURCE=/path/to/snapweb-stereo-pair \
-  ./integration/scripts/install-snapweb.sh
-```
-
-The installer runs the controller's checks, copies its production build, and
-restarts Snapserver. Open `http://127.0.0.1:1780`.
-
 ## Validate
 
 Run:
@@ -237,7 +213,6 @@ Expected conditions:
 - `RightAudio` lists the client role mapped to physical right.
 - No recent `Not enough`, `age >`, `No chunk available`, or `onResync` warnings
   appear in the local logs.
-- The controller shows two connected devices and a complete stereo stage.
 - The native console shows two connected channels, fresh Splitter activity,
   correct routes, and a healthy recovery zone.
 
@@ -255,11 +230,11 @@ Advanced Diagnostics exports redacted information only after an explicit local
 action. Review any diagnostic file before sharing it.
 
 While BlackHole is the active macOS output, its volume slider controls the
-capture level rather than the built-in speakers. Use the controller volume for
-listening; the runtime normalizes both hardware stages to avoid double
+capture level rather than the built-in speakers. Use the native console volume
+for listening; the runtime normalizes both hardware stages to avoid double
 attenuation.
 
-CoreAudio applies the controller volume through the AudioQueue floating-point
+CoreAudio applies the console volume through the AudioQueue floating-point
 volume parameter. The 24-bit PCM received from Snapserver remains at full scale,
 so changing listening volume does not rewrite the integer audio buffer.
 

@@ -4,9 +4,14 @@ The native application, `MacBook Stereo Pair.app`, is the primary interface for
 the stereo pair. It controls and observes the audio runtime but does not carry
 audio itself. Closing the window or quitting the GUI never stops playback.
 
-Snapweb remains available as an optional diagnostic browser interface during
-the transition. It receives no new features until the native application has
-complete functional parity.
+![English native console](images/native-console-en.png)
+
+<details>
+<summary>简体中文界面</summary>
+
+![Native console in Simplified Chinese](images/native-console-zh-Hans.png)
+
+</details>
 
 ## Runtime and Interface Relationship
 
@@ -18,8 +23,6 @@ mac-stereo-pairctl -------+------> StereoPairAgent
                                       +---- launchctl
                                       +---- local Snapserver API
                                       +---- shared audio meters
-
-snapweb-stereo-pair ------> local Snapserver HTTP API
 ```
 
 The control socket is:

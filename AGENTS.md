@@ -1,16 +1,10 @@
 # Repository Instructions
 
-This repository is the required macOS audio runtime and owns the primary native
-console. The optional browser companion is:
-
-```text
-https://github.com/damoqiongqiu/snapweb-stereo-pair
-```
+This repository is the macOS audio runtime and owns the native control console.
 
 The runtime owns audio capture, `LeftAudio` and `RightAudio`, Snapserver,
 Snapclients, launchd services, the native control Agent, installation, routing,
-and device recovery. Neither the native console nor the browser controller is an
-audio engine.
+and device recovery. The native console is not an audio engine.
 
 ## Structure
 

@@ -1,10 +1,8 @@
 # Architecture
 
-MacBook Stereo Pair separates the system into a required runtime and an optional
-browser controller. This repository owns everything on the audio path.
-
-The primary interface is now the native SwiftUI application in this repository.
-Snapweb remains an optional browser diagnostics interface during the transition.
+MacBook Stereo Pair is a self-contained macOS runtime with a native SwiftUI
+control console. This repository owns everything on the audio path and all
+supported control surfaces.
 
 ```text
 MacStereoPair.app ─┐
@@ -125,8 +123,8 @@ Snapcast group, it branches the right client into a separate group. It then
 ensures the resolved clients are connected to their expected streams without
 changing user-defined names, volume, mute state, or latency.
 
-The controller follows the stream IDs, not client IDs. Any connected client in
-the `LeftAudio` group is displayed and treated as the left side; the
+The native console follows the stream IDs, not client IDs. Any connected client
+in the `LeftAudio` group is displayed and treated as the left side; the
 `RightAudio` group determines the right side.
 
 ## Recovery

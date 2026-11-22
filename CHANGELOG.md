@@ -10,6 +10,8 @@
   physical system-volume indicators for both Macs.
 - Show the native console in the Dock with a bundled app icon, while retaining
   its menu-bar controls.
+- Refresh the README and public documentation around the native console,
+  including current English and Simplified Chinese screenshots.
 - Add an owner-only Unix-socket control Agent shared by the native app and
   `mac-stereo-pairctl`, with peer UID validation and launchd-independent audio.
 - Add explicit stereo-pair and Mac-system-audio modes, including best-effort

@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Security fixes target the current `v0.1.x` source release and the `main`
+Security fixes target the current `v0.2.x` source release and the `main`
 branch. Older preparation branches and private development branches are not
 supported releases.
 
@@ -38,10 +38,5 @@ public.
 ## Scope
 
 Reports about upstream Snapcast vulnerabilities should also be shared with the
-upstream project through its documented security channel. Reports about the
-optional controller should use:
-
-```text
-https://github.com/damoqiongqiu/snapweb-stereo-pair/security/advisories/new
-```
+upstream project through its documented security channel.
 

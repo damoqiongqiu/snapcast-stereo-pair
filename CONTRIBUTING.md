@@ -2,16 +2,11 @@
 
 Thank you for improving MacBook Stereo Pair for macOS.
 
-## Companion Repositories
+## Repository Scope
 
-- Runtime and audio services:
-  https://github.com/damoqiongqiu/snapcast-stereo-pair
-- Browser controller:
-  https://github.com/damoqiongqiu/snapweb-stereo-pair
-
-Open an issue in the repository that owns the behavior. The runtime repository
-owns capture, streams, Snapserver, Snapclients, launchd services, installation,
-and device recovery. The controller repository owns presentation and controls.
+This repository owns capture, streams, Snapserver, Snapclients, launchd
+services, installation, device recovery, the native SwiftUI console, and the
+control Agent.
 
 ## Development
 
@@ -25,15 +20,8 @@ zsh -n integration/scripts/*.sh integration/test/*.sh
 plutil -lint integration/launchagents/*.plist.in
 ```
 
-For the controller:
-
-```sh
-npm ci
-npm run check
-```
-
-Use the installed Google Chrome application for manual UI acceptance. Hardware
-changes also require a two-MacBook validation report.
+Use the installed native application for manual UI acceptance. Hardware changes
+also require a two-MacBook validation report.
 
 ## Pull Requests
 
@@ -42,13 +30,13 @@ changes also require a two-MacBook validation report.
 - Add tests before changing production behavior.
 - State whether audio quality, latency, routing, CPU, or network behavior
   changes.
-- List manual hardware and browser checks.
+- List manual hardware and native UI checks.
 - Keep commits focused and reproducible.
 - Do not commit generated builds, logs, local configuration, or editor state.
 
 ## Bug Reports
 
-Include runtime and controller versions, Mac model, CPU architecture, macOS
+Include runtime and native console versions, Mac model, CPU architecture, macOS
 version, BlackHole version, reproducer, expected behavior, actual behavior, and
 minimal redacted logs.
 

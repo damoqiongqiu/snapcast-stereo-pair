@@ -16,8 +16,7 @@ git merge-base --is-ancestor v0.35.0 HEAD
 git log --oneline --decorate --graph -12
 ```
 
-The first public integration base is Snapcast `v0.35.0`. The companion
-controller uses Snapweb `v0.9.3`.
+The first public integration base is Snapcast `v0.35.0`.
 
 ## Rebase the Project Layer
 
@@ -110,7 +109,7 @@ Hardware acceptance still requires the two-MacBook setup. Verify both stream
 formats, routing, full-scale PCM with CoreAudio queue volume, `vmvc`/`volm`
 normalization, sleep/wake recovery, click-marker alignment, native-mode
 restoration, native console and CLI state agreement, notification deduplication,
-remote-offline degradation, and controller compatibility before merging.
+and remote-offline degradation before merging.
 
 ## Privacy
 
