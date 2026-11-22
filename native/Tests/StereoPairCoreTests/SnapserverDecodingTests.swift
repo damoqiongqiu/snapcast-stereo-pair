@@ -79,4 +79,15 @@ final class SnapserverDecodingTests: XCTestCase {
         let status = try SnapserverStatus.decode(responseData: broken)
         XCTAssertTrue(status.healthIssues.contains("RightAudio has no connected client"))
     }
+
+    func testRPCRequestsDisableSnapserverConnectionReuse() throws {
+        let request = try SnapserverClient.makeRPCRequest(
+            endpoint: URL(string: "http://127.0.0.1:1780/jsonrpc")!,
+            id: "volume-test",
+            method: "Client.SetVolume",
+            params: .object([:])
+        )
+
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Connection"), "close")
+    }
 }

@@ -63,13 +63,14 @@ public actor SnapserverClient {
 
     private let endpoint: URL
     private let session: URLSession
-    private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
     public init(endpoint: URL = URL(string: "http://127.0.0.1:1780/jsonrpc")!) {
         self.endpoint = endpoint
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 2
+        configuration.httpShouldUsePipelining = false
+        configuration.httpMaximumConnectionsPerHost = 1
         self.session = URLSession(configuration: configuration)
     }
 
@@ -115,10 +116,12 @@ public actor SnapserverClient {
     }
 
     private func rpc(id: String, method: String, params: JSONValue?) async throws -> Data {
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try encoder.encode(RPCRequest(id: id, method: method, params: params))
+        let request = try Self.makeRPCRequest(
+            endpoint: endpoint,
+            id: id,
+            method: method,
+            params: params
+        )
 
         let (data, response) = try await session.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
@@ -133,5 +136,21 @@ public actor SnapserverClient {
             throw SnapserverClientError.invalidResponse
         }
         return data
+    }
+
+    static func makeRPCRequest(
+        endpoint: URL,
+        id: String,
+        method: String,
+        params: JSONValue?
+    ) throws -> URLRequest {
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("close", forHTTPHeaderField: "Connection")
+        request.httpBody = try JSONEncoder().encode(
+            RPCRequest(id: id, method: method, params: params)
+        )
+        return request
     }
 }

@@ -12,6 +12,8 @@
   serializing throttled audio previews, coalescing click updates, and committing
   the final rounded percentage after release. Periodic status and waveform
   updates pause during an active drag to keep interaction responsive.
+- Force fresh Snapserver JSON-RPC connections so paired master-volume writes
+  cannot lose one side to an empty reused keep-alive response.
 - Align the volume handle, track endpoints, and scale marks to one shared
   geometry while preserving native slider accessibility semantics and keeping
   keyboard focus styling out of pointer drags.

@@ -165,7 +165,9 @@ handle center, track endpoints, and scale marks use one shared inset geometry,
 so the handle is centered on the active scale position at every volume.
 VoiceOver and keyboard increment and decrement actions move one percentage
 point at a time. Keyboard focus styling appears only for keyboard interaction
-and is suppressed during pointer drags.
+and is suppressed during pointer drags. Master-volume writes are serialized,
+and Snapserver JSON-RPC requests use short connections so a reused keep-alive
+connection cannot return an empty response and leave one channel behind.
 
 ## System Volume Observation
 
