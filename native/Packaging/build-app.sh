@@ -34,6 +34,7 @@ rm -rf "$temporary"
 mkdir -p "$temporary/Contents/MacOS" "$temporary/Contents/Resources"
 cp "$repo_root/native/.build/release/MacStereoPair" "$temporary/Contents/MacOS/MacStereoPair"
 cp "$repo_root/native/Packaging/MacStereoPair-Info.plist" "$temporary/Contents/Info.plist"
+cp "$repo_root/native/Packaging/AppIcon.icns" "$temporary/Contents/Resources/AppIcon.icns"
 resource_bundle="$repo_root/native/.build/release/MacStereoPairNative_MacStereoPair.bundle"
 [[ -d "$resource_bundle" ]] || {
   print -u2 "Missing Swift package resource bundle: $resource_bundle"

@@ -49,8 +49,9 @@ to both Macs and prevents a hand-back transition from unexpectedly jumping to
 BlackHole remains installed in system mode. It is only made inactive by the
 audio route, and the runtime never unloads or deletes the driver.
 
-The menu-bar application provides mode, status, volume, mute, reconnect,
-console, and quit-GUI actions. The main window provides:
+The application appears in both the Dock and menu bar. The menu-bar menu
+provides mode, status, volume, mute, reconnect, console, and quit-GUI actions.
+The main window provides:
 
 - master volume with preserved left/right offsets;
 - per-side Snapcast volume, mute, delay, route, format, and connection state;
@@ -75,7 +76,8 @@ Snapcast volume sliders update locally while dragging. One final value is sent
 when the drag ends, rather than sending a request for every pointer movement.
 This keeps the knob responsive even while the 100 ms status refresh is still
 returning the previous volume. Each slider has 5% reference ticks, with longer
-and labeled marks at 0%, 25%, 50%, 75%, and 100%.
+and labeled marks at 0%, 25%, 50%, 75%, and 100%. The scale shares the slider
+track endpoints so neither end protrudes beyond the other.
 
 ## Health and Notifications
 
@@ -92,6 +94,11 @@ One incident produces one notification. Repeated snapshots do not repeat it.
 When the affected component recovers, the incident resets so a later failure can
 notify again. Notification permission is requested only after setup succeeds,
 not when the application launches.
+
+Automatic Pairing is a periodic task that exits successfully after each check.
+Its launchd state is therefore normally inactive between 15-second runs. A
+successful pairing marker keeps the row marked healthy for up to 45 seconds;
+failed, stale, or never-successful checks remain warnings or failures.
 
 ## First-Run Setup
 

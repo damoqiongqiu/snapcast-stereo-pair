@@ -8,12 +8,16 @@
 - Add a responsive, bounded console window, single-instance protection, direct
   volume-slider feedback with 5% reference ticks, and separate read-only
   physical system-volume indicators for both Macs.
+- Show the native console in the Dock with a bundled app icon, while retaining
+  its menu-bar controls.
 - Add an owner-only Unix-socket control Agent shared by the native app and
   `mac-stereo-pairctl`, with peer UID validation and launchd-independent audio.
 - Add explicit stereo-pair and Mac-system-audio modes, including best-effort
   remote mode synchronization through a fixed SSH helper.
 - Add debounced, deduplicated notifications for service failure, client outage,
   routing faults, and wake recovery.
+- Treat a recently successful periodic automatic-pairing check as healthy
+  between launchd invocations instead of displaying a persistent warning.
 - Add English and Simplified Chinese resources with English as the default and
   an in-app language override.
 - Add an advanced diagnostics sheet with logs, service maintenance, versions,

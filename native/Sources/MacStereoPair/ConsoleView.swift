@@ -467,7 +467,7 @@ private struct VolumeSliderControl: View {
 }
 
 private struct VolumeScaleView: View {
-    private let trackInset: CGFloat = 8
+    private let trackInset: CGFloat = 0
 
     var body: some View {
         GeometryReader { geometry in
@@ -506,7 +506,6 @@ private struct VolumeScaleView: View {
             }
         }
         .frame(height: 28)
-        .padding(.horizontal, 2)
     }
 }
 

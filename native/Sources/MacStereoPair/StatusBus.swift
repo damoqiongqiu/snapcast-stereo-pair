@@ -127,7 +127,7 @@ struct StatusBus: View {
         return Row(
             id: id,
             label: language.text(labelKey),
-            state: service?.state,
+            state: RecoveryHealthPresentation.effectiveState(for: service),
             freshActivity: (service?.lastSuccessAgeSeconds ?? .infinity) <= 2
         )
     }

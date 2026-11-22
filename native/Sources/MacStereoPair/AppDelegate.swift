@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        _ = NSApp.setActivationPolicy(.regular)
         DispatchQueue.main.async {
             self.activateMainWindow()
         }

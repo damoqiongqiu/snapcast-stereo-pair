@@ -15,7 +15,9 @@ set -e
 "$repo_root/native/Packaging/build-app.sh" --output "$app" >/dev/null
 
 [[ -x "$app/Contents/MacOS/MacStereoPair" ]]
-[[ "$(plutil -extract LSUIElement raw "$app/Contents/Info.plist")" == "true" ]]
+[[ "$(plutil -extract LSUIElement raw "$app/Contents/Info.plist")" == "false" ]]
+[[ "$(plutil -extract CFBundleIconFile raw "$app/Contents/Info.plist")" == "AppIcon" ]]
+[[ -f "$app/Contents/Resources/AppIcon.icns" ]]
 resource_bundle="$app/Contents/Resources/MacStereoPairNative_MacStereoPair.bundle"
 [[ -f "$resource_bundle/Contents/Resources/en.lproj/Localizable.strings" ]]
 [[ -f "$resource_bundle/Contents/Resources/zh-Hans.lproj/Localizable.strings" ]]
