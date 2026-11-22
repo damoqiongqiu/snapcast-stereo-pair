@@ -31,4 +31,25 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(decoded.services.first?.state, .running)
         XCTAssertEqual(decoded.protocolVersion, 1)
     }
+
+    func testSnapshotFromOlderAgentDefaultsHardwareVolumesToEmpty() throws {
+        let data = Data(
+            """
+            {
+              "protocolVersion": 1,
+              "mode": "snapcast",
+              "health": "healthy",
+              "services": [],
+              "channels": [],
+              "streams": [],
+              "issues": [],
+              "updatedAt": 816968000
+            }
+            """.utf8
+        )
+
+        let snapshot = try JSONDecoder().decode(RuntimeSnapshot.self, from: data)
+
+        XCTAssertEqual(snapshot.hardwareVolumes, [])
+    }
 }

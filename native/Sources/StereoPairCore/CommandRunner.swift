@@ -39,6 +39,12 @@ public struct SystemCommandRunner: CommandRunning {
             let process = Process()
             let stdout = Pipe()
             let stderr = Pipe()
+            defer {
+                try? stdout.fileHandleForReading.close()
+                try? stdout.fileHandleForWriting.close()
+                try? stderr.fileHandleForReading.close()
+                try? stderr.fileHandleForWriting.close()
+            }
             process.executableURL = URL(fileURLWithPath: executable)
             process.arguments = arguments
             process.environment = ProcessInfo.processInfo.environment.merging(environment) { _, new in new }

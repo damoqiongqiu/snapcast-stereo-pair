@@ -6,6 +6,7 @@ final class ConsoleViewModel: ObservableObject {
     @Published var snapshot: RuntimeSnapshot?
     @Published var isWorking = false
     @Published var message: String?
+    @Published private(set) var isRefreshingHardwareVolume = false
     @Published private(set) var connectionState: AgentConnectionState = .failed
 
     private let transport: any ControlTransport
@@ -35,6 +36,10 @@ final class ConsoleViewModel: ObservableObject {
             !snapshot.issues.isEmpty
     }
     var showsChannelControls: Bool { true }
+
+    func hardwareVolume(side: String) -> HardwareVolumeStatus? {
+        snapshot?.hardwareVolumes.first { $0.side == side }
+    }
 
     func start() async {
         guard pollingTask == nil else { return }
@@ -145,6 +150,25 @@ final class ConsoleViewModel: ObservableObject {
                 clientId: side.clientId,
                 muted: muted
             ))
+            await refresh()
+        } catch {
+            connectionState = .failed
+            message = error.localizedDescription
+        }
+    }
+
+    func refreshHardwareVolumes() async {
+        guard !isRefreshingHardwareVolume else { return }
+        isRefreshingHardwareVolume = true
+        defer { isRefreshingHardwareVolume = false }
+        do {
+            let event = try await transport.request(
+                .refreshHardwareVolume(requestId: UUID().uuidString)
+            )
+            if case .error(_, let error) = event {
+                message = error
+                return
+            }
             await refresh()
         } catch {
             connectionState = .failed

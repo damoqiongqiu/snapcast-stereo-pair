@@ -20,6 +20,7 @@ export SNAPCAST_LAUNCH_DIR="$tmp_dir/launch"
 mkdir -p \
   "$SNAPCAST_SUPPORT_DIR/bin" \
   "$SNAPCAST_SUPPORT_DIR/setup" \
+  "$SNAPCAST_SUPPORT_DIR/state" \
   "$SNAPCAST_APP_PATH/Contents/MacOS" \
   "$SNAPCAST_LAUNCH_DIR"
 
@@ -33,6 +34,7 @@ for file in \
   "$SNAPCAST_SUPPORT_DIR/bin/wake-recovery-listener" \
   "$SNAPCAST_SUPPORT_DIR/setup/native-setup-helper.sh" \
   "$SNAPCAST_SUPPORT_DIR/setup/source-root" \
+  "$SNAPCAST_SUPPORT_DIR/state/audio-devices.json" \
   "$SNAPCAST_SUPPORT_DIR/set-mode.sh" \
   "$SNAPCAST_SUPPORT_DIR/ensure-pair-routing.sh" \
   "$SNAPCAST_SUPPORT_DIR/audio-levels.sh" \
@@ -55,6 +57,10 @@ print -r -- 'LEFT_IS_REMOTE="true"' > "$PAIR_CONFIG_FILE"
 digest="$(installation_asset_digest)"
 write_installation_manifest 0.2.0 1 source "$digest"
 [[ "$("$repo_root/integration/scripts/install-product.sh" --dry-run | awk -F= '$1=="action"{print $2}')" == "up-to-date" ]]
+print -r -- '{"user":"tester","host":"remote.test","helperPath":"/tmp/mode"}' \
+  > "$SNAPCAST_SUPPORT_DIR/state/remote-control.json"
+refresh_installation_manifest_digest
+[[ "$("$repo_root/integration/scripts/install-product.sh" --dry-run | awk -F= '$1=="action"{print $2}')" == "up-to-date" ]]
 [[ "$("$repo_root/integration/scripts/install-product.sh" --force-reinstall --dry-run | awk -F= '$1=="action"{print $2}')" == "force" ]]
 print -r -- 'LEFT_IS_REMOTE="false"' > "$PAIR_CONFIG_FILE"
 [[ "$("$repo_root/integration/scripts/install-product.sh" --dry-run | awk -F= '$1=="action"{print $2}')" == "repair" ]]
@@ -68,9 +74,11 @@ backup_dir="$tmp_dir/backup"
 backup_installation_assets "$backup_dir"
 print -r -- "changed" > "$SNAPCAST_SUPPORT_DIR/bin/StereoPairAgent"
 print -r -- "changed" > "$SNAPCAST_APP_PATH/Contents/MacOS/MacStereoPair"
+print -r -- "changed" > "$SNAPCAST_SUPPORT_DIR/state/audio-devices.json"
 restore_installation_assets "$backup_dir"
 grep -q "StereoPairAgent" "$SNAPCAST_SUPPORT_DIR/bin/StereoPairAgent"
 grep -q "MacStereoPair" "$SNAPCAST_APP_PATH/Contents/MacOS/MacStereoPair"
+grep -q "audio-devices" "$SNAPCAST_SUPPORT_DIR/state/audio-devices.json"
 
 mkdir -p "$tmp_dir/bin"
 cat > "$tmp_dir/bin/launchctl" <<'EOF'

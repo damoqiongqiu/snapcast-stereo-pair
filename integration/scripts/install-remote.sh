@@ -3,6 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$repo_root/integration/scripts/pair-config.sh"
+source "$repo_root/integration/scripts/install-lifecycle.sh"
 load_pair_config
 require_pair_config
 compute_pair_roles
@@ -66,6 +67,7 @@ ssh "$remote" zsh -s <<'REMOTE_SCRIPT'
   chmod 755 "$HOME/Library/Application Support/Snapcast/health-marker.sh"
   chmod 755 "$HOME/Library/Application Support/Snapcast/audio-profile.sh"
   ln -sfn "$HOME/Library/Application Support/Snapcast/remote-mode.sh" "$HOME/.snapcast-remote-mode"
+  ln -sfn "$HOME/Library/Application Support/Snapcast/bin/set-audio-volume" "$HOME/.snapcast-volume"
   "$HOME/Library/Application Support/Snapcast/remote-mode.sh" snapcast
 REMOTE_SCRIPT
 
@@ -76,8 +78,15 @@ jq -n \
   --arg user "$REMOTE_USER" \
   --arg host "$REMOTE_HOST" \
   --arg helperPath "$remote_home/.snapcast-remote-mode" \
-  '{user: $user, host: $host, helperPath: $helperPath}' \
+  --arg volumeReaderPath "$remote_home/.snapcast-volume" \
+  '{
+    user: $user,
+    host: $host,
+    helperPath: $helperPath,
+    volumeReaderPath: $volumeReaderPath
+  }' \
   > "$remote_control_json"
 install -m 600 "$remote_control_json" "$local_state_dir/remote-control.json"
+refresh_installation_manifest_digest
 
 print "Installed remote Snapcast client on $remote."

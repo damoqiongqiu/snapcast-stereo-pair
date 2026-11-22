@@ -53,11 +53,28 @@ The menu-bar application provides mode, status, volume, mute, reconnect,
 console, and quit-GUI actions. The main window provides:
 
 - master volume with preserved left/right offsets;
-- per-side volume, mute, delay, route, format, and connection state;
+- per-side Snapcast volume, mute, delay, route, format, and connection state;
+- each Mac's physical output volume with normal, low, unread, and stale states;
 - live peak/RMS waveform meters and clip indication;
 - service, routing, and wake-recovery status;
 - an advanced sheet for logs, redacted export, versions, diagnostics, and
   allowlisted service restarts.
+
+The console window uses a minimum size of 900 × 680, a default size of
+1040 × 720, and a maximum size of 1240 × 860. Its content is capped at 1120
+points and centered inside larger windows, so waveform meters and cards do not
+stretch without limit. Saved window positions that fall outside the available
+displays are recentered automatically.
+
+Only one GUI process may run for the current user. Launch Services is configured
+to reject duplicate application instances, and the app also holds a user-level
+file lock for direct binary launches. Opening the app again activates the
+existing console instead of creating another menu-bar process.
+
+Snapcast volume sliders update locally while dragging. One final value is sent
+when the drag ends, rather than sending a request for every pointer movement.
+This keeps the knob responsive even while the 100 ms status refresh is still
+returning the previous volume.
 
 ## Health and Notifications
 
@@ -117,6 +134,26 @@ the system language by default and provides an in-app override.
 Status LEDs always include text or accessibility labels. Reduce Motion stops LED
 pulses while preserving the semantic status. The main controls expose VoiceOver
 labels and keyboard actions.
+
+## System Volume Observation
+
+Snapcast volume and the macOS physical output volume are separate controls. The
+console labels them independently so an accidentally reduced speaker volume is
+not mistaken for a Snapcast or routing failure.
+
+The local physical output is read every 2 seconds. The remote physical output is
+read every 30 seconds through the existing key-only SSH connection, so normal
+operation does not keep an SSH session open or repeatedly connect every second.
+The refresh button performs an immediate read of both sides.
+
+Values below 100% are shown as low. A transient read failure keeps the previous
+measurement and marks it stale after 60 seconds. The monitor is read-only: it
+does not change either Mac's system volume, because doing so could override a
+deliberate user adjustment.
+
+The UI receives only the physical side, volume, timestamp, and a generic error
+state. It does not expose SSH targets, account names, executable paths, or device
+UIDs.
 
 ## Packaging
 

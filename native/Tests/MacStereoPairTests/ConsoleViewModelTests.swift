@@ -83,6 +83,20 @@ final class ConsoleViewModelTests: XCTestCase {
         XCTAssertEqual(restartedServices, ["com.snapcast.splitter"])
     }
 
+    func testHardwareVolumeRefreshRequestsAgentAndReloadsSnapshot() async {
+        let transport = HardwareVolumeRefreshTransport(snapshot: .healthy)
+        let model = ConsoleViewModel(transport: transport)
+
+        await model.refreshHardwareVolumes()
+
+        let refreshRequests = await transport.refreshRequests()
+        let snapshotRequests = await transport.snapshotRequests()
+        XCTAssertEqual(refreshRequests, 1)
+        XCTAssertEqual(snapshotRequests, 1)
+        XCTAssertEqual(model.hardwareVolume(side: "left")?.volumePercent, 100)
+        XCTAssertFalse(model.isRefreshingHardwareVolume)
+    }
+
     func testViewStateCoversHealthyTransitionDegradedAndSystemModes() {
         let healthy = ConsoleViewModel(transport: FixtureTransport())
         healthy.apply(snapshot: .healthy)
@@ -182,6 +196,50 @@ private actor ServiceRestartRecorder {
     }
 }
 
+private actor HardwareVolumeRefreshTransport: ControlTransport {
+    let snapshot: RuntimeSnapshot
+    private var hardwareRequests = 0
+    private var snapshots = 0
+
+    init(snapshot: RuntimeSnapshot) {
+        self.snapshot = snapshot
+    }
+
+    func request(_ request: ControlRequest) async throws -> ControlEvent {
+        switch request {
+        case .refreshHardwareVolume(let requestId):
+            hardwareRequests += 1
+            return .success(requestId: requestId)
+        case .snapshot:
+            snapshots += 1
+            return .snapshot(snapshotWithHardwareVolume)
+        default:
+            return .success(requestId: request.requestId)
+        }
+    }
+
+    func refreshRequests() -> Int {
+        hardwareRequests
+    }
+
+    func snapshotRequests() -> Int {
+        snapshots
+    }
+
+    private var snapshotWithHardwareVolume: RuntimeSnapshot {
+        var value = snapshot
+        value.hardwareVolumes = [
+            HardwareVolumeStatus(
+                side: "left",
+                volumePercent: 100,
+                checkedAt: Date(),
+                error: nil
+            )
+        ]
+        return value
+    }
+}
+
 private actor SuspendedModeTransport: ControlTransport {
     let snapshot: RuntimeSnapshot
     private var modeContinuation: CheckedContinuation<ControlEvent, Never>?
@@ -236,6 +294,7 @@ private extension ControlRequest {
              .setClientVolume(let requestId, _, _),
              .setClientMute(let requestId, _, _),
              .setClientLatency(let requestId, _, _),
+             .refreshHardwareVolume(let requestId),
              .restartService(let requestId, _),
              .exportDiagnostics(let requestId, _):
             return requestId

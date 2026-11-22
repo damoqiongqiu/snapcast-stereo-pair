@@ -26,6 +26,15 @@ final class ControlProtocolTests: XCTestCase {
         XCTAssertEqual(decoded, request)
     }
 
+    func testHardwareVolumeRefreshRequestRoundTripsThroughProtocol() throws {
+        let request = ControlRequest.refreshHardwareVolume(requestId: "volume-1")
+
+        let data = try JSONEncoder().encode(request)
+        let decoded = try JSONDecoder().decode(ControlRequest.self, from: data)
+
+        XCTAssertEqual(decoded, request)
+    }
+
     func testClientTimesOutWhenServerDoesNotRespond() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

@@ -12,6 +12,8 @@ struct UnixControlTransport: ControlTransport {
         let timeout: TimeInterval = switch request {
         case .setAudioMode, .restartPair:
             45
+        case .refreshHardwareVolume:
+            20
         case .restartService:
             12
         default:

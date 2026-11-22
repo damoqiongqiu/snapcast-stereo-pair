@@ -66,7 +66,7 @@ func requestID(for request: ControlRequest) -> String {
     switch request {
     case .snapshot(let id), .subscribe(let id), .setAudioMode(let id, _), .restartPair(let id),
          .setClientVolume(let id, _, _), .setClientMute(let id, _, _), .setClientLatency(let id, _, _),
-         .restartService(let id, _), .exportDiagnostics(let id, _):
+         .refreshHardwareVolume(let id), .restartService(let id, _), .exportDiagnostics(let id, _):
         id
     }
 }
@@ -115,6 +115,10 @@ let server = UnixControlServer(socketURL: socketURL) { request in
         } catch {
             return .error(requestId: requestId, message: error.localizedDescription)
         }
+    case .refreshHardwareVolume(let requestId):
+        await runtime.refreshHardwareVolumes()
+        await updateSnapshot()
+        return .success(requestId: requestId)
     case .restartService(let requestId, let serviceId):
         guard let arguments = ServiceMaintenance.restartArguments(serviceId: serviceId) else {
             return .error(requestId: requestId, message: "Unknown runtime service")
@@ -167,6 +171,19 @@ Task {
             store.merge(metrics: metrics)
         }
         try? await Task.sleep(for: .milliseconds(50))
+    }
+}
+Task {
+    await runtime.refreshHardwareVolumes()
+    var secondsSinceRemoteRefresh = 0
+    while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(2))
+        secondsSinceRemoteRefresh += 2
+        let includeRemote = secondsSinceRemoteRefresh >= 30
+        if includeRemote {
+            secondsSinceRemoteRefresh = 0
+        }
+        await runtime.refreshHardwareVolumes(includeRemote: includeRemote)
     }
 }
 dispatchMain()

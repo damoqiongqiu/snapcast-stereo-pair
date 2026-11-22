@@ -4,6 +4,7 @@ public actor AgentRuntime {
     private let healthReader: LocalHealthReader
     private let snapserver: SnapserverClient
     private let metricsReader: MetricsReader
+    private let hardwareVolumeMonitor: HardwareVolumeMonitor
     private let supportDirectory: URL
     private var stabilizer = SnapshotStabilizer()
 
@@ -11,12 +12,14 @@ public actor AgentRuntime {
         healthReader: LocalHealthReader = LocalHealthReader(),
         snapserver: SnapserverClient = SnapserverClient(),
         metricsReader: MetricsReader = MetricsReader(),
+        hardwareVolumeMonitor: HardwareVolumeMonitor = HardwareVolumeMonitor(),
         supportDirectory: URL = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/Snapcast")
     ) {
         self.healthReader = healthReader
         self.snapserver = snapserver
         self.metricsReader = metricsReader
+        self.hardwareVolumeMonitor = hardwareVolumeMonitor
         self.supportDirectory = supportDirectory
     }
 
@@ -31,7 +34,9 @@ public actor AgentRuntime {
 
     private func candidateSnapshot() async -> RuntimeSnapshot {
         async let servicesTask = healthReader.readServices()
+        async let hardwareVolumesTask = hardwareVolumeMonitor.cached()
         let services = await servicesTask
+        let hardwareVolumes = await hardwareVolumesTask
         let metrics = metricsReader.read()
 
         do {
@@ -60,6 +65,7 @@ public actor AgentRuntime {
                 services: services,
                 channels: channels,
                 streams: status.streams,
+                hardwareVolumes: hardwareVolumes,
                 issues: status.healthIssues,
                 updatedAt: Date()
             )
@@ -73,6 +79,7 @@ public actor AgentRuntime {
                 services: services,
                 channels: [],
                 streams: [],
+                hardwareVolumes: hardwareVolumes,
                 issues: ["Snapserver control API is unavailable"],
                 updatedAt: Date()
             )
@@ -81,6 +88,10 @@ public actor AgentRuntime {
 
     public func liveMetrics() -> AudioMetricsSnapshot? {
         metricsReader.read()
+    }
+
+    public func refreshHardwareVolumes(includeRemote: Bool = true) async {
+        _ = await hardwareVolumeMonitor.refresh(includeRemote: includeRemote)
     }
 }
 

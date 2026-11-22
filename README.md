@@ -25,7 +25,9 @@ desk. Playback on both Macs follows one Snapcast clock.
   entering pair mode, then restores them before handing audio back to macOS.
 - Ships a native SwiftUI menu-bar console with a dual-channel layout, live
   meters, health LEDs, mode switching, first-run setup, bilingual resources,
-  and redacted diagnostics.
+  redacted diagnostics, bounded window sizing, and single-instance protection.
+- Shows each Mac's physical output volume separately from Snapcast volume, with
+  normal, low, unread, and stale states plus a manual refresh action.
 - Installs and configures a remote Snapclient over SSH without storing a
   password.
 - Uses stable role names and stream-based routing, so client IDs and left/right

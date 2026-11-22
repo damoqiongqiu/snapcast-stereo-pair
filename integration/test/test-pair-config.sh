@@ -45,6 +45,13 @@ compute_pair_roles
 [[ "$LEFT_CLIENT_ID" == "local-role" ]]
 [[ "$RIGHT_CLIENT_ID" == "remote-role" ]]
 
+write_pair_device_config "$tmp_dir/state/audio-devices.json"
+[[ "$(jq -r '.schemaVersion' "$tmp_dir/state/audio-devices.json")" == "1" ]]
+[[ "$(jq -r '.localOutputUID' "$tmp_dir/state/audio-devices.json")" == "BuiltInSpeakerDevice" ]]
+[[ "$(jq -r '.remoteOutputUID' "$tmp_dir/state/audio-devices.json")" == "BuiltInSpeakerDevice" ]]
+[[ "$(jq -r '.leftIsRemote' "$tmp_dir/state/audio-devices.json")" == "false" ]]
+[[ "$(stat -f '%Lp' "$tmp_dir/state/audio-devices.json")" == "600" ]]
+
 unset REMOTE_USER REMOTE_HOST SOURCE_HOST LEFT_IS_REMOTE
 prepare_local_only_config
 [[ "$REMOTE_USER" == "pending-remote" ]]

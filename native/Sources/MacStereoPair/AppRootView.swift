@@ -13,6 +13,7 @@ struct AppRootView: View {
                 SetupFlowView(setup: setup, model: model)
             }
         }
+        .background(WindowConfigurator())
         .task {
             await model.start()
             await setup.start()

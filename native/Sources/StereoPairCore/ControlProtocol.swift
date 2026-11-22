@@ -10,6 +10,7 @@ public enum ControlRequest: Codable, Equatable, Sendable {
     case setClientVolume(requestId: String, clientId: String, percent: Int)
     case setClientMute(requestId: String, clientId: String, muted: Bool)
     case setClientLatency(requestId: String, clientId: String, milliseconds: Int)
+    case refreshHardwareVolume(requestId: String)
     case restartService(requestId: String, serviceId: String)
     case exportDiagnostics(requestId: String, redacted: Bool)
 }

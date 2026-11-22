@@ -92,6 +92,7 @@ installation_required_assets_exist() {
     "$support_dir/bin/wake-recovery-listener"
     "$support_dir/setup/native-setup-helper.sh"
     "$support_dir/setup/source-root"
+    "$support_dir/state/audio-devices.json"
     "$support_dir/set-mode.sh"
     "$support_dir/ensure-pair-routing.sh"
     "$support_dir/audio-levels.sh"
@@ -147,16 +148,17 @@ installation_asset_digest() {
   for file in "${files[@]}"; do
     [[ -f "$file" ]] || return 1
   done
-  local config_file remote_control
+  local config_file remote_control audio_devices
   config_file="${PAIR_CONFIG_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/snapcast-stereo-pair/pair.env}"
   remote_control="$(installation_support_dir)/state/remote-control.json"
+  audio_devices="$(installation_support_dir)/state/audio-devices.json"
   {
     for file in "${files[@]}"; do
       print -r -- "${file#$HOME/}"
       stat -f '%Lp' "$file"
       shasum -a 256 "$file" | awk '{print $1}'
     done
-    for file in "$config_file" "$remote_control"; do
+    for file in "$config_file" "$remote_control" "$audio_devices"; do
       if [[ -f "$file" ]]; then
         print -r -- "${file#$HOME/}"
         stat -f '%Lp' "$file"
@@ -197,6 +199,19 @@ write_installation_manifest() {
   mv "$temporary" "$manifest"
 }
 
+refresh_installation_manifest_digest() {
+  local manifest product_version protocol_version installer asset_digest
+  manifest="$(installation_manifest_path)"
+  [[ -f "$manifest" ]] || return 0
+  product_version="$(jq -r '.productVersion // empty' "$manifest")"
+  protocol_version="$(jq -r '.protocolVersion // empty' "$manifest")"
+  installer="$(jq -r '.installer // empty' "$manifest")"
+  [[ -n "$product_version" && -n "$protocol_version" && -n "$installer" ]] || return 1
+  asset_digest="$(installation_asset_digest)"
+  write_installation_manifest \
+    "$product_version" "$protocol_version" "$installer" "$asset_digest"
+}
+
 installation_acquire_lock() {
   local state_dir lock_file
   state_dir="$(installation_support_dir)/state"
@@ -227,12 +242,13 @@ installation_release_lock() {
 
 backup_installation_assets() {
   local backup_dir="$1"
-  local support_dir app_path launch_dir config_file remote_control
+  local support_dir app_path launch_dir config_file remote_control audio_devices
   support_dir="$(installation_support_dir)"
   app_path="$(installation_app_path)"
   launch_dir="$(installation_launch_dir)"
   config_file="${PAIR_CONFIG_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/snapcast-stereo-pair/pair.env}"
   remote_control="$support_dir/state/remote-control.json"
+  audio_devices="$support_dir/state/audio-devices.json"
   mkdir -p "$backup_dir/bin" "$backup_dir/setup" "$backup_dir/scripts" "$backup_dir/launchagents"
   chmod 700 "$backup_dir"
   if [[ -d "$app_path" ]]; then
@@ -257,6 +273,7 @@ backup_installation_assets() {
   done
   [[ -f "$config_file" ]] && install -m 600 "$config_file" "$backup_dir/pair.env"
   [[ -f "$remote_control" ]] && install -m 600 "$remote_control" "$backup_dir/remote-control.json"
+  [[ -f "$audio_devices" ]] && install -m 600 "$audio_devices" "$backup_dir/audio-devices.json"
   [[ -f "$(installation_manifest_path)" ]] && \
     install -m 600 "$(installation_manifest_path)" "$backup_dir/installation.json"
 }
@@ -264,12 +281,13 @@ backup_installation_assets() {
 restore_installation_assets() {
   local backup_dir="$1"
   [[ -d "$backup_dir" ]] || return 1
-  local support_dir app_path launch_dir config_file remote_control
+  local support_dir app_path launch_dir config_file remote_control audio_devices
   support_dir="$(installation_support_dir)"
   app_path="$(installation_app_path)"
   launch_dir="$(installation_launch_dir)"
   config_file="${PAIR_CONFIG_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/snapcast-stereo-pair/pair.env}"
   remote_control="$support_dir/state/remote-control.json"
+  audio_devices="$support_dir/state/audio-devices.json"
 
   if [[ -d "$backup_dir/app" ]]; then
     rm -rf "$app_path"
@@ -302,6 +320,8 @@ restore_installation_assets() {
   [[ -f "$backup_dir/pair.env" ]] && install -m 600 "$backup_dir/pair.env" "$config_file"
   [[ -f "$backup_dir/remote-control.json" ]] && \
     install -m 600 "$backup_dir/remote-control.json" "$remote_control"
+  [[ -f "$backup_dir/audio-devices.json" ]] && \
+    install -m 600 "$backup_dir/audio-devices.json" "$audio_devices"
   [[ -f "$backup_dir/installation.json" ]] && \
     install -m 600 "$backup_dir/installation.json" "$(installation_manifest_path)"
 }

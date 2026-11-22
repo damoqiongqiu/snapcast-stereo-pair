@@ -130,6 +130,27 @@ EOF
   chmod 600 "$config_file"
 }
 
+write_pair_device_config() {
+  local output_file="$1"
+  local state_dir="${output_file:h}"
+  local temporary
+  mkdir -p "$state_dir"
+  chmod 700 "$state_dir"
+  temporary="$(mktemp "$state_dir/.audio-devices.XXXXXX")"
+  jq -n \
+    --arg localOutputUID "$LOCAL_OUTPUT_DEVICE" \
+    --arg remoteOutputUID "$REMOTE_OUTPUT_DEVICE_UID" \
+    --argjson leftIsRemote "$LEFT_IS_REMOTE" \
+    '{
+      schemaVersion: 1,
+      localOutputUID: $localOutputUID,
+      remoteOutputUID: $remoteOutputUID,
+      leftIsRemote: $leftIsRemote
+    }' > "$temporary"
+  chmod 600 "$temporary"
+  mv "$temporary" "$output_file"
+}
+
 render_pair_template() {
   local source_file="$1"
   local output_file="$2"

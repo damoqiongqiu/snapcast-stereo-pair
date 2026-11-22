@@ -50,7 +50,10 @@ struct SetupFlowView: View {
         }
         .background(Theme.background)
         .foregroundStyle(Theme.text)
-        .frame(minWidth: 860, minHeight: 620)
+        .frame(
+            minWidth: MainWindowMetrics.minimumSize.width,
+            minHeight: MainWindowMetrics.minimumSize.height
+        )
         .task { await setup.start() }
     }
 

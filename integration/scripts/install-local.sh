@@ -21,7 +21,8 @@ compute_pair_roles
 "$repo_root/native/Packaging/build-native.sh"
 homebrew_bin="$(brew --prefix)/bin"
 
-mkdir -p "$support_dir/bin" "$support_dir/data" "$log_dir" "$launch_dir" "$run_dir"
+mkdir -p "$support_dir/bin" "$support_dir/data" "$support_dir/state" "$log_dir" "$launch_dir" "$run_dir"
+chmod 700 "$support_dir/state"
 for name in left right; do
   fifo="$run_dir/$name.pcm"
   if [[ ! -p "$fifo" ]]; then
@@ -29,6 +30,8 @@ for name in left right; do
   fi
   chmod 600 "$fifo"
 done
+
+write_pair_device_config "$support_dir/state/audio-devices.json"
 
 install -m 755 "$repo_root/.build/bin/snapserver" "$support_dir/bin/snapserver"
 install -m 755 "$repo_root/.build/bin/snapclient" "$support_dir/bin/snapclient"

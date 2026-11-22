@@ -23,6 +23,27 @@ public enum UnixSocketError: Error, LocalizedError, Equatable {
     }
 }
 
+enum UnixAcceptRecovery {
+    enum Action: Equatable {
+        case retryImmediately
+        case pauseAndRetry
+        case stop
+    }
+
+    static func action(for error: Int32) -> Action {
+        switch error {
+        case EINTR, ECONNABORTED, EPROTO:
+            .retryImmediately
+        case EMFILE, ENFILE, ENOBUFS, ENOMEM:
+            .pauseAndRetry
+        case EBADF, EINVAL, ENOTSOCK, EOPNOTSUPP:
+            .stop
+        default:
+            .pauseAndRetry
+        }
+    }
+}
+
 public final class UnixControlServer: @unchecked Sendable {
     public typealias Handler = @Sendable (ControlRequest) async -> ControlEvent
 
@@ -91,8 +112,15 @@ public final class UnixControlServer: @unchecked Sendable {
         while listeningFD >= 0 {
             let clientFD = accept(listeningFD, nil, nil)
             if clientFD < 0 {
-                if errno == EINTR { continue }
-                return
+                switch UnixAcceptRecovery.action(for: errno) {
+                case .retryImmediately:
+                    continue
+                case .pauseAndRetry:
+                    usleep(100_000)
+                    continue
+                case .stop:
+                    return
+                }
             }
             Task { [weak self] in
                 await self?.serve(clientFD: clientFD)

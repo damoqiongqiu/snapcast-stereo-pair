@@ -18,6 +18,7 @@ final class LocalizationTests: XCTestCase {
             "mode.",
             "service.",
             "volume.",
+            "systemVolume.",
             "latency.",
             "error.",
             "setup.",

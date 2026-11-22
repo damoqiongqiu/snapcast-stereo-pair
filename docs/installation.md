@@ -136,6 +136,8 @@ The installer:
 - rejects an accidental downgrade unless force reinstall is requested;
 - treats changed pairing or remote-control configuration as a repair so
   rendered services are refreshed;
+- renders the local and remote speaker UIDs and physical side into
+  `state/audio-devices.json` for read-only system-volume monitoring;
 - renders templates into `~/Library/Application Support/Snapcast/`;
 - keeps BlackHole and the built-in speaker at 100% hardware volume;
 - creates the left/right FIFOs;
@@ -180,11 +182,11 @@ remote control configuration:
 ~/Library/Application Support/Snapcast/state/remote-control.json
 ```
 
-That file contains the remote user, host, and rendered helper path with mode
-`0600`. It never contains a password, private key, or token. Remote mode
-commands run with `BatchMode=yes` and a bounded timeout. Failure to stop or
-start the remote client degrades synchronization status but does not roll back
-the local mode change.
+That file contains the remote user, host, rendered mode-helper path, and the
+fixed path to the read-only volume helper, with mode `0600`. It never contains a
+password, private key, or token. Remote mode commands run with `BatchMode=yes`
+and a bounded timeout. Failure to stop or start the remote client degrades
+synchronization status but does not roll back the local mode change.
 
 ## Install the Native Console
 

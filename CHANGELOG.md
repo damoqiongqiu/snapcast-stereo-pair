@@ -5,6 +5,9 @@
 - Add a native SwiftUI menu-bar console and dual-channel professional control
   surface with live mirrored waveforms, peak/RMS meters, clip indication,
   master/side volume, mute, latency, routing, stream format, and recovery state.
+- Add a responsive, bounded console window, single-instance protection, direct
+  volume-slider feedback, and separate read-only physical system-volume
+  indicators for both Macs.
 - Add an owner-only Unix-socket control Agent shared by the native app and
   `mac-stereo-pairctl`, with peer UID validation and launchd-independent audio.
 - Add explicit stereo-pair and Mac-system-audio modes, including best-effort
@@ -35,6 +38,9 @@
   hardware volume, capture, and playback after sleep.
 - Apply CoreAudio listening volume through the AudioQueue floating-point volume
   parameter so network PCM remains at full scale.
+- Keep the control Agent accepting requests after transient socket errors, and
+  release command-process pipes so long-running health monitoring does not
+  exhaust file descriptors.
 
 ## v0.1.0 - 2026-11-20
 
