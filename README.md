@@ -13,12 +13,15 @@ native SwiftUI console, owner-only control Agent, installation lifecycle, and
 automatic device recovery replace the manual setup normally required for a
 multiroom audio stack.
 
-![English native console](docs/images/native-console-en.png)
+![MacBook Stereo Pair English console showing dual-channel audio, aligned volume controls, and health status](docs/images/native-console-en.png)
+
+<sub>Current native console: live stereo meters, continuous volume controls,
+dual-Mac system-volume indicators, and end-to-end runtime health.</sub>
 
 <details>
 <summary>简体中文界面</summary>
 
-![Native console in Simplified Chinese](docs/images/native-console-zh-Hans.png)
+![MacBook Stereo Pair Simplified Chinese console showing dual-channel audio and health status](docs/images/native-console-zh-Hans.png)
 
 </details>
 
@@ -33,6 +36,7 @@ multiroom audio stack.
 | Audio capture | BlackHole 2ch through PortAudio |
 | Playback | Patched Snapclient with explicit CoreAudio device selection |
 | Control surface | Native SwiftUI Dock and menu-bar application |
+| Volume control | Continuous side/master sliders with throttled asynchronous audio previews |
 | Network boundary | Stream TCP `1704`; control APIs bound to localhost |
 | Recovery | Sleep/wake relaunch, hardware-volume recovery, health monitoring |
 | Release model | Ad-hoc signed source builds and Homebrew packaging |
@@ -49,6 +53,7 @@ the macOS-specific work needed to run a practical two-Mac stereo pair.
 | macOS system-audio capture | Assemble separately | BlackHole capture and left/right FIFO split built in |
 | Stereo placement | Configure generic clients | Stable role-based `LeftAudio` and `RightAudio` routing |
 | Local playback device | Choose manually | Explicit CoreAudio output binding with feedback-safe routing |
+| Volume interaction | Control through external tools | Native continuous sliders with synchronized side/master updates |
 | Volume safety | Manage external scripts | Preserve and restore hardware output and exact volume |
 | Sleep/wake recovery | Build separately | Local and remote wake-recovery LaunchAgents included |
 | Control interface | Use an external client | Native SwiftUI console with live meters and diagnostics |
@@ -153,14 +158,17 @@ the audio engine: closing the window or quitting the GUI does not stop playback.
 Key capabilities:
 
 - Dual-channel live waveforms, peak/RMS meters, and clip indication.
-- Per-side and master Snapcast volume with integer steps and 5% visual scales.
+- Per-side and master Snapcast volume with continuous pointer tracking,
+  throttled asynchronous audio previews, trailing final commits, synchronized
+  master changes, and aligned 5% visual scales.
 - Separate physical system-volume indicators for both Macs.
 - Mute, latency, stream format, route, and connection state controls.
 - Service, routing, pairing, and wake-recovery health.
 - Stereo-pair and normal macOS-audio mode switching.
 - Redacted diagnostics, allowlisted service restarts, and installation repair.
 - English and Simplified Chinese resources; new installs default to English.
-- Single-instance protection, bounded window sizing, and accessible status text.
+- Single-instance protection, bounded window sizing, keyboard-adjustable volume
+  controls, and accessible status text.
 
 See [docs/native-console.md](docs/native-console.md) for the complete control
 model, recovery behavior, accessibility, and privacy design.
