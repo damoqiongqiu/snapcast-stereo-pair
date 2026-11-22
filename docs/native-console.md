@@ -64,11 +64,12 @@ The main window provides:
 - an advanced sheet for logs, redacted export, versions, diagnostics, and
   allowlisted service restarts.
 
-The console window uses a minimum size of 900 × 680, a default size of
-1040 × 720, and a maximum size of 1240 × 860. Its content is capped at 1120
-points and centered inside larger windows, so waveform meters and cards do not
-stretch without limit. Saved window positions that fall outside the available
-displays are recentered automatically.
+The main console does not use a scrolling viewport. Its minimum and default
+content size is 1040 × 720, so every waveform, volume, master, and status card
+remains visible; the maximum size is 1240 × 860. Content is capped at 1120
+points and centered inside larger windows, so cards do not stretch without
+limit. Saved window positions that fall outside the available displays are
+recentered automatically.
 
 Only one GUI process may run for the current user. Launch Services is configured
 to reject duplicate application instances, and the app also holds a user-level

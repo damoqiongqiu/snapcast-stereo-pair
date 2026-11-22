@@ -8,20 +8,11 @@ struct ConsoleView: View {
     @State private var showsAdvanced = false
 
     var body: some View {
-        GeometryReader { geometry in
-            ScrollView(.vertical) {
-                consoleContent
-                    .frame(maxWidth: MainWindowMetrics.contentMaxWidth)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 20)
-                    .frame(
-                        maxWidth: .infinity,
-                        minHeight: geometry.size.height,
-                        alignment: .center
-                    )
-            }
-            .scrollIndicators(.automatic)
-        }
+        consoleContent
+            .frame(maxWidth: MainWindowMetrics.contentMaxWidth)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Theme.background)
         .foregroundStyle(Theme.text)
         .frame(

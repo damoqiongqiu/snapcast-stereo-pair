@@ -3,6 +3,11 @@ import XCTest
 @testable import MacStereoPair
 
 final class WindowPlacementPolicyTests: XCTestCase {
+    func testConsoleCannotResizeBelowUnclippedViewport() {
+        XCTAssertEqual(MainWindowMetrics.minimumSize.width, 1040)
+        XCTAssertEqual(MainWindowMetrics.minimumSize.height, 720)
+    }
+
     func testWindowRequiresCenteringWhenSavedFrameIsOffscreen() {
         let window = CGRect(x: 1952, y: 195, width: 1040, height: 720)
         let visible = CGRect(x: 0, y: 0, width: 1512, height: 945)

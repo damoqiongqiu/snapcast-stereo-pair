@@ -17,6 +17,8 @@
 - Remove the unnecessary trailing divider after the final status-card zone.
 - Limit the in-app language menu to the shipped English and Simplified Chinese
   resources, with legacy “follow system” preferences falling back to English.
+- Remove main-console scrolling and require the full dashboard to fit at the
+  minimum window size.
 - Align the volume handle, track endpoints, and scale marks to one shared
   geometry while preserving native slider accessibility semantics and keeping
   keyboard focus styling out of pointer drags.

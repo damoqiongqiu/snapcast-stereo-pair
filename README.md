@@ -167,8 +167,9 @@ Key capabilities:
 - Stereo-pair and normal macOS-audio mode switching.
 - Redacted diagnostics, allowlisted service restarts, and installation repair.
 - English and Simplified Chinese resources; new installs default to English.
-- Single-instance protection, bounded window sizing, keyboard-adjustable volume
-  controls, and accessible status text.
+- Single-instance protection, a non-scrolling dashboard with a minimum window
+  size that keeps every card visible, keyboard-adjustable volume controls, and
+  accessible status text.
 
 See [docs/native-console.md](docs/native-console.md) for the complete control
 model, recovery behavior, accessibility, and privacy design.
