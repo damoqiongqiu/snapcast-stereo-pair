@@ -18,6 +18,8 @@
   routing faults, and wake recovery.
 - Treat a recently successful periodic automatic-pairing check as healthy
   between launchd invocations instead of displaying a persistent warning.
+- Ignore out-of-order status responses so releasing a volume slider does not
+  briefly restore the previous value before showing the committed volume.
 - Add English and Simplified Chinese resources with English as the default and
   an in-app language override.
 - Add an advanced diagnostics sheet with logs, service maintenance, versions,

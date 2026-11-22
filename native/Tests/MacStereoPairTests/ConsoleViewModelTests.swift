@@ -97,6 +97,23 @@ final class ConsoleViewModelTests: XCTestCase {
         XCTAssertFalse(model.isRefreshingHardwareVolume)
     }
 
+    func testOlderSnapshotCannotOverwriteNewerSnapshot() async {
+        let transport = OutOfOrderSnapshotTransport()
+        let model = ConsoleViewModel(transport: transport)
+
+        let olderRefresh = Task { await model.refresh() }
+        await transport.waitForSnapshotRequests(count: 1)
+        let newerRefresh = Task { await model.refresh() }
+        await transport.waitForSnapshotRequests(count: 2)
+
+        await transport.resumeSnapshot(at: 1, volume: 30)
+        await newerRefresh.value
+        await transport.resumeSnapshot(at: 0, volume: 10)
+        await olderRefresh.value
+
+        XCTAssertEqual(model.left?.volume, 30)
+    }
+
     func testViewStateCoversHealthyTransitionDegradedAndSystemModes() {
         let healthy = ConsoleViewModel(transport: FixtureTransport())
         healthy.apply(snapshot: .healthy)
@@ -282,6 +299,31 @@ private actor SuspendedModeTransport: ControlTransport {
 
     private var modeRequestID: String?
     private var requestedMode: AudioMode?
+}
+
+private actor OutOfOrderSnapshotTransport: ControlTransport {
+    private var continuations: [CheckedContinuation<ControlEvent, Never>] = []
+
+    func request(_ request: ControlRequest) async throws -> ControlEvent {
+        guard case .snapshot = request else {
+            return .success(requestId: request.requestId)
+        }
+        return await withCheckedContinuation { continuation in
+            continuations.append(continuation)
+        }
+    }
+
+    func waitForSnapshotRequests(count: Int) async {
+        while continuations.count < count {
+            await Task.yield()
+        }
+    }
+
+    func resumeSnapshot(at index: Int, volume: Int) {
+        var snapshot = RuntimeSnapshot.healthy
+        snapshot.channels[0].volume = volume
+        continuations[index].resume(returning: .snapshot(snapshot))
+    }
 }
 
 private extension ControlRequest {

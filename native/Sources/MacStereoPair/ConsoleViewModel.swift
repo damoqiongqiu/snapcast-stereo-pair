@@ -11,6 +11,7 @@ final class ConsoleViewModel: ObservableObject {
 
     private let transport: any ControlTransport
     private var pollingTask: Task<Void, Never>?
+    private var refreshGeneration = 0
 
     init(transport: (any ControlTransport)? = nil) {
         self.transport = transport ?? UnixControlTransport(
@@ -52,14 +53,18 @@ final class ConsoleViewModel: ObservableObject {
     }
 
     func refresh() async {
+        refreshGeneration &+= 1
+        let generation = refreshGeneration
         do {
             let event = try await transport.request(.snapshot(requestId: UUID().uuidString))
+            guard generation == refreshGeneration else { return }
             if case .snapshot(let value) = event {
                 apply(snapshot: value)
                 connectionState = .connected
                 message = nil
             }
         } catch {
+            guard generation == refreshGeneration else { return }
             connectionState = .failed
             message = error.localizedDescription
         }

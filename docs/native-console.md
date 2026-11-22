@@ -75,9 +75,11 @@ existing console instead of creating another menu-bar process.
 Snapcast volume sliders update locally while dragging. One final value is sent
 when the drag ends, rather than sending a request for every pointer movement.
 This keeps the knob responsive even while the 100 ms status refresh is still
-returning the previous volume. Each slider has 5% reference ticks, with longer
-and labeled marks at 0%, 25%, 50%, 75%, and 100%. The scale shares the slider
-track endpoints so neither end protrudes beyond the other.
+returning the previous volume. Out-of-order status responses are discarded, so
+an older poll cannot overwrite the committed value and make the knob jump
+backward. Each slider has 5% reference ticks, with longer and labeled marks at
+0%, 25%, 50%, 75%, and 100%. The scale shares the slider track endpoints so
+neither end protrudes beyond the other.
 
 ## Health and Notifications
 
