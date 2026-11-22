@@ -11,10 +11,13 @@
 - Tighten the console dashboard by grouping mute and delay controls, reducing
   secondary card spacing, unifying the system-volume refresh control, improving
   status legibility, and lowering the no-scroll minimum height to 1040 × 660.
+- Redraw the channel waveforms as stable audio instruments with separate Peak
+  and RMS envelopes, dB reference grids, live dBFS readouts, and clipping-aware
+  color instead of decorative time-based motion.
 - Make Snapcast volume sliders track continuously at pointer resolution while
   serializing throttled audio previews, coalescing click updates, and committing
-  the final rounded percentage after release. Periodic status and waveform
-  updates pause during an active drag to keep interaction responsive.
+  the final rounded percentage after release. Periodic status updates pause
+  during an active drag to keep interaction responsive.
 - Force fresh Snapserver JSON-RPC connections so paired master-volume writes
   cannot lose one side to an empty reused keep-alive response.
 - Remove the unnecessary trailing divider after the final status-card zone.

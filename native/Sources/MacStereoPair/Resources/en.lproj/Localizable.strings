@@ -15,6 +15,9 @@
 "channel.right" = "Right";
 "channel.unavailable" = "Disconnected";
 "channel.volumeFormat" = "Volume %d%%";
+"waveform.peak" = "PEAK";
+"waveform.rms" = "RMS";
+"waveform.clip" = "CLIP";
 "volume.snapcast" = "Snapcast volume";
 "volume.master" = "Snapcast master";
 "volume.totalFormat" = "Snapcast master volume %d%%";
@@ -62,6 +65,7 @@
 "accessibility.realtimeWaveform" = "Realtime audio waveform";
 "accessibility.noSignal" = "No signal";
 "accessibility.peakFormat" = "Peak %.1f dBFS";
+"accessibility.levelsFormat" = "Peak %.1f dBFS, RMS %.1f dBFS";
 "accessibility.modePicker" = "Audio output mode";
 "accessibility.languagePicker" = "Application language";
 "accessibility.volumeFormat" = "Volume for %@ channel";

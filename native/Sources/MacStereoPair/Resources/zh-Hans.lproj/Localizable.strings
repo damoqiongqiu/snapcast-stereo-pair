@@ -15,6 +15,9 @@
 "channel.right" = "右侧";
 "channel.unavailable" = "未连接";
 "channel.volumeFormat" = "音量 %d%%";
+"waveform.peak" = "峰值";
+"waveform.rms" = "RMS";
+"waveform.clip" = "削波";
 "volume.snapcast" = "Snapcast 音量";
 "volume.master" = "Snapcast 总音量";
 "volume.totalFormat" = "Snapcast 总音量 %d%%";
@@ -62,6 +65,7 @@
 "accessibility.realtimeWaveform" = "实时音频波形";
 "accessibility.noSignal" = "无信号";
 "accessibility.peakFormat" = "峰值 %.1f dBFS";
+"accessibility.levelsFormat" = "峰值 %.1f dBFS，RMS %.1f dBFS";
 "accessibility.modePicker" = "音频输出模式";
 "accessibility.languagePicker" = "应用语言";
 "accessibility.volumeFormat" = "%@声道音量";

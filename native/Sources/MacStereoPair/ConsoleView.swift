@@ -223,8 +223,7 @@ private struct ChannelStrip: View {
                 Text(verbatim: channel?.streamId ?? "—").font(.caption).foregroundStyle(Theme.muted)
             }
             ChannelWaveform(
-                channel: channel,
-                isAnimationPaused: model.isVolumeInteractionActive
+                channel: channel
             )
                 .padding(.horizontal, 2)
             HardwareVolumeIndicator(

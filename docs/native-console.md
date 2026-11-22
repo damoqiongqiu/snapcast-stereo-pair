@@ -159,10 +159,12 @@ Side and master Snapcast sliders follow the pointer continuously for smooth
 dragging. The visible percentage and committed Snapcast value use whole-percent
 precision. Drag previews are throttled and serialized, while the final value is
 trailing-debounced after release. Direct clicks jump the handle immediately and
-submit one coalesced update. Periodic status polling and waveform animation
-pause during the drag, then resume after the final value is acknowledged. The
-handle center, track endpoints, and scale marks use one shared inset geometry,
-so the handle is centered on the active scale position at every volume.
+submit one coalesced update. Periodic status polling pauses during the drag,
+then resumes after the final value is acknowledged. The waveform is
+data-driven and does not add decorative motion unrelated to the audio level.
+The handle center, track endpoints, and scale marks use one shared inset
+geometry, so the handle is centered on the active scale position at every
+volume.
 VoiceOver and keyboard increment and decrement actions move one percentage
 point at a time. Keyboard focus styling appears only for keyboard interaction
 and is suppressed during pointer drags. Master-volume writes are serialized,
