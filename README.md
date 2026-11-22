@@ -59,9 +59,12 @@ the macOS-specific work needed to run a practical two-Mac stereo pair.
 ### Prerequisites
 
 - Two Macs running macOS 14 or newer on the same trusted LAN or VPN.
-- SSH key access from the source Mac to the remote Mac.
+- An SSH account on the remote Mac. The setup wizard can create or install a key
+  when key-only access is not configured yet.
 - Homebrew and Xcode Command Line Tools on the source Mac.
 - BlackHole 2ch on the source Mac.
+- The same CPU architecture on both Macs when using the included remote
+  installer to copy the locally built Snapclient binary.
 
 ```sh
 brew install --cask blackhole-2ch
@@ -69,7 +72,37 @@ brew install switchaudio-osx portaudio cmake ninja pkgconf boost openssl@4 \
   flac libogg libsoxr libvorbis opus
 ```
 
-### Install the Pair
+Run all installation and configuration commands on the Mac that will capture
+system audio. This documentation calls it the **source Mac**.
+
+### Option A: Native Setup Wizard
+
+```sh
+git clone https://github.com/damoqiongqiu/snapcast-stereo-pair.git
+cd snapcast-stereo-pair
+
+./integration/scripts/install-product.sh
+open "$HOME/Applications/MacBook Stereo Pair.app"
+```
+
+In the wizard:
+
+1. Check external dependencies.
+2. Complete local runtime installation when prompted.
+3. Enter the remote Mac's SSH user and hostname or address.
+4. Allow Terminal to configure key authentication and install the remote client.
+5. Return to the app and verify that both channels are connected.
+
+Password-requiring steps remain in Terminal. The app does not read or store the
+local administrator password or remote SSH password.
+
+The wizard uses the default layout with the **remote Mac physically on the
+left**. Use the CLI path if the source Mac is physically on the left or if the
+output devices need non-default UIDs.
+
+### Option B: CLI Configuration
+
+Use this path for explicit control over physical placement and device config:
 
 ```sh
 git clone https://github.com/damoqiongqiu/snapcast-stereo-pair.git
@@ -78,14 +111,35 @@ cd snapcast-stereo-pair
 ./integration/scripts/configure-pair.sh
 ./integration/scripts/install-product.sh
 ./integration/scripts/install-remote.sh
+./integration/scripts/check-health.sh
 
 open "$HOME/Applications/MacBook Stereo Pair.app"
-./integration/scripts/check-health.sh
 ```
 
-The setup wizard can also perform local installation, remote setup, and final
-verification from the app. Password-requiring steps remain in Terminal; the app
-does not read or store local administrator or remote SSH passwords.
+`configure-pair.sh` asks for:
+
+- the remote Mac's SSH user;
+- the remote Mac's hostname or address;
+- the source Mac's address, or blank for auto-detection;
+- whether the remote Mac is physically on the left.
+
+It writes the resolved configuration to
+`~/.config/snapcast-stereo-pair/pair.env`. Device names and UIDs can be
+overridden through environment variables or by editing that file before
+installation. Environment variables take precedence during configuration.
+
+For a non-interactive configuration:
+
+```sh
+PAIR_NONINTERACTIVE=1 \
+REMOTE_USER="<ssh-user>" \
+REMOTE_HOST="<remote-host>" \
+SOURCE_HOST="" \
+LEFT_IS_REMOTE=true \
+./integration/scripts/configure-pair.sh --print
+```
+
+Remove `--print` after checking the resolved values.
 
 For detailed prerequisites and manual configuration, see
 [docs/installation.md](docs/installation.md).
