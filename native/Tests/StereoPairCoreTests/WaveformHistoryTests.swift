@@ -42,4 +42,26 @@ final class WaveformHistoryTests: XCTestCase {
 
         XCTAssertEqual(history.points[0].peak, history.points[0].rms)
     }
+
+    func testWaveformHistoryAppliesChannelVolumeAndMute() {
+        var history = WaveformHistory(capacity: 2)
+
+        history.append(
+            peakDb: -6,
+            rmsDb: -12,
+            volumePercent: 50,
+            muted: false
+        )
+        history.append(
+            peakDb: -6,
+            rmsDb: -12,
+            volumePercent: 100,
+            muted: true
+        )
+
+        XCTAssertEqual(history.points[0].peak, 0.8, accuracy: 0.002)
+        XCTAssertEqual(history.points[0].rms, 0.7, accuracy: 0.002)
+        XCTAssertEqual(history.points[1].peak, 0)
+        XCTAssertEqual(history.points[1].rms, 0)
+    }
 }

@@ -29,10 +29,16 @@ public struct WaveformHistory: Equatable, Sendable {
     public mutating func append(
         peakDb: Double,
         rmsDb: Double,
+        volumePercent: Int = 100,
+        muted: Bool = false,
         clipped: Bool = false
     ) {
-        let peak = normalized(peakDb)
-        let rms = min(peak, normalized(rmsDb))
+        let volume = min(100, max(0, volumePercent))
+        let volumeGainDB = muted || volume == 0
+            ? -120
+            : 20 * log10(Double(volume) / 100)
+        let peak = normalized(peakDb + volumeGainDB)
+        let rms = min(peak, normalized(rmsDb + volumeGainDB))
         if points.count == capacity {
             points.removeFirst()
         }

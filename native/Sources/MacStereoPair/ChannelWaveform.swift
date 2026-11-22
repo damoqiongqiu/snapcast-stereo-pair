@@ -2,18 +2,12 @@ import StereoPairCore
 import SwiftUI
 
 struct ChannelWaveform: View {
-    let channel: ChannelStatus?
-    @State private var history = WaveformHistory(capacity: 72, prefill: true)
+    let points: [WaveformHistory.Point]
     @EnvironmentObject private var language: AppLanguage
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Canvas { context, size in
-                drawWaveform(context: &context, size: size)
-            }
-            levelReadout
-                .padding(.trailing, 4)
-                .padding(.top, 4)
+        Canvas { context, size in
+            drawWaveform(context: &context, size: size)
         }
         .frame(height: 88)
         .background(
@@ -25,57 +19,26 @@ struct ChannelWaveform: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Theme.separator.opacity(0.55))
         )
-        .onChange(of: channel) { _, channel in
-            history.append(
-                peakDb: channel?.peakDb ?? -120,
-                rmsDb: channel?.rmsDb ?? -120,
-                clipped: channel?.clipped ?? false
-            )
-        }
         .accessibilityElement()
         .accessibilityLabel(language.text("accessibility.realtimeWaveform"))
         .accessibilityValue(accessibilityValue)
     }
 
     private var accessibilityValue: String {
-        guard let peak = channel?.peakDb,
-              let rms = channel?.rmsDb else {
+        guard let point = points.last,
+              point.peak > 0,
+              point.rms > 0 else {
             return language.text("accessibility.noSignal")
         }
-        return language.format("accessibility.levelsFormat", peak, rms)
+        return language.format(
+            "accessibility.levelsFormat",
+            db(from: point.peak),
+            db(from: point.rms)
+        )
     }
 
-    private var levelReadout: some View {
-        HStack(spacing: 7) {
-            if isClipping {
-                Text(verbatim: language.text("waveform.clip"))
-                    .foregroundStyle(Theme.amber)
-            }
-            Text(verbatim: language.text("waveform.peak"))
-                .foregroundStyle(Theme.muted)
-            Text(verbatim: formattedDB(channel?.peakDb))
-                .foregroundStyle(isClipping ? Theme.amber : Theme.green)
-            Text(verbatim: language.text("waveform.rms"))
-                .foregroundStyle(Theme.muted)
-            Text(verbatim: formattedDB(channel?.rmsDb))
-                .foregroundStyle(Theme.blue)
-        }
-        .font(.system(size: 9, weight: .semibold, design: .monospaced))
-        .padding(.horizontal, 7)
-        .padding(.vertical, 4)
-        .background(Theme.background.opacity(0.76))
-        .clipShape(Capsule())
-        .overlay(Capsule().stroke(Theme.separator.opacity(0.65)))
-    }
-
-    private func formattedDB(_ value: Double?) -> String {
-        guard let value, value > -119 else { return "— dBFS" }
-        return String(format: "%.1f dBFS", value)
-    }
-
-    private var isClipping: Bool {
-        channel?.clipped == true ||
-            history.points.contains(where: \.clipped)
+    private func db(from normalized: Double) -> Double {
+        normalized * 60 - 60
     }
 
     private func drawWaveform(
@@ -83,9 +46,9 @@ struct ChannelWaveform: View {
         size: CGSize
     ) {
         let center = size.height / 2
-        let points = max(history.capacity, 2)
-        let step = size.width / CGFloat(points - 1)
-        let visible = history.points
+        let sampleCount = max(points.count, 2)
+        let step = size.width / CGFloat(sampleCount - 1)
+        let visible = points
         let halfHeight = center * 0.84
 
         drawGrid(
@@ -118,14 +81,12 @@ struct ChannelWaveform: View {
             halfHeight: halfHeight
         )
         let clipping = visible.contains(where: \.clipped)
-        let peakColor = clipping ? Theme.amber : Theme.green
+        let lineGradient = peakLineGradient(clipping: clipping)
+        let fillGradient = peakFillGradient(clipping: clipping)
 
         let fillContext = context
         fillContext.fill(peakEnvelope.area, with: .linearGradient(
-            Gradient(colors: [
-                peakColor.opacity(0.18),
-                peakColor.opacity(0.025)
-            ]),
+            fillGradient,
             startPoint: CGPoint(x: 0, y: 0),
             endPoint: CGPoint(x: 0, y: size.height)
         ))
@@ -140,9 +101,17 @@ struct ChannelWaveform: View {
         ))
 
         var glowContext = context
-        glowContext.addFilter(.shadow(color: peakColor.opacity(0.55), radius: 5))
-        glowContext.stroke(peakEnvelope.upper, with: .color(peakColor), lineWidth: 1.6)
-        glowContext.stroke(peakEnvelope.lower, with: .color(peakColor), lineWidth: 1.6)
+        let accent = clipping
+            ? Theme.red
+            : (points.last.map { peakColor(for: $0.peak) } ?? Theme.green)
+        glowContext.addFilter(.shadow(color: accent.opacity(0.5), radius: 5))
+        let stroke = GraphicsContext.Shading.linearGradient(
+            lineGradient,
+            startPoint: CGPoint(x: 0, y: 0),
+            endPoint: CGPoint(x: 0, y: size.height)
+        )
+        glowContext.stroke(peakEnvelope.upper, with: stroke, lineWidth: 1.6)
+        glowContext.stroke(peakEnvelope.lower, with: stroke, lineWidth: 1.6)
 
         context.stroke(rmsEnvelope.upper, with: .color(Theme.blue.opacity(0.9)), lineWidth: 1.1)
         context.stroke(rmsEnvelope.lower, with: .color(Theme.blue.opacity(0.9)), lineWidth: 1.1)
@@ -159,8 +128,8 @@ struct ChannelWaveform: View {
         center: CGFloat,
         halfHeight: CGFloat
     ) {
-        for db in [-48.0, -36.0, -24.0, -12.0] {
-            let level = CGFloat((db + 60) / 60)
+        for db in [-48.0, -36.0, -24.0, -12.0, -6.0, -3.0] {
+            let level = CGFloat(normalized(db))
             for y in [center - level * halfHeight, center + level * halfHeight] {
                 var line = Path()
                 line.move(to: CGPoint(x: 0, y: y))
@@ -172,6 +141,57 @@ struct ChannelWaveform: View {
                 )
             }
         }
+    }
+
+    private func normalized(_ db: Double) -> Double {
+        min(1, max(0, (db + 60) / 60))
+    }
+
+    private func peakLineGradient(clipping: Bool) -> Gradient {
+        if clipping {
+            return Gradient(colors: [
+                Theme.red,
+                Theme.red,
+                Theme.amber,
+                Theme.green,
+                Theme.green,
+                Theme.amber,
+                Theme.red,
+                Theme.red
+            ])
+        }
+        return Gradient(stops: [
+            .init(color: Theme.red, location: 0),
+            .init(color: Theme.red, location: 0.035),
+            .init(color: Theme.amber, location: 0.10),
+            .init(color: Theme.amber, location: 0.15),
+            .init(color: Theme.green, location: 0.22),
+            .init(color: Theme.green, location: 0.78),
+            .init(color: Theme.amber, location: 0.85),
+            .init(color: Theme.amber, location: 0.90),
+            .init(color: Theme.red, location: 0.965),
+            .init(color: Theme.red, location: 1)
+        ])
+    }
+
+    private func peakFillGradient(clipping: Bool) -> Gradient {
+        if clipping {
+            return Gradient(colors: [
+                Theme.red.opacity(0.17),
+                Theme.amber.opacity(0.12),
+                Theme.green.opacity(0.08),
+                Theme.amber.opacity(0.12),
+                Theme.red.opacity(0.17)
+            ])
+        }
+        return Gradient(stops: [
+            .init(color: Theme.red.opacity(0.14), location: 0),
+            .init(color: Theme.amber.opacity(0.12), location: 0.16),
+            .init(color: Theme.green.opacity(0.08), location: 0.30),
+            .init(color: Theme.green.opacity(0.06), location: 0.70),
+            .init(color: Theme.amber.opacity(0.12), location: 0.84),
+            .init(color: Theme.red.opacity(0.14), location: 1)
+        ])
     }
 
     private func envelope(
@@ -222,5 +242,65 @@ struct ChannelWaveform: View {
         }
         area.closeSubpath()
         return (upper, lower, area)
+    }
+
+    private func peakColor(for peak: Double) -> Color {
+        if peak >= normalized(-3) {
+            return Theme.red
+        }
+        if peak >= normalized(-12) {
+            return Theme.amber
+        }
+        return Theme.green
+    }
+}
+
+struct WaveformLevelReadout: View {
+    let point: WaveformHistory.Point?
+    let clipped: Bool
+    @EnvironmentObject private var language: AppLanguage
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if clipped {
+                Text(verbatim: language.text("waveform.clip"))
+                    .foregroundStyle(Theme.red)
+            }
+            Text(verbatim: language.text("waveform.peak"))
+                .foregroundStyle(Theme.muted)
+            Text(verbatim: formattedDB(point?.peak))
+                .foregroundStyle(peakAccent)
+            Text(verbatim: language.text("waveform.rms"))
+                .foregroundStyle(Theme.muted)
+            Text(verbatim: formattedDB(point?.rms))
+                .foregroundStyle(Theme.blue)
+        }
+        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(Theme.background.opacity(0.55))
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(Theme.separator.opacity(0.55)))
+        .lineLimit(1)
+        .fixedSize()
+    }
+
+    private var peakAccent: Color {
+        if clipped || (point?.peak ?? 0) >= normalized(-3) {
+            return Theme.red
+        }
+        if (point?.peak ?? 0) >= normalized(-12) {
+            return Theme.amber
+        }
+        return Theme.green
+    }
+
+    private func formattedDB(_ normalized: Double?) -> String {
+        guard let normalized, normalized > 0 else { return "— dBFS" }
+        return String(format: "%.1f dBFS", normalized * 60 - 60)
+    }
+
+    private func normalized(_ db: Double) -> Double {
+        min(1, max(0, (db + 60) / 60))
     }
 }

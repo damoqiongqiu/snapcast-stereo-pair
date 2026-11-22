@@ -162,6 +162,10 @@ trailing-debounced after release. Direct clicks jump the handle immediately and
 submit one coalesced update. Periodic status polling pauses during the drag,
 then resumes after the final value is acknowledged. The waveform is
 data-driven and does not add decorative motion unrelated to the audio level.
+The displayed envelopes and Peak/RMS readout apply the current Snapcast channel
+volume and mute state. High-level peaks move from green through amber toward
+red, while the readout sits in the channel title row so it never covers the
+waveform.
 The handle center, track endpoints, and scale marks use one shared inset
 geometry, so the handle is centered on the active scale position at every
 volume.

@@ -200,6 +200,10 @@ private struct ChannelStrip: View {
     let hardwareVolume: HardwareVolumeStatus?
     @ObservedObject var model: ConsoleViewModel
     @EnvironmentObject private var language: AppLanguage
+    @State private var waveformHistory = WaveformHistory(
+        capacity: 72,
+        prefill: true
+    )
 
     private var publishedVolume: Double {
         Double(channel?.volume ?? 0)
@@ -220,10 +224,13 @@ private struct ChannelStrip: View {
                             : language.text("status.disconnected")
                     ))
                 Spacer()
-                Text(verbatim: channel?.streamId ?? "—").font(.caption).foregroundStyle(Theme.muted)
+                WaveformLevelReadout(
+                    point: waveformHistory.points.last,
+                    clipped: waveformClipping
+                )
             }
             ChannelWaveform(
-                channel: channel
+                points: waveformHistory.points
             )
                 .padding(.horizontal, 2)
             HardwareVolumeIndicator(
@@ -280,8 +287,21 @@ private struct ChannelStrip: View {
         .background(Theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.separator))
+        .onChange(of: channel) { _, channel in
+            waveformHistory.append(
+                peakDb: channel?.peakDb ?? -120,
+                rmsDb: channel?.rmsDb ?? -120,
+                volumePercent: channel?.volume ?? 0,
+                muted: channel?.muted ?? true,
+                clipped: channel?.clipped ?? false
+            )
+        }
     }
 
+    private var waveformClipping: Bool {
+        channel?.clipped == true ||
+            waveformHistory.points.contains(where: \.clipped)
+    }
 }
 
 private struct HardwareVolumeIndicator: View {

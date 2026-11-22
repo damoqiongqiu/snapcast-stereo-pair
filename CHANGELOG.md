@@ -14,6 +14,9 @@
 - Redraw the channel waveforms as stable audio instruments with separate Peak
   and RMS envelopes, dB reference grids, live dBFS readouts, and clipping-aware
   color instead of decorative time-based motion.
+- Make waveform levels follow per-channel Snapcast volume and mute state, move
+  the Peak/RMS readout into the channel title row, and use green-to-amber-to-red
+  peak coloring as levels approach full scale.
 - Make Snapcast volume sliders track continuously at pointer resolution while
   serializing throttled audio previews, coalescing click updates, and committing
   the final rounded percentage after release. Periodic status updates pause
