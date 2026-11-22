@@ -6,8 +6,10 @@ struct StatusBus: View {
     @EnvironmentObject private var language: AppLanguage
 
     var body: some View {
+        let allZones = zones
+
         HStack(spacing: 0) {
-            ForEach(zones) { zone in
+            ForEach(Array(allZones.enumerated()), id: \.element.id) { index, zone in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(verbatim: zone.title)
                         .font(.system(size: 9, weight: .bold))
@@ -31,9 +33,14 @@ struct StatusBus: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
                 .overlay(alignment: .trailing) {
-                    Rectangle()
-                        .fill(Theme.separator)
-                        .frame(width: 1)
+                    if StatusBusLayout.showsTrailingDivider(
+                        after: index,
+                        zoneCount: allZones.count
+                    ) {
+                        Rectangle()
+                            .fill(Theme.separator)
+                            .frame(width: 1)
+                    }
                 }
             }
         }
@@ -140,6 +147,12 @@ struct StatusBus: View {
         return model.snapshot?.channels.contains {
             $0.clientId == clientId && $0.streamId == streamId && $0.connected
         } == true ? .running : .failed
+    }
+}
+
+enum StatusBusLayout {
+    static func showsTrailingDivider(after index: Int, zoneCount: Int) -> Bool {
+        index >= 0 && index < zoneCount - 1
     }
 }
 
