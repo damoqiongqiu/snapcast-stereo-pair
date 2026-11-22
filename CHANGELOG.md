@@ -11,6 +11,9 @@
 - Make Snapcast volume sliders track continuously at pointer resolution while
   committing rounded percentages on release, and suppress periodic status and
   waveform updates during an active drag to keep interaction responsive.
+- Align the volume handle, track endpoints, and scale marks to one shared
+  geometry while preserving native slider accessibility semantics and keeping
+  keyboard focus styling out of pointer drags.
 - Show the native console in the Dock with a bundled app icon, while retaining
   its menu-bar controls.
 - Refresh the README and public documentation around the native console,

@@ -156,8 +156,11 @@ Side and master Snapcast sliders follow the pointer continuously for smooth
 dragging. The visible percentage and committed Snapcast value use whole-percent
 precision, and the final value is sent once after release. Periodic status
 polling and waveform animation pause during the drag, then resume after the
-committed value is acknowledged. VoiceOver and keyboard increment and decrement
-actions move one percentage point at a time.
+committed value is acknowledged. The handle center, track endpoints, and scale
+marks use one shared inset geometry, so the handle is centered on the active
+scale position at every volume. VoiceOver and keyboard increment and decrement
+actions move one percentage point at a time. Keyboard focus styling appears only
+for keyboard interaction and is suppressed during pointer drags.
 
 ## System Volume Observation
 

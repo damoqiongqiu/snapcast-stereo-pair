@@ -426,22 +426,37 @@ private struct VolumeSliderControl: View {
                 }
             }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityValue(formatValue(currentValue))
-        .accessibilityAdjustableAction { direction in
-            let delta: Int
-            switch direction {
-            case .increment:
-                delta = 1
-            case .decrement:
-                delta = -1
-            @unknown default:
-                return
+        .accessibilityRepresentation {
+            Slider(
+                value: Binding(
+                    get: {
+                        draft.displayValue(published: publishedValue)
+                    },
+                    set: { value in
+                        draft.update(value)
+                        beginInteraction()
+                        scheduleCommit(
+                            afterDebounce: true,
+                            target: Int(value.rounded())
+                        )
+                    }
+                ),
+                in: 0...100
+            )
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityValue(formatValue(currentValue))
+            .accessibilityAdjustableAction { direction in
+                let delta: Int
+                switch direction {
+                case .increment:
+                    delta = 1
+                case .decrement:
+                    delta = -1
+                @unknown default:
+                    return
+                }
+                adjust(by: delta)
             }
-            draft.update(Double(min(100, max(0, currentValue + delta))))
-            beginInteraction()
-            scheduleCommit(afterDebounce: true)
         }
         .onDisappear {
             revision += 1
@@ -468,35 +483,30 @@ private struct VolumeSliderControl: View {
 
     private var slider: some View {
         VStack(spacing: 1) {
-            Slider(
-                value: Binding(
-                    get: {
-                        draft.displayValue(published: publishedValue)
-                    },
-                    set: { value in
-                        draft.update(value)
-                        if !draft.isDragging {
-                            beginInteraction()
-                            scheduleCommit(afterDebounce: true)
-                        }
-                    }
-                ),
-                in: 0...100,
-                onEditingChanged: { editing in
-                    if editing {
-                        revision += 1
-                        commitTask?.cancel()
-                        beginInteraction()
-                        draft.beginDragging(
-                            published: draft.displayValue(published: publishedValue)
-                        )
-                    } else {
-                        scheduleCommit(afterDebounce: false)
-                    }
+            VolumeSliderSurface(
+                value: draft.displayValue(published: publishedValue),
+                onEditingStarted: {
+                    revision += 1
+                    commitTask?.cancel()
+                    beginInteraction()
+                    draft.beginDragging(
+                        published: draft.displayValue(published: publishedValue)
+                    )
+                },
+                onValueChanged: { value in
+                    draft.update(value)
+                },
+                onEditingEnded: { value in
+                    draft.update(value)
+                    scheduleCommit(
+                        afterDebounce: false,
+                        target: Int(value.rounded())
+                    )
+                },
+                onAdjust: { delta in
+                    adjust(by: delta)
                 }
             )
-            .controlSize(.large)
-            .tint(Theme.blue)
             .padding(.vertical, 3)
 
             VolumeScaleView()
@@ -504,7 +514,14 @@ private struct VolumeSliderControl: View {
         }
     }
 
-    private func scheduleCommit(afterDebounce: Bool) {
+    private func adjust(by delta: Int) {
+        let target = min(100, max(0, currentValue + delta))
+        draft.update(Double(target))
+        beginInteraction()
+        scheduleCommit(afterDebounce: true, target: target)
+    }
+
+    private func scheduleCommit(afterDebounce: Bool, target explicitTarget: Int? = nil) {
         commitTask?.cancel()
         revision += 1
         let scheduledRevision = revision
@@ -513,7 +530,8 @@ private struct VolumeSliderControl: View {
                 try? await Task.sleep(for: .milliseconds(180))
                 guard !Task.isCancelled else { return }
             }
-            guard let target = draft.finishDragging() else { return }
+            let draftTarget = draft.finishDragging()
+            guard let target = explicitTarget ?? draftTarget else { return }
             await commit(target)
             guard revision == scheduledRevision else { return }
             draft.completeCommit()
@@ -534,13 +552,129 @@ private struct VolumeSliderControl: View {
     }
 }
 
-private struct VolumeScaleView: View {
-    private let trackInset: CGFloat = 0
+private struct VolumeSliderSurface: View {
+    let value: Double
+    let onEditingStarted: () -> Void
+    let onValueChanged: (Double) -> Void
+    let onEditingEnded: (Double) -> Void
+    let onAdjust: (Int) -> Void
+
+    @State private var isDragging = false
+    @State private var showsKeyboardFocus = false
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         GeometryReader { geometry in
-            let trackWidth = max(geometry.size.width - trackInset * 2, 1)
+            VolumeSliderVisual(value: value)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                        .onChanged { gesture in
+                            if !isDragging {
+                                isDragging = true
+                                isFocused = true
+                                showsKeyboardFocus = false
+                                onEditingStarted()
+                            }
+                            onValueChanged(VolumeSliderGeometry.value(
+                                at: gesture.location.x,
+                                in: geometry.size.width
+                            ))
+                        }
+                        .onEnded { gesture in
+                            let finalValue = VolumeSliderGeometry.value(
+                                at: gesture.location.x,
+                                in: geometry.size.width
+                            )
+                            isDragging = false
+                            onEditingEnded(finalValue)
+                        }
+                )
+        }
+        .frame(height: VolumeSliderGeometry.controlHeight)
+        .focusable()
+        .focusEffectDisabled()
+        .focused($isFocused)
+        .onKeyPress(.leftArrow) {
+            showsKeyboardFocus = true
+            onAdjust(-1)
+            return .handled
+        }
+        .onKeyPress(.downArrow) {
+            showsKeyboardFocus = true
+            onAdjust(-1)
+            return .handled
+        }
+        .onKeyPress(.rightArrow) {
+            showsKeyboardFocus = true
+            onAdjust(1)
+            return .handled
+        }
+        .onKeyPress(.upArrow) {
+            showsKeyboardFocus = true
+            onAdjust(1)
+            return .handled
+        }
+        .onChange(of: isFocused) { _, focused in
+            if !focused {
+                showsKeyboardFocus = false
+            }
+        }
+        .overlay {
+            if isFocused && showsKeyboardFocus {
+                RoundedRectangle(cornerRadius: 5)
+                    .stroke(Theme.blue.opacity(0.8), lineWidth: 1)
+            }
+        }
+    }
+}
 
+private struct VolumeSliderVisual: View {
+    let value: Double
+
+    var body: some View {
+        Canvas { context, size in
+            let bounds = VolumeSliderGeometry.trackBounds(in: size.width)
+            let centerY = size.height / 2
+            let knobX = VolumeSliderGeometry.x(for: value, in: size.width)
+            let stroke = StrokeStyle(
+                lineWidth: VolumeSliderGeometry.trackHeight,
+                lineCap: .round
+            )
+
+            var track = Path()
+            track.move(to: CGPoint(x: bounds.lowerBound, y: centerY))
+            track.addLine(to: CGPoint(x: bounds.upperBound, y: centerY))
+            context.stroke(
+                track,
+                with: .color(Theme.muted.opacity(0.34)),
+                style: stroke
+            )
+
+            if knobX > bounds.lowerBound {
+                var fill = Path()
+                fill.move(to: CGPoint(x: bounds.lowerBound, y: centerY))
+                fill.addLine(to: CGPoint(x: knobX, y: centerY))
+                context.stroke(fill, with: .color(Theme.blue), style: stroke)
+            }
+
+            let knobRect = CGRect(
+                x: knobX - VolumeSliderGeometry.knobDiameter / 2,
+                y: centerY - VolumeSliderGeometry.knobDiameter / 2,
+                width: VolumeSliderGeometry.knobDiameter,
+                height: VolumeSliderGeometry.knobDiameter
+            )
+            context.fill(
+                Path(ellipseIn: knobRect),
+                with: .color(Theme.muted.opacity(0.82))
+            )
+        }
+    }
+}
+
+private struct VolumeScaleView: View {
+    var body: some View {
+        GeometryReader { geometry in
             ZStack(alignment: .topLeading) {
                 ForEach(VolumeScale.tickValues, id: \.self) { value in
                     let isMajor = VolumeScale.labeledValues.contains(value)
@@ -555,13 +689,19 @@ private struct VolumeScaleView: View {
                             height: isMajor ? 8 : 4
                         )
                         .position(
-                            x: trackInset + trackWidth * VolumeScale.fraction(for: value),
+                            x: VolumeSliderGeometry.x(
+                                for: Double(value),
+                                in: geometry.size.width
+                            ),
                             y: 4
                         )
                 }
 
                 ForEach(VolumeScale.labeledValues, id: \.self) { value in
-                    let proposedX = trackInset + trackWidth * VolumeScale.fraction(for: value)
+                    let proposedX = VolumeSliderGeometry.x(
+                        for: Double(value),
+                        in: geometry.size.width
+                    )
                     Text(verbatim: "\(value)")
                         .font(.system(size: 10, weight: .medium, design: .monospaced))
                         .foregroundStyle(Theme.muted)
