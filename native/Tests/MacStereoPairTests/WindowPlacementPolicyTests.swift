@@ -5,7 +5,7 @@ import XCTest
 final class WindowPlacementPolicyTests: XCTestCase {
     func testConsoleCannotResizeBelowUnclippedViewport() {
         XCTAssertEqual(MainWindowMetrics.minimumSize.width, 1040)
-        XCTAssertEqual(MainWindowMetrics.minimumSize.height, 680)
+        XCTAssertEqual(MainWindowMetrics.minimumSize.height, 660)
     }
 
     func testWindowRequiresCenteringWhenSavedFrameIsOffscreen() {

@@ -11,7 +11,7 @@ struct ConsoleView: View {
         consoleContent
             .frame(maxWidth: MainWindowMetrics.contentMaxWidth)
             .padding(.horizontal, 24)
-            .padding(.vertical, 20)
+            .padding(.vertical, 24)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Theme.background)
         .foregroundStyle(Theme.text)

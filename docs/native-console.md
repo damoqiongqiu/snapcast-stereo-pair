@@ -65,7 +65,7 @@ The main window provides:
   allowlisted service restarts.
 
 The main console does not use a scrolling viewport. Its minimum and default
-content size is 1040 × 680, so every waveform, volume, master, and status card
+content size is 1040 × 660, so every waveform, volume, master, and status card
 remains visible; the maximum size is 1240 × 860. Content is capped at 1120
 points and centered inside larger windows, so cards do not stretch without
 limit. Saved window positions that fall outside the available displays are
