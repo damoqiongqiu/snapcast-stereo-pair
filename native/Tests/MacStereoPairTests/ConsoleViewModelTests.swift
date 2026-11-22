@@ -114,6 +114,35 @@ final class ConsoleViewModelTests: XCTestCase {
         XCTAssertEqual(model.left?.volume, 30)
     }
 
+    func testPollingSkipsSnapshotsWhileVolumeInteractionIsActive() async {
+        let transport = SnapshotCountingTransport()
+        let model = ConsoleViewModel(transport: transport)
+
+        model.beginVolumeInteraction()
+        await model.refreshIfIdleForPolling()
+        let requestsWhileDragging = await transport.snapshotRequests()
+        XCTAssertEqual(requestsWhileDragging, 0)
+
+        model.endVolumeInteraction()
+        await model.refreshIfIdleForPolling()
+        let requestsAfterDrag = await transport.snapshotRequests()
+        XCTAssertEqual(requestsAfterDrag, 1)
+    }
+
+    func testVolumeInteractionStateSupportsNestedControls() {
+        let model = ConsoleViewModel(transport: SnapshotCountingTransport())
+
+        model.beginVolumeInteraction()
+        model.beginVolumeInteraction()
+        XCTAssertTrue(model.isVolumeInteractionActive)
+
+        model.endVolumeInteraction()
+        XCTAssertTrue(model.isVolumeInteractionActive)
+
+        model.endVolumeInteraction()
+        XCTAssertFalse(model.isVolumeInteractionActive)
+    }
+
     func testViewStateCoversHealthyTransitionDegradedAndSystemModes() {
         let healthy = ConsoleViewModel(transport: FixtureTransport())
         healthy.apply(snapshot: .healthy)
@@ -323,6 +352,24 @@ private actor OutOfOrderSnapshotTransport: ControlTransport {
         var snapshot = RuntimeSnapshot.healthy
         snapshot.channels[0].volume = volume
         continuations[index].resume(returning: .snapshot(snapshot))
+    }
+}
+
+private actor SnapshotCountingTransport: ControlTransport {
+    private var snapshots = 0
+
+    func request(_ request: ControlRequest) async throws -> ControlEvent {
+        switch request {
+        case .snapshot:
+            snapshots += 1
+            return .snapshot(.healthy)
+        default:
+            return .success(requestId: request.requestId)
+        }
+    }
+
+    func snapshotRequests() -> Int {
+        snapshots
     }
 }
 

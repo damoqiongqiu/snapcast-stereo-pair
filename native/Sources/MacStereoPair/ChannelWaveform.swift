@@ -3,11 +3,15 @@ import SwiftUI
 
 struct ChannelWaveform: View {
     let channel: ChannelStatus?
+    let isAnimationPaused: Bool
     @State private var history = WaveformHistory(capacity: 72, prefill: true)
     @EnvironmentObject private var language: AppLanguage
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 0.05)) { timeline in
+        TimelineView(.animation(
+            minimumInterval: 0.05,
+            paused: isAnimationPaused
+        )) { timeline in
             Canvas { context, size in
                 drawWaveform(
                     context: &context,

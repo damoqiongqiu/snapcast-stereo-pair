@@ -8,6 +8,9 @@
 - Add a responsive, bounded console window, single-instance protection, direct
   volume-slider feedback with 5% reference ticks, and separate read-only
   physical system-volume indicators for both Macs.
+- Make Snapcast volume sliders track continuously at pointer resolution while
+  committing rounded percentages on release, and suppress periodic status and
+  waveform updates during an active drag to keep interaction responsive.
 - Show the native console in the Dock with a bundled app icon, while retaining
   its menu-bar controls.
 - Refresh the README and public documentation around the native console,

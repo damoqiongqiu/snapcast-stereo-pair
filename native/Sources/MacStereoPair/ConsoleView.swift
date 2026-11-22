@@ -209,14 +209,9 @@ private struct ChannelStrip: View {
     let hardwareVolume: HardwareVolumeStatus?
     @ObservedObject var model: ConsoleViewModel
     @EnvironmentObject private var language: AppLanguage
-    @State private var displayedVolume: Double?
 
     private var publishedVolume: Double {
         Double(channel?.volume ?? 0)
-    }
-
-    private var effectiveVolume: Double {
-        displayedVolume ?? publishedVolume
     }
 
     var body: some View {
@@ -236,33 +231,30 @@ private struct ChannelStrip: View {
                 Spacer()
                 Text(verbatim: channel?.streamId ?? "—").font(.caption).foregroundStyle(Theme.muted)
             }
-            ChannelWaveform(channel: channel)
+            ChannelWaveform(
+                channel: channel,
+                isAnimationPaused: model.isVolumeInteractionActive
+            )
                 .padding(.horizontal, 2)
             HardwareVolumeIndicator(
                 title: title,
                 status: hardwareVolume
             )
-            HStack {
-                Text(verbatim: language.text("volume.snapcast").uppercased())
-                    .font(.caption2.bold())
-                    .foregroundStyle(Theme.muted)
-                Spacer()
-                Text(verbatim: language.format(
-                    "channel.volumeFormat",
-                    Int(effectiveVolume.rounded())
-                ))
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(Theme.text)
-            }
-            .accessibilityElement(children: .combine)
             VolumeSliderControl(
                 publishedValue: publishedVolume,
-                displayedValue: $displayedVolume,
+                label: language.text("volume.snapcast"),
+                layout: .inline,
+                formatValue: { value in
+                    language.format("channel.volumeFormat", value)
+                },
                 accessibilityLabel: language.format("accessibility.volumeFormat", title),
-                accessibilityValue: language.format(
-                    "channel.volumeFormat",
-                    Int(effectiveVolume.rounded())
-                ),
+                interactionChanged: { editing in
+                    if editing {
+                        model.beginVolumeInteraction()
+                    } else {
+                        model.endVolumeInteraction()
+                    }
+                },
                 commit: { percent in
                     guard let channel else { return }
                     await model.setVolume(channel, percent: percent)
@@ -393,18 +385,88 @@ private struct HardwareVolumeLegend: View {
     }
 }
 
+private enum VolumeSliderLayout {
+    case inline
+    case prominent
+}
+
 private struct VolumeSliderControl: View {
     let publishedValue: Double
-    @Binding var displayedValue: Double?
+    let label: String
+    let layout: VolumeSliderLayout
+    let formatValue: @MainActor (Int) -> String
     let accessibilityLabel: String
-    let accessibilityValue: String
+    let interactionChanged: @MainActor (Bool) -> Void
     let commit: @MainActor (Int) async -> Void
 
     @State private var draft = VolumeSliderDraft()
     @State private var commitTask: Task<Void, Never>?
     @State private var revision = 0
+    @State private var interactionActive = false
 
     var body: some View {
+        Group {
+            switch layout {
+            case .inline:
+                VStack(spacing: 1) {
+                    valueHeader
+                    slider
+                }
+            case .prominent:
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(verbatim: label.uppercased())
+                            .font(.caption2.bold())
+                            .foregroundStyle(Theme.muted)
+                        Text(verbatim: formatValue(currentValue))
+                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                    }
+                    slider
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityValue(formatValue(currentValue))
+        .accessibilityAdjustableAction { direction in
+            let delta: Int
+            switch direction {
+            case .increment:
+                delta = 1
+            case .decrement:
+                delta = -1
+            @unknown default:
+                return
+            }
+            draft.update(Double(min(100, max(0, currentValue + delta))))
+            beginInteraction()
+            scheduleCommit(afterDebounce: true)
+        }
+        .onDisappear {
+            revision += 1
+            commitTask?.cancel()
+            endInteraction()
+        }
+    }
+
+    private var currentValue: Int {
+        Int(draft.displayValue(published: publishedValue).rounded())
+    }
+
+    private var valueHeader: some View {
+        HStack {
+            Text(verbatim: label.uppercased())
+                .font(.caption2.bold())
+                .foregroundStyle(Theme.muted)
+            Spacer()
+            Text(verbatim: formatValue(currentValue))
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(Theme.text)
+        }
+    }
+
+    private var slider: some View {
         VStack(spacing: 1) {
             Slider(
                 value: Binding(
@@ -413,18 +475,18 @@ private struct VolumeSliderControl: View {
                     },
                     set: { value in
                         draft.update(value)
-                        displayedValue = draft.displayValue(published: publishedValue)
                         if !draft.isDragging {
+                            beginInteraction()
                             scheduleCommit(afterDebounce: true)
                         }
                     }
                 ),
                 in: 0...100,
-                step: 1,
                 onEditingChanged: { editing in
                     if editing {
                         revision += 1
                         commitTask?.cancel()
+                        beginInteraction()
                         draft.beginDragging(
                             published: draft.displayValue(published: publishedValue)
                         )
@@ -436,15 +498,9 @@ private struct VolumeSliderControl: View {
             .controlSize(.large)
             .tint(Theme.blue)
             .padding(.vertical, 3)
-            .accessibilityLabel(accessibilityLabel)
-            .accessibilityValue(accessibilityValue)
 
             VolumeScaleView()
                 .accessibilityHidden(true)
-        }
-        .onDisappear {
-            revision += 1
-            commitTask?.cancel()
         }
     }
 
@@ -461,8 +517,20 @@ private struct VolumeSliderControl: View {
             await commit(target)
             guard revision == scheduledRevision else { return }
             draft.completeCommit()
-            displayedValue = nil
+            endInteraction()
         }
+    }
+
+    private func beginInteraction() {
+        guard !interactionActive else { return }
+        interactionActive = true
+        interactionChanged(true)
+    }
+
+    private func endInteraction() {
+        guard interactionActive else { return }
+        interactionActive = false
+        interactionChanged(false)
     }
 }
 
@@ -512,35 +580,29 @@ private struct VolumeScaleView: View {
 private struct MasterControl: View {
     @ObservedObject var model: ConsoleViewModel
     @EnvironmentObject private var language: AppLanguage
-    @State private var displayedVolume: Double?
 
     private var publishedVolume: Double {
         Double(model.masterVolume)
     }
 
-    private var effectiveVolume: Double {
-        displayedVolume ?? publishedVolume
-    }
-
     var body: some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: language.text("volume.master").uppercased())
-                    .font(.caption2.bold()).foregroundStyle(Theme.muted)
-                Text(verbatim: "\(Int(effectiveVolume.rounded()))%")
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-            }
-            VolumeSliderControl(
-                publishedValue: publishedVolume,
-                displayedValue: $displayedVolume,
-                accessibilityLabel: language.text("accessibility.masterVolume"),
-                accessibilityValue: "\(Int(effectiveVolume.rounded()))%",
-                commit: { percent in
-                    await model.setMaster(percent)
+        VolumeSliderControl(
+            publishedValue: publishedVolume,
+            label: language.text("volume.master"),
+            layout: .prominent,
+            formatValue: { "\($0)%" },
+            accessibilityLabel: language.text("accessibility.masterVolume"),
+            interactionChanged: { editing in
+                if editing {
+                    model.beginVolumeInteraction()
+                } else {
+                    model.endVolumeInteraction()
                 }
-            )
-        }
+            },
+            commit: { percent in
+                await model.setMaster(percent)
+            }
+        )
         .padding(14)
         .background(Theme.raised)
         .clipShape(RoundedRectangle(cornerRadius: 12))

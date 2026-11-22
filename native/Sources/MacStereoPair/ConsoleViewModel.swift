@@ -8,10 +8,12 @@ final class ConsoleViewModel: ObservableObject {
     @Published var message: String?
     @Published private(set) var isRefreshingHardwareVolume = false
     @Published private(set) var connectionState: AgentConnectionState = .failed
+    @Published private(set) var isVolumeInteractionActive = false
 
     private let transport: any ControlTransport
     private var pollingTask: Task<Void, Never>?
     private var refreshGeneration = 0
+    private var volumeInteractionCount = 0
 
     init(transport: (any ControlTransport)? = nil) {
         self.transport = transport ?? UnixControlTransport(
@@ -46,10 +48,25 @@ final class ConsoleViewModel: ObservableObject {
         guard pollingTask == nil else { return }
         pollingTask = Task {
             while !Task.isCancelled {
-                await refresh()
+                await refreshIfIdleForPolling()
                 try? await Task.sleep(for: .milliseconds(100))
             }
         }
+    }
+
+    func beginVolumeInteraction() {
+        volumeInteractionCount += 1
+        isVolumeInteractionActive = true
+    }
+
+    func endVolumeInteraction() {
+        volumeInteractionCount = max(0, volumeInteractionCount - 1)
+        isVolumeInteractionActive = volumeInteractionCount > 0
+    }
+
+    func refreshIfIdleForPolling() async {
+        guard volumeInteractionCount == 0 else { return }
+        await refresh()
     }
 
     func refresh() async {

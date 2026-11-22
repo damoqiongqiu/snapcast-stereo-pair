@@ -150,6 +150,15 @@ Status LEDs always include text or accessibility labels. Reduce Motion stops LED
 pulses while preserving the semantic status. The main controls expose VoiceOver
 labels and keyboard actions.
 
+## Volume Controls
+
+Side and master Snapcast sliders follow the pointer continuously for smooth
+dragging. The visible percentage and committed Snapcast value use whole-percent
+precision, and the final value is sent once after release. Periodic status
+polling and waveform animation pause during the drag, then resume after the
+committed value is acknowledged. VoiceOver and keyboard increment and decrement
+actions move one percentage point at a time.
+
 ## System Volume Observation
 
 Snapcast volume and the macOS physical output volume are separate controls. The
