@@ -18,13 +18,13 @@ body:
     validations:
       required: true
   - type: dropdown
-    id: repository
+    id: area
     attributes:
-      label: Affected repository
+      label: Affected area
       options:
-        - snapcast-stereo-pair runtime
-        - snapweb-stereo-pair controller
-        - Both repositories
+        - Audio runtime
+        - Native macOS console
+        - Installation and packaging
         - Documentation only
     validations:
       required: true

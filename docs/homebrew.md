@@ -58,8 +58,8 @@ on both Apple Silicon and Intel:
 
 ## Signing and Gatekeeper
 
-The first release is ad-hoc signed and is not notarized. It does not require a
-paid Apple Developer ID and has no App Store component.
+Public source builds are ad-hoc signed and are not notarized. They do not require
+a paid Apple Developer ID and have no App Store component.
 
 If Gatekeeper blocks a downloaded build, verify that the source came from the
 project repository. The supported source-build path does not require disabling

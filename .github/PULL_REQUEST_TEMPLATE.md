@@ -2,11 +2,10 @@
 
 Describe the user-visible problem and the completed change.
 
-## Repository boundary
+## System boundary
 
-- [ ] The change belongs in the required audio runtime, not only the browser
-      controller.
-- [ ] Companion-repository behavior remains compatible or is documented.
+- [ ] The change is implemented in the subsystem that owns the behavior.
+- [ ] Runtime, control Agent, and native console compatibility was considered.
 
 ## Tests
 

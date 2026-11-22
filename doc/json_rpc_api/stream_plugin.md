@@ -236,8 +236,6 @@ The plugin shall send this notification when it's up and ready to receive comman
 
 # Server
 
-TODO: this belongs to doc/json_rpc_api/control.md
-
 ## Requests
 
 To control the stream state, the following commands can be sent to the Snapcast server and will be forwarded to the respective stream:

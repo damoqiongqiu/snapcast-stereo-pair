@@ -172,9 +172,9 @@ UIDs.
 
 ## Packaging
 
-The first release builds from source and is ad-hoc signed. It is not notarized,
-does not require paid Apple Developer membership, has no App Store dependency,
-and has no automatic updater. See [installation.md](installation.md) and
+Public releases build from source and are ad-hoc signed. They are not notarized,
+do not require paid Apple Developer membership, have no App Store dependency,
+and have no automatic updater. See [installation.md](installation.md) and
 [homebrew.md](homebrew.md) for distribution details.
 
 ## Reinstall and Upgrade

@@ -94,9 +94,9 @@ macOS and BlackHole versions when changing audio behavior.
 - Document that stream port `1704` requires a trusted LAN or VPN/firewall.
 - Never disable Gatekeeper, SIP, or another macOS security feature.
 - Do not modify a user's live services while running a read-only investigation.
-- Do not publish unsigned app bundles or binaries in the first release.
-- The first release uses ad-hoc signing and no paid Developer ID, App Store,
-  root helper, or automatic updater.
+- Do not publish unsigned app bundles or binaries.
+- Public releases use ad-hoc signing and no paid Developer ID, App Store, root
+  helper, or automatic updater.
 - Native control uses an owner-only Unix socket with peer UID validation and
   fixed commands; never accept executable paths or shell fragments.
 - Redact diagnostics by default and never upload them automatically.

@@ -13,6 +13,9 @@
 - Refresh the README and public documentation around the native console,
   including current English and Simplified Chinese screenshots, a clearer
   fork comparison, agent-oriented references, FAQ content, and `llms.txt`.
+- Remove obsolete upstream TODO, roadmap, and generic packaging workflow
+  material, and align issue and pull request templates with the native product
+  model.
 - Add an owner-only Unix-socket control Agent shared by the native app and
   `mac-stereo-pairctl`, with peer UID validation and launchd-independent audio.
 - Add explicit stereo-pair and Mac-system-audio modes, including best-effort
