@@ -1,7 +1,6 @@
 import Foundation
 
 enum LanguagePreference: String, CaseIterable, Sendable {
-    case system
     case english = "en"
     case simplifiedChinese = "zh-Hans"
 }
@@ -37,7 +36,6 @@ final class AppLanguage: ObservableObject {
 
     func label(for preference: LanguagePreference) -> String {
         let key: String = switch preference {
-        case .system: "language.system"
         case .english: "language.english"
         case .simplifiedChinese: "language.chinese"
         }
@@ -50,8 +48,6 @@ final class AppLanguage: ObservableObject {
             return "en"
         case .simplifiedChinese:
             return "zh-Hans"
-        case .system:
-            return Locale.preferredLanguages.first?.hasPrefix("zh") == true ? "zh-Hans" : "en"
         }
     }
 

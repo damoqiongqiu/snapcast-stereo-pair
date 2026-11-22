@@ -24,6 +24,24 @@ final class AppLanguageTests: XCTestCase {
         }
     }
 
+    func testOnlyEnglishAndSimplifiedChineseAreAvailable() {
+        XCTAssertEqual(
+            LanguagePreference.allCases,
+            [.english, .simplifiedChinese]
+        )
+    }
+
+    func testLegacySystemPreferenceFallsBackToEnglish() {
+        withDefaults { defaults in
+            defaults.set("system", forKey: "app.language")
+
+            let language = AppLanguage(defaults: defaults)
+
+            XCTAssertEqual(language.preference, .english)
+            XCTAssertEqual(language.locale.identifier, "en")
+        }
+    }
+
     func testUnknownSavedPreferenceFallsBackToEnglish() {
         withDefaults { defaults in
             defaults.set("unsupported", forKey: "app.language")

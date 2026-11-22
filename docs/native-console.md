@@ -146,8 +146,7 @@ The protocol never accepts an executable path or shell fragment.
 
 English and Simplified Chinese resources ship with the application. English is
 the default for new installations, while an existing saved language choice is
-preserved. The language menu also provides an explicit system-language option
-and an in-app override.
+preserved. The language menu exposes only English and Simplified Chinese.
 
 Status LEDs always include text or accessibility labels. Reduce Motion stops LED
 pulses while preserving the semantic status. The main controls expose VoiceOver

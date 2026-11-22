@@ -57,7 +57,6 @@
 "menu.useSystem" = "Use Mac system audio";
 "menu.quitGUI" = "Quit interface";
 "language.label" = "Language";
-"language.system" = "System language";
 "language.english" = "English";
 "language.chinese" = "简体中文";
 "accessibility.realtimeWaveform" = "Realtime audio waveform";
