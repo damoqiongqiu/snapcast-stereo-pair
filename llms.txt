@@ -1,0 +1,97 @@
+# MacBook Stereo Pair for macOS
+
+> Self-contained macOS runtime that synchronizes system audio across two Macs as a lossless left/right stereo pair using Snapcast, BlackHole, PortAudio, CoreAudio, SwiftUI, and launchd.
+
+## Project summary
+
+- Repository: https://github.com/damoqiongqiu/snapcast-stereo-pair
+- License: GPL-3.0-or-later
+- Upstream base: Snapcast v0.35.0
+- Platform: macOS 14 or newer
+- Supported architectures: Intel and Apple Silicon
+- Primary use case: two-MacBook synchronized stereo playback of macOS system audio
+- Control surface: native SwiftUI Dock and menu-bar console
+- Audio path: BlackHole 2ch -> PortAudio capture -> two mono FIFOs -> Snapserver -> Snapclients -> explicit CoreAudio output devices
+- Default stream format: 48 kHz / 24-bit / mono PCM
+- Default timing: 10 ms capture callbacks, 20 ms Snapcast chunks, 200 ms stream buffer
+- Audio quality: uncompressed, lossless PCM
+- Network boundary: stream TCP 1704 requires a trusted LAN or VPN; control APIs bind to localhost
+
+## Why this project exists
+
+Upstream Snapcast provides synchronized multiroom playback. This repository adds
+the macOS-specific integration needed for a practical two-Mac stereo pair:
+
+- BlackHole system-audio capture and shared-clock left/right splitting.
+- Role-based routing to physical left and right clients.
+- Explicit CoreAudio playback-device binding to avoid feedback.
+- Full-scale PCM with listening volume applied through AudioQueue.
+- Safe hardware-volume preservation and restoration.
+- Native console, setup wizard, diagnostics, and health monitoring.
+- Manifest-driven install, repair, upgrade, and force reinstall.
+- Sleep/wake recovery on both Macs.
+
+## Common tasks
+
+- Read project rules: [AGENTS.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/AGENTS.md)
+- Understand the audio design: [docs/architecture.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/architecture.md)
+- Install or repair the runtime: [docs/installation.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/installation.md)
+- Work on the native console: [docs/native-console.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/native-console.md)
+- Diagnose a running pair: [docs/troubleshooting.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/troubleshooting.md)
+- Review release checks: [AGENTS.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/AGENTS.md)
+
+## Canonical commands
+
+```sh
+./integration/scripts/configure-pair.sh
+./integration/scripts/install-product.sh
+./integration/scripts/install-remote.sh
+./integration/scripts/check-health.sh
+./integration/scripts/install-product.sh --dry-run
+./integration/scripts/install-product.sh --force-reinstall
+```
+
+```sh
+swift test --package-path native
+swift build --package-path native -c release
+./integration/scripts/build-macos.sh
+./scripts/check-public-tree.sh
+```
+
+## Source of truth
+
+- Pairing values must be read through `integration/scripts/pair-config.sh`.
+- User pairing data lives outside the repository in `~/.config/snapcast-stereo-pair/pair.env`.
+- Installed runtime state lives under `~/Library/Application Support/Snapcast/`.
+- Install decision state is `~/Library/Application Support/Snapcast/state/installation.json`.
+- Logs are under `~/Library/Logs/Snapcast/`.
+- The native control protocol and runtime models are in `native/Sources/StereoPairCore/`.
+- The native application is in `native/Sources/MacStereoPair/`.
+- The control Agent socket is owner-only at `~/Library/Application Support/Snapcast/run/control.sock`.
+
+## Agent constraints
+
+- Never execute a user-editable `pair.env` as shell source.
+- Never accept executable paths or shell fragments over the control socket.
+- Keep HTTP and TCP control bound to localhost.
+- Do not expose TCP stream port 1704 beyond a trusted LAN, VPN, or firewall.
+- Preserve one capture clock for both mono streams.
+- Keep left and right streams on the same rate, format, chunk size, and buffer.
+- Do not add lossy codecs or resampling without measured quality and latency evidence.
+- Do not attenuate integer PCM in software; use the AudioQueue listening-volume path.
+- Recreate capture and playback queues after wake.
+- Never dispose an AudioQueue from its own callback.
+- Preserve exact physical output volume when returning from pair mode to normal macOS audio.
+- Force reinstall replaces programs and services but preserves configuration and logs.
+- Clearing configuration is a separate destructive operation.
+- Redact diagnostics by default and never upload them automatically.
+- Do not disable Gatekeeper, SIP, or another macOS security feature.
+
+## Verification checklist
+
+- `LeftAudio` and `RightAudio` both report `48000:24:1`.
+- Both hardware volume stages report `100.00%` in pair mode.
+- Each stream is assigned to the intended physical side.
+- Native console health is green for services, routing, pairing, and recovery.
+- Swift tests and the relevant integration tests pass.
+- Public-tree and secret-redaction checks pass before publication.

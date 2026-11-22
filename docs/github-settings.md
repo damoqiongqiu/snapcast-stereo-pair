@@ -3,14 +3,15 @@
 Description:
 
 ```text
-Synchronize system audio across two MacBooks as a left/right stereo pair.
+Synchronize macOS system audio across two MacBooks as a lossless left/right stereo pair with Snapcast and a native SwiftUI console.
 ```
 
 Topics:
 
 ```text
-macos, snapcast, blackhole, portaudio, synchronized-audio, stereo,
-multiroom-audio
+macos, snapcast, blackhole, coreaudio, portaudio, synchronized-audio,
+stereo-pair, multiroom-audio, system-audio, audio-routing, audio-streaming,
+swiftui, launchd
 ```
 
 - Default branch: `main`

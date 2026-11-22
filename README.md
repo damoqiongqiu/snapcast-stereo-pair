@@ -1,14 +1,17 @@
 # MacBook Stereo Pair for macOS
 
-> Two MacBooks. One synchronized left/right stereo stage.
+> Turn two Macs into a synchronized, lossless left/right stereo pair for macOS
+> system audio.
 
 [![CI](https://github.com/damoqiongqiu/snapcast-stereo-pair/actions/workflows/ci.yml/badge.svg)](https://github.com/damoqiongqiu/snapcast-stereo-pair/actions/workflows/ci.yml)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
 
-MacBook Stereo Pair turns two MacBooks into a synchronized left/right listening
-stage. The source Mac captures its system audio once, splits it into two mono
-streams, and sends each stream to the MacBook on the corresponding side of the
-desk. Playback on both Macs follows one Snapcast clock.
+MacBook Stereo Pair is a self-contained macOS audio runtime built on Snapcast.
+It captures system audio once through BlackHole, splits it into synchronized
+left and right mono streams, and plays each side on the corresponding Mac. A
+native SwiftUI console, owner-only control Agent, installation lifecycle, and
+automatic device recovery replace the manual setup normally required for a
+multiroom audio stack.
 
 ![English native console](docs/images/native-console-en.png)
 
@@ -19,36 +22,99 @@ desk. Playback on both Macs follows one Snapcast clock.
 
 </details>
 
-## What It Does
+## At a Glance
 
-- Captures macOS system audio through BlackHole and PortAudio.
-- Publishes lossless `LeftAudio` and `RightAudio` PCM streams.
-- Runs Snapserver and the local Snapclient as per-user launchd services.
-- Binds the local client explicitly to the built-in speaker while system audio
-  continues to flow through BlackHole.
-- Applies listening volume in CoreAudio after decoding, leaving the received
-  PCM chunks at full scale.
-- Saves the exact non-BlackHole output device and volume on both Macs before
-  entering pair mode, then restores them before handing audio back to macOS.
-- Ships a native SwiftUI Dock and menu-bar console with a dual-channel layout,
-  live meters, health LEDs, mode switching, first-run setup, bilingual
-  resources, redacted diagnostics, bounded window sizing, and single-instance
-  protection.
-- Shows each Mac's physical output volume separately from Snapcast volume, with
-  normal, low, unread, and stale states plus a manual refresh action. Snapcast
-  sliders include 5% reference scales and integer control.
-- Installs and configures a remote Snapclient over SSH without storing a
-  password.
-- Uses stable role names and stream-based routing, so client IDs and left/right
-  placement are configurable.
+| Property | Project behavior |
+| --- | --- |
+| Primary use case | Two-MacBook left/right stereo for macOS system audio |
+| Platform | macOS 14 or newer; Intel and Apple Silicon builds supported |
+| Audio transport | Snapcast with uncompressed 48 kHz / 24-bit mono PCM streams |
+| Timing | One capture clock, 20 ms Snapcast chunks, 200 ms default stream buffer |
+| Audio capture | BlackHole 2ch through PortAudio |
+| Playback | Patched Snapclient with explicit CoreAudio device selection |
+| Control surface | Native SwiftUI Dock and menu-bar application |
+| Network boundary | Stream TCP `1704`; control APIs bound to localhost |
+| Recovery | Sleep/wake relaunch, hardware-volume recovery, health monitoring |
+| Release model | Ad-hoc signed source builds and Homebrew packaging |
+| License | GPL-3.0-or-later |
+| Upstream base | Snapcast `v0.35.0` |
 
-The validated reference setup uses 48 kHz / 24-bit mono PCM, 20 ms chunks, and a
-200 ms buffer for each stream.
+## Why This Fork
 
-## Architecture
+Upstream Snapcast provides the synchronization engine. This project packages
+the macOS-specific work needed to run a practical two-Mac stereo pair.
+
+| Requirement | Raw Snapcast setup | MacBook Stereo Pair |
+| --- | --- | --- |
+| macOS system-audio capture | Assemble separately | BlackHole capture and left/right FIFO split built in |
+| Stereo placement | Configure generic clients | Stable role-based `LeftAudio` and `RightAudio` routing |
+| Local playback device | Choose manually | Explicit CoreAudio output binding with feedback-safe routing |
+| Volume safety | Manage external scripts | Preserve and restore hardware output and exact volume |
+| Sleep/wake recovery | Build separately | Local and remote wake-recovery LaunchAgents included |
+| Control interface | Use an external client | Native SwiftUI console with live meters and diagnostics |
+| Install and upgrade | Reproducible manual steps | Manifest-driven installer, repair, upgrade, and force reinstall |
+
+## Quick Start
+
+### Prerequisites
+
+- Two Macs running macOS 14 or newer on the same trusted LAN or VPN.
+- SSH key access from the source Mac to the remote Mac.
+- Homebrew and Xcode Command Line Tools on the source Mac.
+- BlackHole 2ch on the source Mac.
+
+```sh
+brew install --cask blackhole-2ch
+brew install switchaudio-osx portaudio cmake ninja pkgconf boost openssl@4 \
+  flac libogg libsoxr libvorbis opus
+```
+
+### Install the Pair
+
+```sh
+git clone https://github.com/damoqiongqiu/snapcast-stereo-pair.git
+cd snapcast-stereo-pair
+
+./integration/scripts/configure-pair.sh
+./integration/scripts/install-product.sh
+./integration/scripts/install-remote.sh
+
+open "$HOME/Applications/MacBook Stereo Pair.app"
+./integration/scripts/check-health.sh
+```
+
+The setup wizard can also perform local installation, remote setup, and final
+verification from the app. Password-requiring steps remain in Terminal; the app
+does not read or store local administrator or remote SSH passwords.
+
+For detailed prerequisites and manual configuration, see
+[docs/installation.md](docs/installation.md).
+
+## Native macOS Console
+
+The console is the supported graphical control surface for this repository. It
+is a normal Dock application with a menu-bar entry and remains independent from
+the audio engine: closing the window or quitting the GUI does not stop playback.
+
+Key capabilities:
+
+- Dual-channel live waveforms, peak/RMS meters, and clip indication.
+- Per-side and master Snapcast volume with integer steps and 5% visual scales.
+- Separate physical system-volume indicators for both Macs.
+- Mute, latency, stream format, route, and connection state controls.
+- Service, routing, pairing, and wake-recovery health.
+- Stereo-pair and normal macOS-audio mode switching.
+- Redacted diagnostics, allowlisted service restarts, and installation repair.
+- English and Simplified Chinese resources; new installs default to English.
+- Single-instance protection, bounded window sizing, and accessible status text.
+
+See [docs/native-console.md](docs/native-console.md) for the complete control
+model, recovery behavior, accessibility, and privacy design.
+
+## How the Stereo Pair Works
 
 ```text
-macOS system audio
+macOS applications
         |
         v
 BlackHole 2ch
@@ -62,202 +128,59 @@ snapcast-capture-blackhole
         +---- right.pcm FIFO ---> RightAudio ---> right-side Mac
 ```
 
-One PortAudio process reads BlackHole and writes both mono FIFOs from the same
-capture callback. Snapserver timestamps both streams with one server clock.
-Each Snapclient expands its mono stream to the two channels of its local output
-device. See [docs/architecture.md](docs/architecture.md) for the timing,
-clocking, FIFO, and recovery details.
+One capture process writes both mono FIFOs from the same callback, preserving a
+shared source clock and block boundary. Snapserver timestamps both streams using
+one clock. Each Snapclient expands its mono stream to the two channels of its
+explicit CoreAudio output device.
 
-The native app and CLI connect to a per-user `StereoPairAgent` over an
-owner-only Unix socket. Closing the GUI does not stop the independent launchd
-audio engine. See [docs/native-console.md](docs/native-console.md).
+Listening volume is applied after decoding through
+`AudioQueueSetParameter`. The integer PCM network buffer remains at full scale.
+BlackHole and the physical speaker stages are normalized independently.
 
-## Requirements
+See [docs/architecture.md](docs/architecture.md) for timing, routing, recovery,
+network, and CoreAudio details.
 
-- Two Macs running macOS 14 or newer.
-- Both Macs on the same trusted LAN, or connected through a trusted VPN.
-- The same CPU architecture on both Macs when using the included remote
-  installer to copy the locally built Snapclient binary.
-- Homebrew, Xcode Command Line Tools, and the build dependencies listed below.
-- [BlackHole 2ch](https://github.com/ExistentialAudio/BlackHole) on the source
-  Mac.
-- `SwitchAudioSource`, PortAudio, and the Snapcast build dependencies on the
-  source Mac.
-- SSH key authentication from the source Mac to the remote Mac for unattended
-  remote installation.
+## Installation and Operations
 
-The primary validated environment is a pair of MacBook Pro `Mac16,1` systems
-with Apple M4 (arm64), 24 GB and 16 GB memory, running macOS 27.2.1 (26B131).
-The source Mac uses BlackHole 2ch 0.7.1 and PortAudio from Homebrew. Hardware
-validation covers cold start, native-mode switching, sleep/wake recovery with
-both systems, and independent `vmvc`/`volm` volume restoration.
+The product installer is idempotent and manifest-driven:
 
-## Install BlackHole
+- Verified same-version installs are no-ops.
+- Missing or changed files are repaired.
+- Newer versions are installed as upgrades.
+- Accidental downgrades fail unless force reinstall is explicit.
+- Force reinstall preserves configuration, remote control state, logs, and
+  preferences.
+- Configuration clearing remains a separate destructive operation.
 
-On the Mac that will capture audio:
+Common commands:
 
 ```sh
-brew install --cask blackhole-2ch
-brew install switchaudio-osx portaudio cmake ninja pkgconf boost openssl@4 \
-  flac libogg libsoxr libvorbis opus
+# Reconcile the installation without changing files or services.
+./integration/scripts/install-product.sh --dry-run
+
+# Rebuild and replace all programs and services while preserving state.
+./integration/scripts/install-product.sh --force-reinstall
+
+# Inspect the agent snapshot.
+"$HOME/Library/Application Support/Snapcast/bin/mac-stereo-pairctl" status
+
+# Read redacted diagnostics.
+"$HOME/Library/Application Support/Snapcast/bin/mac-stereo-pairctl" diagnostics
+
+# Return both Macs to their saved normal audio configuration.
+"$HOME/Library/Application Support/Snapcast/set-mode.sh" native
 ```
 
-The capture path expects the output device named `BlackHole 2ch`. Restart audio
-applications after installing BlackHole so they can see the virtual device.
-
-## Configure the Pair
-
-Clone the runtime repository:
-
-```sh
-git clone https://github.com/damoqiongqiu/snapcast-stereo-pair.git
-```
-
-On the source Mac, run the configurator from the runtime repository:
-
-```sh
-./integration/scripts/configure-pair.sh
-```
-
-It creates:
-
-```text
-~/.config/snapcast-stereo-pair/pair.env
-```
-
-The file is ignored by Git and stores the SSH target, source address, physical
-left/right placement, device identifiers, and stable client role names. Blank
-`SOURCE_HOST` values are resolved from the active primary IPv4 interface.
-Environment variables override values read from the file.
-
-Use `--force` to replace an existing configuration. Use `--print` to render the
-resolved values without writing them. Never publish `pair.env`; it can contain
-private network information.
-
-## Install the Runtime
-
-On the source Mac, run the product installer:
-
-```sh
-./integration/scripts/install-product.sh
-```
-
-This builds and installs the audio runtime, native application, control Agent,
-CLI, LaunchAgents, scripts, and setup helper. Re-running it is safe: matching
-files are left untouched, missing or modified files are repaired, and a newer
-version is treated as an upgrade.
-
-The installer records its state at:
+Installation state is stored at:
 
 ```text
 ~/Library/Application Support/Snapcast/state/installation.json
 ```
 
-The manifest stores the product version, control protocol version, configuration
-schema, installation source, and file digest.
-
-The app is installed at:
+Pairing configuration is stored outside the repository at:
 
 ```text
-~/Applications/MacBook Stereo Pair.app
-```
-
-Launch it to use the first-run wizard. The wizard checks dependencies, hands
-password-requiring work to Terminal, configures SSH key authentication, and
-verifies both channel routes before opening the console. The app never reads or
-stores an SSH password.
-
-If automatic detection is wrong, or a clean rebuild is required, use **Advanced
-Diagnostics → Installation maintenance → Force reinstall current version**, or:
-
-```sh
-./integration/scripts/install-product.sh --force-reinstall
-```
-
-Force reinstall replaces all program and service files. It preserves
-`pair.env`, remote control configuration, logs, and user preferences. Clearing
-configuration is a separate destructive operation.
-
-Install the remote client from the same source Mac:
-
-```sh
-./integration/scripts/install-remote.sh
-```
-
-The remote install copies the patched Snapclient, wake listener, and both
-LaunchAgents. The remote Mac does not need BlackHole or the Snapserver. It must
-already accept your SSH key.
-
-Check the pair:
-
-```sh
-./integration/scripts/check-health.sh
-```
-
-See [docs/installation.md](docs/installation.md) for prerequisites, device
-identifiers, manual configuration, and health validation.
-
-## Audio and Network Model
-
-- Capture device: BlackHole 2ch.
-- Hardware level: BlackHole and both built-in speakers are kept at 100%.
-- Internal capture format: 48 kHz, 32-bit float.
-- Stream format: 48 kHz / 24-bit / mono PCM for each side.
-- Capture callback: 10 ms.
-- Snapcast chunk: 20 ms.
-- Stream buffer: 200 ms.
-- Codec: uncompressed PCM.
-- Stream listening port: TCP `1704`.
-- Snapserver HTTP and TCP control APIs: localhost only.
-- Approximate PCM payload: 192,000 bytes/s or 1.54 Mbit/s per mono stream.
-- Listening volume: CoreAudio AudioQueue parameter, after PCM decoding and
-  channel expansion; the integer stream buffer is not attenuated.
-
-The 200 ms buffer was the lowest stable setting on the validated Wi-Fi setup.
-150 ms produced occasional underruns, and 100 ms produced immediate
-discontinuities in that environment.
-
-Hardware volume is normalized before the services start and after wake. In pair
-mode, changing the macOS output-volume slider while BlackHole is selected only
-changes the capture level; it does not represent the built-in speaker volume.
-Use the native console's total or per-device volume for normal listening.
-
-## Operations
-
-The runtime uses these per-user LaunchAgent labels:
-
-```text
-com.snapcast.route
-com.snapcast.server
-com.snapcast.splitter
-com.snapcast.local-client
-com.snapcast.pairing
-com.snapcast.remote-client
-com.snapcast.wake-recovery
-com.snapcast.remote-wake-recovery
-com.snapcast.control-agent
-```
-
-The control Agent runs on the source Mac independently from the GUI.
-`com.snapcast.remote-client` and `com.snapcast.remote-wake-recovery` are
-installed only on the remote Mac. Switch between the stereo pair and normal
-local audio in the app, menu bar, or:
-
-```sh
-~/Library/Application\ Support/Snapcast/set-mode.sh snapcast
-~/Library/Application\ Support/Snapcast/set-mode.sh native
-```
-
-`native` stops and disables the local Snapcast services and restores the
-configured built-in output. `snapcast` re-enables them and restores BlackHole as
-the system output. The generated `set-mode.sh` contains the resolved device UIDs
-from your configuration.
-
-The CLI exposes the same Agent state:
-
-```sh
-~/Library/Application\ Support/Snapcast/bin/mac-stereo-pairctl status --json
-~/Library/Application\ Support/Snapcast/bin/mac-stereo-pairctl diagnostics
+~/.config/snapcast-stereo-pair/pair.env
 ```
 
 Logs are written under:
@@ -266,80 +189,26 @@ Logs are written under:
 ~/Library/Logs/Snapcast/
 ```
 
-Inspect a local service with:
+## Agent Quick Reference
 
-```sh
-launchctl print gui/$(id -u)/com.snapcast.server
-```
+AI coding agents should read [AGENTS.md](AGENTS.md) before modifying the
+repository.
 
-## Troubleshooting
+### Source of Truth
 
-- Run `./integration/scripts/check-health.sh` first.
-- Confirm the native console shows both `LeftAudio` and `RightAudio`.
-- Confirm only the intended client is connected to each stream.
-- Check that BlackHole is the source Mac's selected output in snapcast mode.
-- Check FIFO permissions and recent launchd logs if either stream is missing.
-- If one side is reversed, change `LEFT_IS_REMOTE` and reinstall the routing
-  configuration.
-- If audio drops out, inspect the 200 ms buffer and recent underrun warnings.
-- If audio breaks after sleep, verify both wake-recovery LaunchAgents are
-  running.
-- If one side is quieter, run the health check and confirm both hardware levels
-  are 100% before changing Snapcast volume.
-- Use Advanced Diagnostics in the native app for service state, versions,
-  redacted export, and logs.
+| Task | Read or use |
+| --- | --- |
+| Pairing values | [integration/scripts/pair-config.sh](integration/scripts/pair-config.sh) |
+| Audio routing | [integration/scripts/ensure-pair-routing.sh](integration/scripts/ensure-pair-routing.sh) |
+| Native control model | [native/Sources/StereoPairCore](native/Sources/StereoPairCore) |
+| Native UI | [native/Sources/MacStereoPair](native/Sources/MacStereoPair) |
+| Installation lifecycle | [integration/scripts/install-lifecycle.sh](integration/scripts/install-lifecycle.sh) |
+| Architecture | [docs/architecture.md](docs/architecture.md) |
+| Troubleshooting | [docs/troubleshooting.md](docs/troubleshooting.md) |
 
-See [docs/troubleshooting.md](docs/troubleshooting.md) for recovery commands.
+### Required Verification
 
-## Security
-
-TCP stream port `1704` has no built-in authentication. Run this project only on
-a trusted LAN or behind a trusted VPN/firewall. Do not expose port `1704`
-directly to the internet.
-
-Snapserver HTTP on `127.0.0.1:1780` and TCP control on `127.0.0.1:1705` are
-localhost-only. The installers never store an SSH password. Keep `pair.env`,
-logs, credentials, and private network addresses out of issues and commits.
-
-The native control socket is local-only and mode `0600`. The Agent validates
-the peer UID, accepts only fixed protocol commands, and allowlists service
-maintenance IDs. Diagnostics are redacted by default and are never uploaded.
-
-This project does not disable Gatekeeper, SIP, or any other macOS security
-feature.
-
-## Uninstall and Rollback
-
-Return to normal local audio:
-
-```sh
-~/Library/Application\ Support/Snapcast/set-mode.sh native
-```
-
-Stop the local services while keeping the installed files:
-
-```sh
-./integration/scripts/uninstall-local.sh
-```
-
-Remove only the native app, Agent, and CLI without stopping audio:
-
-```sh
-./integration/scripts/uninstall-native.sh
-```
-
-To remove the local installation completely, run the uninstall script and then
-remove the generated support, log, and LaunchAgent files described in
-[docs/installation.md](docs/installation.md). Remove the remote client only
-after confirming its resolved remote path and user.
-
-## Compatibility
-
-| Component | Version | Upstream base |
-| --- | --- | --- |
-| Runtime and native console | `v0.2.0` | Snapcast `v0.35.0` |
-
-## Development
+Run the checks that cover the change. For full release validation:
 
 ```sh
 ./integration/scripts/build-macos.sh
@@ -356,35 +225,149 @@ integration/test/test-install-lifecycle.sh
 integration/test/test-control-agent-install.sh
 integration/test/test-native-app-packaging.sh
 integration/test/test-homebrew-formula.sh
+integration/test/test-native-release.sh --automated-only
 zsh -n integration/scripts/*.sh integration/test/*.sh
 plutil -lint integration/launchagents/*.plist.in
+./scripts/check-public-tree.sh
 ```
 
-For the upstream Snapcast test executable, configure a test build and run:
+### Safety Rules
+
+- Never execute a user-editable `pair.env` as shell source.
+- Never accept executable paths or shell fragments over the control socket.
+- Keep control APIs bound to localhost.
+- Never expose stream port `1704` beyond a trusted LAN or VPN.
+- Do not add lossy codecs or resampling without measured quality and latency
+  evidence.
+- Do not fold configuration deletion into force reinstall.
+- Redact diagnostics by default and never upload them automatically.
+
+For machine-readable project context, see [llms.txt](llms.txt).
+
+## Requirements and Compatibility
+
+- macOS 14 or newer on both Macs.
+- BlackHole 2ch on the source Mac.
+- The same CPU architecture on both Macs when using the bundled remote installer
+  to copy a locally built Snapclient binary.
+- Snapcast upstream base: `v0.35.0`.
+- Current native runtime line: `v0.2.x`.
+
+The primary validated environment is two MacBook Pro `Mac16,1` systems with
+Apple M4, 24 GB and 16 GB memory, macOS 27.2.1, and BlackHole 2ch 0.7.1.
+
+## Security Boundaries
+
+- Snapcast stream TCP `1704` is unauthenticated and requires a trusted LAN,
+  VPN, or restrictive firewall.
+- Snapserver HTTP and TCP control APIs are bound to localhost.
+- The native control socket is owner-only (`0600`) and validates peer UID.
+- Diagnostics are redacted by default.
+- The project never disables Gatekeeper, SIP, or another macOS security feature.
+- Releases are ad-hoc signed; no Developer ID, App Store dependency, root
+  helper, or automatic updater is required.
+
+Read [SECURITY.md](SECURITY.md) before reporting a vulnerability.
+
+## FAQ
+
+### Is the audio lossless?
+
+Yes. The default path uses uncompressed 48 kHz / 24-bit mono PCM for each side.
+
+### Does this require a separate web application?
+
+No. The native SwiftUI application is the supported control surface.
+
+### Does it replace the upstream Snapcast project?
+
+No. It is an unofficial macOS-focused runtime and integration layer built on
+Snapcast. Upstream Snapcast remains the synchronization engine.
+
+### Does it support Intel Macs?
+
+The configuration and build scripts support Intel and Apple Silicon Homebrew
+prefixes. Both Macs should use the same CPU architecture when relying on the
+included remote binary-copy workflow.
+
+### How much latency does it add?
+
+The validated default uses 20 ms Snapcast chunks and a 200 ms stream buffer.
+Smaller buffers may reduce latency but increase underrun risk on Wi-Fi.
+
+### Does sleep or wake break the pair?
+
+Wake-recovery LaunchAgents recreate invalidated CoreAudio queues, restore
+routing and hardware volume, and restart capture or playback as needed.
+
+## Troubleshooting
+
+Start with:
 
 ```sh
-cmake -S . -B .build-tests -G Ninja -DBUILD_SERVER=OFF -DBUILD_CLIENT=ON \
-  -DBUILD_TESTS=ON -DBUILD_WITH_SSL=OFF -DBUILD_SHARED_LIBS=OFF
-cmake --build .build-tests
-./bin/snapcast_test --reporter compact
+./integration/scripts/check-health.sh
 ```
 
-## Contributing
+Then inspect:
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and the
-repository instructions in [AGENTS.md](AGENTS.md). Hardware validation remains
-a manual release gate because CI cannot create a two-MacBook audio setup.
+- Both channel sample formats as `48000:24:1`.
+- Hardware capture and output volumes as `100.00%`.
+- `LeftAudio` and `RightAudio` client routing.
+- Recent underrun or resynchronization warnings in `~/Library/Logs/Snapcast/`.
+- The native console's routing, service, and recovery status.
+
+See [docs/troubleshooting.md](docs/troubleshooting.md) for recovery procedures.
+
+## Development
+
+The repository contains both the macOS integration layer and the patched
+Snapcast sources:
+
+| Path | Purpose |
+| --- | --- |
+| `client/` | Patched Snapclient CoreAudio output |
+| `server/` | Snapserver sources |
+| `integration/capture/` | BlackHole capture, PCM split, and metrics |
+| `integration/config/` | Configuration templates |
+| `integration/launchagents/` | Per-user service templates |
+| `integration/scripts/` | Install, routing, mode, health, and maintenance |
+| `integration/test/` | Integration and lifecycle tests |
+| `native/` | Swift console, Agent, CLI, setup, packaging, and tests |
+| `docs/` | Architecture, installation, security, and maintenance documentation |
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes.
+
+## Uninstall and Rollback
+
+Return to normal local audio:
+
+```sh
+"$HOME/Library/Application Support/Snapcast/set-mode.sh" native
+```
+
+Stop or remove the runtime:
+
+```sh
+./integration/scripts/uninstall-local.sh
+./integration/scripts/uninstall-native.sh
+```
+
+Complete removal steps and remote-cleanup guidance are documented in
+[docs/installation.md](docs/installation.md).
 
 ## License and Upstream
 
 This is an unofficial macOS stereo-pair fork maintained by `damoqiongqiu`, not
-an official Snapcast release. It preserves the upstream Snapcast history and
-source notices and is distributed under GPL-3.0-or-later. See
-[NOTICE.md](NOTICE.md), [README.snapcast.md](README.snapcast.md), and
-[LICENSE](LICENSE).
+an official Snapcast release.
 
-Native source and Homebrew installation are documented in
-[docs/installation.md](docs/installation.md),
-[docs/native-console.md](docs/native-console.md), and
-[docs/homebrew.md](docs/homebrew.md).
+It preserves upstream Snapcast history, copyright notices, and GPL provenance,
+and is distributed under GPL-3.0-or-later. See [NOTICE.md](NOTICE.md),
+[README.snapcast.md](README.snapcast.md), and [LICENSE](LICENSE).
 
+Additional documentation:
+
+- [Installation](docs/installation.md)
+- [Architecture](docs/architecture.md)
+- [Native console](docs/native-console.md)
+- [Homebrew packaging](docs/homebrew.md)
+- [Hardware acceptance](docs/hardware-acceptance.md)

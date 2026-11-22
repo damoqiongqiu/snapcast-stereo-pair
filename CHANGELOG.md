@@ -11,7 +11,8 @@
 - Show the native console in the Dock with a bundled app icon, while retaining
   its menu-bar controls.
 - Refresh the README and public documentation around the native console,
-  including current English and Simplified Chinese screenshots.
+  including current English and Simplified Chinese screenshots, a clearer
+  fork comparison, agent-oriented references, FAQ content, and `llms.txt`.
 - Add an owner-only Unix-socket control Agent shared by the native app and
   `mac-stereo-pairctl`, with peer UID validation and launchd-independent audio.
 - Add explicit stereo-pair and Mac-system-audio modes, including best-effort
