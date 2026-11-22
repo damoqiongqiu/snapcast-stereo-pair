@@ -8,6 +8,9 @@
 - Add a responsive, bounded console window, single-instance protection, direct
   volume-slider feedback with 5% reference ticks, and separate read-only
   physical system-volume indicators for both Macs.
+- Tighten the console dashboard by grouping mute and delay controls, reducing
+  secondary card spacing, unifying the system-volume refresh control, improving
+  status legibility, and lowering the no-scroll minimum height to 1040 × 680.
 - Make Snapcast volume sliders track continuously at pointer resolution while
   serializing throttled audio previews, coalescing click updates, and committing
   the final rounded percentage after release. Periodic status and waveform

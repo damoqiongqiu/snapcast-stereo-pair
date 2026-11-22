@@ -75,7 +75,7 @@ struct ServiceLED: View {
             }
             .accessibilityHidden(true)
             Text(verbatim: "\(label) · \(statusText)")
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: 11, weight: .medium))
                 .lineLimit(1)
         }
         .accessibilityElement(children: .ignore)

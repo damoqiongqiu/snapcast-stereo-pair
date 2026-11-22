@@ -32,7 +32,7 @@ struct ConsoleView: View {
     }
 
     private var consoleContent: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
             HStack(alignment: .center, spacing: 16) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(verbatim: language.text("app.title")).font(.title2.bold())
@@ -206,7 +206,7 @@ private struct ChannelStrip: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 9) {
             HStack {
                 Circle().fill(channel?.connected == true ? Theme.green : Theme.red).frame(width: 7, height: 7)
                     .accessibilityHidden(true)
@@ -251,8 +251,7 @@ private struct ChannelStrip: View {
                     await model.setVolume(channel, percent: percent)
                 }
             )
-            HStack {
-                Spacer()
+            HStack(spacing: 12) {
                 Toggle(language.text("mute.label"), isOn: Binding(
                     get: { channel?.muted ?? false },
                     set: { value in
@@ -262,22 +261,23 @@ private struct ChannelStrip: View {
                 .toggleStyle(.switch)
                 .controlSize(.mini)
                 .accessibilityLabel(language.format("accessibility.muteFormat", title))
+                Spacer()
+                Stepper(
+                    language.format("latency.labelFormat", channel?.latencyMs ?? 0),
+                    value: Binding(
+                        get: { channel?.latencyMs ?? 0 },
+                        set: { value in
+                            if let channel { Task { await model.setLatency(channel, milliseconds: value) } }
+                        }
+                    ),
+                    in: 0...500
+                )
+                .controlSize(.mini)
+                .accessibilityLabel(language.format("accessibility.latencyFormat", title))
             }
             .font(.caption).foregroundStyle(Theme.muted)
-            Stepper(
-                language.format("latency.labelFormat", channel?.latencyMs ?? 0),
-                value: Binding(
-                    get: { channel?.latencyMs ?? 0 },
-                    set: { value in
-                        if let channel { Task { await model.setLatency(channel, milliseconds: value) } }
-                    }
-                ),
-                in: 0...500
-            )
-            .font(.caption)
-            .accessibilityLabel(language.format("accessibility.latencyFormat", title))
         }
-        .padding(14)
+        .padding(12)
         .background(Theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.separator))
@@ -362,17 +362,23 @@ private struct HardwareVolumeLegend: View {
             Button {
                 Task { await model.refreshHardwareVolumes() }
             } label: {
-                Label(
-                    language.text("systemVolume.refresh"),
-                    systemImage: "arrow.clockwise"
-                )
+                ZStack {
+                    Circle().fill(Theme.raised)
+                    if model.isRefreshingHardwareVolume {
+                        ProgressView()
+                            .controlSize(.mini)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                }
+                .frame(width: 30, height: 30)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
+            .buttonStyle(.plain)
             .disabled(model.isRefreshingHardwareVolume)
             .accessibilityLabel(language.text("systemVolume.refresh"))
+            .help(language.text("systemVolume.refresh"))
         }
-        .padding(.horizontal, 4)
     }
 }
 
@@ -403,13 +409,13 @@ private struct VolumeSliderControl: View {
                     slider
                 }
             case .prominent:
-                HStack(spacing: 16) {
+                HStack(spacing: 14) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(verbatim: label.uppercased())
                             .font(.caption2.bold())
                             .foregroundStyle(Theme.muted)
                         Text(verbatim: formatValue(currentValue))
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
                             .monospacedDigit()
                     }
                     slider
@@ -718,7 +724,7 @@ private struct MasterControl: View {
                 await model.setMaster(percent)
             }
         )
-        .padding(14)
+        .padding(12)
         .background(Theme.raised)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }

@@ -12,7 +12,7 @@ struct StatusBus: View {
             ForEach(Array(allZones.enumerated()), id: \.element.id) { index, zone in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(verbatim: zone.title)
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(Theme.muted)
                     ForEach(zone.rows) { row in
                         ServiceLED(

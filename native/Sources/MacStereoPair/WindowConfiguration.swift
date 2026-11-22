@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum MainWindowMetrics {
-    static let minimumSize = NSSize(width: 1040, height: 720)
+    static let minimumSize = NSSize(width: 1040, height: 680)
     static let defaultSize = minimumSize
     static let maximumSize = NSSize(width: 1240, height: 860)
     static let contentMaxWidth: CGFloat = 1120
