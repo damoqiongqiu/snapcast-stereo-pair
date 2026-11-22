@@ -9,16 +9,18 @@ enum LanguagePreference: String, CaseIterable, Sendable {
 @MainActor
 final class AppLanguage: ObservableObject {
     private static let defaultsKey = "app.language"
+    private let defaults: UserDefaults
 
     @Published var preference: LanguagePreference {
         didSet {
-            UserDefaults.standard.set(preference.rawValue, forKey: Self.defaultsKey)
+            defaults.set(preference.rawValue, forKey: Self.defaultsKey)
         }
     }
 
-    init() {
-        let saved = UserDefaults.standard.string(forKey: Self.defaultsKey)
-        preference = saved.flatMap(LanguagePreference.init(rawValue:)) ?? .system
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        let saved = defaults.string(forKey: Self.defaultsKey)
+        preference = saved.flatMap(LanguagePreference.init(rawValue:)) ?? .english
     }
 
     var locale: Locale {

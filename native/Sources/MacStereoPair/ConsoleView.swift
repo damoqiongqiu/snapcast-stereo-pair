@@ -405,37 +405,43 @@ private struct VolumeSliderControl: View {
     @State private var revision = 0
 
     var body: some View {
-        Slider(
-            value: Binding(
-                get: {
-                    draft.displayValue(published: publishedValue)
-                },
-                set: { value in
-                    draft.update(value)
-                    displayedValue = draft.displayValue(published: publishedValue)
-                    if !draft.isDragging {
-                        scheduleCommit(afterDebounce: true)
+        VStack(spacing: 1) {
+            Slider(
+                value: Binding(
+                    get: {
+                        draft.displayValue(published: publishedValue)
+                    },
+                    set: { value in
+                        draft.update(value)
+                        displayedValue = draft.displayValue(published: publishedValue)
+                        if !draft.isDragging {
+                            scheduleCommit(afterDebounce: true)
+                        }
+                    }
+                ),
+                in: 0...100,
+                step: 1,
+                onEditingChanged: { editing in
+                    if editing {
+                        revision += 1
+                        commitTask?.cancel()
+                        draft.beginDragging(
+                            published: draft.displayValue(published: publishedValue)
+                        )
+                    } else {
+                        scheduleCommit(afterDebounce: false)
                     }
                 }
-            ),
-            in: 0...100,
-            onEditingChanged: { editing in
-                if editing {
-                    revision += 1
-                    commitTask?.cancel()
-                    draft.beginDragging(
-                        published: draft.displayValue(published: publishedValue)
-                    )
-                } else {
-                    scheduleCommit(afterDebounce: false)
-                }
-            }
-        )
-        .controlSize(.large)
-        .tint(Theme.blue)
-        .padding(.vertical, 4)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityValue(accessibilityValue)
+            )
+            .controlSize(.large)
+            .tint(Theme.blue)
+            .padding(.vertical, 3)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityValue(accessibilityValue)
+
+            VolumeScaleView()
+                .accessibilityHidden(true)
+        }
         .onDisappear {
             revision += 1
             commitTask?.cancel()
@@ -457,6 +463,50 @@ private struct VolumeSliderControl: View {
             draft.completeCommit()
             displayedValue = nil
         }
+    }
+}
+
+private struct VolumeScaleView: View {
+    private let trackInset: CGFloat = 8
+
+    var body: some View {
+        GeometryReader { geometry in
+            let trackWidth = max(geometry.size.width - trackInset * 2, 1)
+
+            ZStack(alignment: .topLeading) {
+                ForEach(VolumeScale.tickValues, id: \.self) { value in
+                    let isMajor = VolumeScale.labeledValues.contains(value)
+                    Capsule()
+                        .fill(
+                            isMajor
+                                ? Theme.muted.opacity(0.9)
+                                : Theme.muted.opacity(0.55)
+                        )
+                        .frame(
+                            width: isMajor ? 1.5 : 1,
+                            height: isMajor ? 8 : 4
+                        )
+                        .position(
+                            x: trackInset + trackWidth * VolumeScale.fraction(for: value),
+                            y: 4
+                        )
+                }
+
+                ForEach(VolumeScale.labeledValues, id: \.self) { value in
+                    let proposedX = trackInset + trackWidth * VolumeScale.fraction(for: value)
+                    Text(verbatim: "\(value)")
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .foregroundStyle(Theme.muted)
+                        .fixedSize()
+                        .position(
+                            x: min(max(proposedX, 10), geometry.size.width - 10),
+                            y: 19
+                        )
+                }
+            }
+        }
+        .frame(height: 28)
+        .padding(.horizontal, 2)
     }
 }
 

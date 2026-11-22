@@ -74,7 +74,8 @@ existing console instead of creating another menu-bar process.
 Snapcast volume sliders update locally while dragging. One final value is sent
 when the drag ends, rather than sending a request for every pointer movement.
 This keeps the knob responsive even while the 100 ms status refresh is still
-returning the previous volume.
+returning the previous volume. Each slider has 5% reference ticks, with longer
+and labeled marks at 0%, 25%, 50%, 75%, and 100%.
 
 ## Health and Notifications
 
@@ -128,8 +129,10 @@ The protocol never accepts an executable path or shell fragment.
 
 ## Languages and Accessibility
 
-English and Simplified Chinese resources ship with the application. It follows
-the system language by default and provides an in-app override.
+English and Simplified Chinese resources ship with the application. English is
+the default for new installations, while an existing saved language choice is
+preserved. The language menu also provides an explicit system-language option
+and an in-app override.
 
 Status LEDs always include text or accessibility labels. Reduce Motion stops LED
 pulses while preserving the semantic status. The main controls expose VoiceOver
