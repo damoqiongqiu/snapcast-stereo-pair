@@ -105,7 +105,29 @@ path-length differences, room reflections, or other effects caused by
 asymmetric placement. See [docs/architecture.md](docs/architecture.md) for the
 timing and acoustic boundaries.
 
-### 3.3 Option A: Native Setup Wizard
+### 3.3 Source Material and Playback Effects
+
+The pair reproduces what macOS applications send to the source Mac. Use clean
+stereo material when judging placement or sound quality:
+
+- Prefer lossless recordings or high-bitrate stereo streams. Lossy compression
+  can still sound good, but it is a less reliable reference for cymbals, reverb
+  tails, and low-level detail.
+- Disable spatial audio or headphone virtualization, equalizers, loudness
+  normalization, crossfade, and per-application audio effects during evaluation.
+  These can alter panning, dynamics, bass, or delay before the stream is created.
+- Leave player and application volume controls at their normal full or 0 dB
+  setting, then adjust listening volume with the native console. Avoid stacking
+  several digital volume stages.
+- Use familiar stereo recordings containing a stable centered vocal, clearly
+  hard-panned instruments, and natural reverb. Mono material is useful for
+  checking center focus, but it cannot validate stereo width or left/right
+  balance.
+- Compare the same passage in the stereo pair and native macOS audio. Prefer
+  sources that are already known to produce a stable, natural image on the
+  source Mac by itself.
+
+### 3.4 Option A: Native Setup Wizard
 
 ```sh
 git clone https://github.com/damoqiongqiu/snapcast-stereo-pair.git
@@ -130,7 +152,7 @@ The wizard uses the default layout with the **remote Mac physically on the
 left**. Use the CLI path if the source Mac is physically on the left or if the
 output devices need non-default UIDs.
 
-### 3.4 Option B: CLI Configuration
+### 3.5 Option B: CLI Configuration
 
 Use this path for explicit control over physical placement and device config:
 
