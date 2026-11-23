@@ -1,6 +1,7 @@
 #pragma once
 
 #include <errno.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <unistd.h>
@@ -15,6 +16,14 @@ static inline bool writeFully(int fd, const void* data, size_t bytes)
         {
             if (errno == EINTR)
                 continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+            {
+                /* FIFO momentarily full: wait for the reader instead of dying */
+                struct pollfd pfd = { .fd = fd, .events = POLLOUT, .revents = 0 };
+                if (poll(&pfd, 1, 5000) <= 0)
+                    return false;
+                continue;
+            }
             return false;
         }
         if (written == 0)

@@ -22,6 +22,7 @@ export PKG_CONFIG_PATH="$brew_prefix/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 
 cmake -S "$repo_root" -B "$build_dir" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET="${SNAPCAST_DEPLOYMENT_TARGET:-14.0}" \
   -DBUILD_SERVER=ON \
   -DBUILD_CLIENT=ON \
   -DBUILD_WITH_SSL=OFF \

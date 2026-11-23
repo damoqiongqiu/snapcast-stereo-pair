@@ -276,6 +276,7 @@ backup_installation_assets() {
   [[ -f "$audio_devices" ]] && install -m 600 "$audio_devices" "$backup_dir/audio-devices.json"
   [[ -f "$(installation_manifest_path)" ]] && \
     install -m 600 "$(installation_manifest_path)" "$backup_dir/installation.json"
+  return 0
 }
 
 restore_installation_assets() {
@@ -324,4 +325,5 @@ restore_installation_assets() {
     install -m 600 "$backup_dir/audio-devices.json" "$audio_devices"
   [[ -f "$backup_dir/installation.json" ]] && \
     install -m 600 "$backup_dir/installation.json" "$(installation_manifest_path)"
+  return 0
 }
