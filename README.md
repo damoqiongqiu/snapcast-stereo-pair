@@ -127,7 +127,28 @@ stereo material when judging placement or sound quality:
   sources that are already known to produce a stable, natural image on the
   source Mac by itself.
 
-### 3.4 Option A: Native Setup Wizard
+### 3.4 Permissions and First-Run Prompts
+
+macOS may ask for several scoped permissions during installation or first use:
+
+- **Microphone or audio input** for `snapcast-capture-blackhole` on the source
+  Mac. This is required to read the virtual BlackHole input and is the usual
+  cause of idle streams, silent channels, and flat waveforms.
+- **Notifications** for the native app if you want service and channel alerts.
+- **Local Network** and **Firewall** access for the trusted LAN or VPN.
+- **Remote Login** and key-only SSH on the remote Mac for installation, remote
+  mode changes, and remote volume monitoring.
+
+After a force reinstall or signature change, macOS may invalidate the capture
+helper's audio-input permission. Re-enable it in **System Settings → Privacy &
+Security → Microphone**, restart the pair, and verify that both waveforms move.
+See [Permission and Privacy Checks](docs/troubleshooting.md#1-permission-and-privacy-checks)
+for symptom-specific recovery steps.
+
+Accessibility, Screen Recording, Full Disk Access, Input Monitoring, and
+Developer Tools permissions are not required.
+
+### 3.5 Option A: Native Setup Wizard
 
 ```sh
 git clone https://github.com/damoqiongqiu/snapcast-stereo-pair.git
@@ -152,7 +173,7 @@ The wizard uses the default layout with the **remote Mac physically on the
 left**. Use the CLI path if the source Mac is physically on the left or if the
 output devices need non-default UIDs.
 
-### 3.5 Option B: CLI Configuration
+### 3.6 Option B: CLI Configuration
 
 Use this path for explicit control over physical placement and device config:
 
@@ -410,6 +431,14 @@ Then inspect:
 - Recent underrun or resynchronization warnings in `~/Library/Logs/Snapcast/`.
 - The native console's routing, service, and recovery status.
 
+If the streams show `idle`, waveforms stay flat, remote setup fails, or alerts
+never appear, check the required macOS permissions before reinstalling:
+
+- source Mac microphone/audio-input access for the capture helper;
+- notification access for the native app;
+- Local Network and Firewall access on both Macs;
+- Remote Login and key-only SSH access on the remote Mac.
+
 See [docs/troubleshooting.md](docs/troubleshooting.md) for recovery procedures.
 
 ## 12. Development
@@ -465,7 +494,7 @@ Complete removal steps and remote-cleanup guidance are documented in
 | Install, configure, validate, or remove the pair | [Installation](docs/installation.md) |
 | Understand capture, synchronization, routing, and recovery | [Architecture](docs/architecture.md) |
 | Use the native app, diagnostics, and accessibility | [Native console](docs/native-console.md) |
-| Diagnose missing streams, reversed sides, or dropouts | [Troubleshooting](docs/troubleshooting.md) |
+| Diagnose permissions, missing streams, reversed sides, or dropouts | [Troubleshooting](docs/troubleshooting.md) |
 | Build or maintain the Homebrew package | [Homebrew source build](docs/homebrew.md) |
 | Run the two-Mac release acceptance checklist | [Hardware acceptance](docs/hardware-acceptance.md) |
 | Rebase the project onto a new Snapcast release | [Upstream synchronization](docs/upstream-sync.md) |

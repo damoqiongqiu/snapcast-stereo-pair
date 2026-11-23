@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Document required macOS permissions, common symptoms caused by denied access,
+  and recovery steps for audio input, notifications, Local Network, firewall,
+  Remote Login, SSH, and Gatekeeper.
 - Treat clients as offline after six seconds without a Snapserver heartbeat, keep
   the disconnected channel visible with a red status, and stop displaying
   source-side waveform levels for that channel.

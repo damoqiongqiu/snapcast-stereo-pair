@@ -119,6 +119,8 @@ macOS and BlackHole versions when changing audio behavior.
 - Native control uses an owner-only Unix socket with peer UID validation and
   fixed commands; never accept executable paths or shell fragments.
 - Redact diagnostics by default and never upload them automatically.
+- Document required macOS privacy permissions and their recovery steps without
+  telling users to disable security features.
 - Repeated installs are manifest-driven: verified same-version installs are
   no-ops, missing or changed files are repaired, upgrades are allowed, and
   accidental downgrades fail.

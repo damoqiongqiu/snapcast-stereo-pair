@@ -115,6 +115,9 @@ When the affected component recovers, the incident resets so a later failure can
 notify again. Notification permission is requested only after setup succeeds,
 not when the application launches.
 
+If alerts do not appear, verify **System Settings → Notifications → MacBook
+Stereo Pair**. The console still reports health without notification permission.
+
 Automatic Pairing is a periodic task that exits successfully after each check.
 Its launchd state is therefore normally inactive between 15-second runs. A
 successful pairing marker keeps the row marked healthy for up to 45 seconds;
@@ -144,6 +147,11 @@ stores a local administrator password or a remote SSH password.
 The remote step creates or reuses an SSH key, uses `ssh-copy-id` only when
 needed, verifies key-only access with `BatchMode=yes`, installs the remote
 helper, and writes a local non-secret `remote-control.json`.
+
+If setup or capture succeeds but no waveform appears, check microphone/audio
+input permission for `snapcast-capture-blackhole` on the source Mac, especially
+after a force reinstall. The complete permission checklist is in
+[troubleshooting.md](troubleshooting.md#1-permission-and-privacy-checks).
 
 ## 5. Diagnostics and Privacy
 

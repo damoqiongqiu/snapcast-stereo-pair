@@ -99,4 +99,4 @@ the audio runtime, user configuration, logs, and remote control state. To stop
 the local runtime first, run the corresponding installed `uninstall-local.sh`
 from the same `share/macbook-stereo-pair/integration/scripts/` directory.
 Complete file removal is documented in
-[installation.md](installation.md#8-complete-removal).
+[installation.md](installation.md#9-complete-removal).

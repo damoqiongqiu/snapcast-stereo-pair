@@ -42,7 +42,7 @@ the macOS-specific integration needed for a practical two-Mac stereo pair:
 - Build or remove the Homebrew package: [docs/homebrew.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/homebrew.md)
 - Run two-Mac release acceptance: [docs/hardware-acceptance.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/hardware-acceptance.md)
 - Rebase onto a new Snapcast release: [docs/upstream-sync.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/upstream-sync.md)
-- Diagnose a running pair: [docs/troubleshooting.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/troubleshooting.md)
+- Diagnose permissions or a running pair: [docs/troubleshooting.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/troubleshooting.md)
 - Review release checks: [AGENTS.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/AGENTS.md)
 
 ## Canonical commands
@@ -92,6 +92,8 @@ swift build --package-path native -c release
 - Force reinstall replaces programs and services but preserves configuration and logs.
 - Clearing configuration is a separate destructive operation.
 - Redact diagnostics by default and never upload them automatically.
+- Document microphone/audio-input, notification, Local Network, firewall, and
+  SSH permission checks when diagnosing missing audio or remote control.
 - Do not disable Gatekeeper, SIP, or another macOS security feature.
 
 ## Verification checklist

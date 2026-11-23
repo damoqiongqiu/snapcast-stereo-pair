@@ -201,7 +201,28 @@ The native app also exposes **Advanced Diagnostics → Installation maintenance*
 with a confirmed force-reinstall action. This exists because file and version
 detection can occasionally be wrong; the user must retain an explicit override.
 
-## 7. Validate
+## 7. Permissions and First-Run Prompts
+
+Allow only the macOS capabilities that the product actually uses:
+
+- **Microphone/audio input** on the source Mac for
+  `snapcast-capture-blackhole`, which reads the virtual BlackHole input.
+- **Notifications** for the native app when service and channel alerts are
+  wanted.
+- **Local Network** and **Firewall** access for the two Macs on the same trusted
+  LAN or VPN.
+- **Remote Login** and key-only SSH on the remote Mac.
+
+macOS may not show every request from a background LaunchAgent. If the app
+blocks, streams stay `idle`, or waveforms remain flat after an install or
+force reinstall, check
+[Permission and Privacy Checks](troubleshooting.md#1-permission-and-privacy-checks)
+instead of repeatedly reinstalling.
+
+Accessibility, Screen Recording, Full Disk Access, Input Monitoring, and
+Developer Tools permissions are not required. Do not disable Gatekeeper or SIP.
+
+## 8. Validate
 
 Run:
 
@@ -242,7 +263,7 @@ CoreAudio applies the console volume through the AudioQueue floating-point
 volume parameter. The 24-bit PCM received from Snapserver remains at full scale,
 so changing listening volume does not rewrite the integer audio buffer.
 
-## 8. Complete Removal
+## 9. Complete Removal
 
 Return the source Mac to native audio first:
 

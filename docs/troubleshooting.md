@@ -13,7 +13,50 @@ Diagnostics for redacted export, service state, versions, and logs:
 ~/Library/Application\ Support/Snapcast/bin/mac-stereo-pairctl status
 ```
 
-## 1. Missing LeftAudio or RightAudio
+## 1. Permission and Privacy Checks
+
+Before changing audio routing or reinstalling, verify the scoped macOS
+permissions used by the runtime:
+
+| Symptom | Permission or setting to check |
+| --- | --- |
+| Streams stay `idle`, channels are silent, or waveforms are flat | **System Settings → Privacy & Security → Microphone** on the source Mac; enable `snapcast-capture-blackhole` |
+| Remote setup fails, remote volume is stale, or remote mode cannot change | **System Settings → General → Sharing → Remote Login** on the remote Mac; verify key-only SSH |
+| Remote channel disconnects while both Macs are awake | **Local Network** and **Firewall**; allow the app and runtime on the trusted LAN or VPN and permit TCP `1704` |
+| Service or channel failures occur without alerts | **System Settings → Notifications → MacBook Stereo Pair**; enable notifications |
+| macOS blocks the app after install or update | **System Settings → Privacy & Security → Open Anyway** for the verified project build |
+
+The microphone/audio-input permission is especially likely to need attention
+after a force reinstall or an app update that changes the ad-hoc signature.
+Open the pane directly with:
+
+```sh
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
+```
+
+Enable the `snapcast-capture-blackhole` entry. If it is absent, use the add
+button to select the installed executable:
+
+```text
+/opt/homebrew/bin/snapcast-capture-blackhole
+/usr/local/bin/snapcast-capture-blackhole
+```
+
+Then resume the pair and restart the splitter:
+
+```sh
+launchctl kickstart -k "gui/$(id -u)/com.snapcast.splitter"
+```
+
+While the stereo pair is actively capturing, macOS may show the orange
+microphone indicator. BlackHole is exposed through a virtual audio-input path,
+so this indicator does not mean the physical microphone is being recorded.
+
+Do not enable Accessibility, Screen Recording, Full Disk Access, Input
+Monitoring, or Developer Tools for this project; they are not required. Never
+disable Gatekeeper or SIP to work around a permission problem.
+
+## 2. Missing LeftAudio or RightAudio
 
 Confirm the stream format:
 
@@ -43,7 +86,7 @@ launchctl kickstart -k "gui/$uid/com.snapcast.server"
 launchctl kickstart -k "gui/$uid/com.snapcast.splitter"
 ```
 
-## 2. FIFO Errors
+## 3. FIFO Errors
 
 Check the named pipes:
 
@@ -62,7 +105,7 @@ Do not replace a FIFO with a regular file. A leftover splitter process can also
 hold a stale endpoint after server recovery; restart both services in the
 order shown above.
 
-## 3. Streams Are Reversed
+## 4. Streams Are Reversed
 
 Open:
 
@@ -88,7 +131,7 @@ If routing is correct but the center image remains offset, check the physical
 layout described in
 [Physical Placement](../README.md#32-physical-placement).
 
-## 4. Local MacBook Is Silent
+## 5. Local MacBook Is Silent
 
 In snapcast mode, the system output is BlackHole and applications are suspended
 from the speaker. The local Snapclient must select the built-in speaker
@@ -106,7 +149,7 @@ be running with `SNAPCLIENT_COREAUDIO_DEVICE` set. If the configured device UID
 is wrong, run `SwitchAudioSource -a -t output`, update
 `LOCAL_OUTPUT_DEVICE`, and reinstall.
 
-## 5. One Side Is Much Quieter
+## 6. One Side Is Much Quieter
 
 Run:
 
@@ -138,7 +181,7 @@ does not rewrite or truncate the integer audio buffers.
 If both Snapcast and hardware levels match, compare speaker distance, nearby
 walls, furniture, and Mac orientation before compensating with channel volume.
 
-## 6. Crackling, Dropouts, or Low Volume After Wake
+## 7. Crackling, Dropouts, or Low Volume After Wake
 
 macOS can invalidate active CoreAudio queues during sleep and restore the
 speaker's physical volume separately from its virtual main volume. Both Macs
@@ -159,7 +202,7 @@ If a failure still occurs, collect
 `~/Library/Logs/Snapcast/wake-recovery.stderr.log` and any `snapclient` crash
 report produced around the wake time.
 
-## 7. Dropouts or Periodic Gaps
+## 8. Dropouts or Periodic Gaps
 
 The validated 200 ms buffer covers normal Wi-Fi jitter. Symptoms include
 `Not enough`, `age >`, `No chunk available`, or `onResync` in recent logs.
@@ -182,7 +225,7 @@ If the network genuinely needs a larger buffer, change `buffer` in
 [`integration/config/snapserver.conf.in`](../integration/config/snapserver.conf.in)
 and rerun the local installer. A smaller buffer increases underrun risk.
 
-## 8. Audio/Video Offset
+## 9. Audio/Video Offset
 
 Snapcast synchronization aligns the two audio clients with each other. The
 stream buffer adds intentional latency between the source application and both
@@ -192,7 +235,7 @@ Keep both sides on the same runtime configuration and the same buffer. Changing
 one client's latency can improve a specific room compromise but breaks the
 left/right timing relationship.
 
-## 9. Return to Native Audio
+## 10. Return to Native Audio
 
 Choose **Mac system audio** in the native console or use the command below.
 System mode intentionally stops the pair runtime.
@@ -233,7 +276,7 @@ Both Macs restore that volume before switching output back. If the remembered
 device is unavailable, the fallback volume is 30%. Do not raise the saved
 fallback to 100%; use the normal system volume after the transition.
 
-## 10. Collect a Safe Bug Report
+## 11. Collect a Safe Bug Report
 
 Include:
 

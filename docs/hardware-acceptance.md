@@ -35,6 +35,8 @@ under each heading.
 - Record whether placement is symmetric, the approximate listener distance,
   orientation, and whether either Mac is near a wall, corner, or reflective
   surface.
+- Record whether microphone/audio-input, notifications, Local Network,
+  Firewall, and remote SSH access were allowed, denied, or not requested.
 - Record whether the pair uses Apple Silicon or Intel Homebrew paths.
 
 ## Stereo-pair mode
