@@ -6,11 +6,14 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <signal.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 static volatile sig_atomic_t running = 1;
 
@@ -25,6 +28,93 @@ static void stop_capture(int signal_number)
 {
     (void)signal_number;
     running = 0;
+}
+
+/*
+ * BlackHole stops delivering input frames once its producer goes away, which
+ * leaves the blocking Pa_ReadStream below stuck forever with no error and no
+ * data. The watchdog notices the stall and aborts the stream so the main loop
+ * can reopen it (which restarts the CoreAudio device); if aborting cannot
+ * unblock the read, give up and let launchd relaunch the process fresh.
+ */
+static PaStream* g_capture_stream = NULL;
+static atomic_llong g_last_read_ms = 0;
+
+static long long monotonic_ms(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
+
+static void* capture_watchdog(void* argument)
+{
+    (void)argument;
+    while (running)
+    {
+        Pa_Sleep(1000);
+        long long last = atomic_load(&g_last_read_ms);
+        long long now = monotonic_ms();
+        if (last > 0 && now - last > 1000)
+        {
+            fprintf(stderr, "Capture watchdog: no input frames for %lld ms, aborting stream\n", now - last);
+            Pa_AbortStream(g_capture_stream);
+            Pa_Sleep(2000);
+            if (atomic_load(&g_last_read_ms) == last)
+            {
+                fprintf(stderr, "Capture watchdog: abort did not unblock read, exiting for relaunch\n");
+                _exit(8);
+            }
+        }
+    }
+    return NULL;
+}
+
+/*
+ * The snapserver briefly closes its FIFO read ends across restarts and reader
+ * cycles, which would turn any blocking writer into an instant EPIPE. Open the
+ * FIFOs non-blocking and wait for a reader to appear instead of hanging on a
+ * blocking open that may never be answered.
+ */
+static int open_fifo_writer(const char* path)
+{
+    for (;;)
+    {
+        int fd = open(path, O_WRONLY | O_NONBLOCK);
+        if (fd >= 0)
+            return fd;
+        if ((errno == ENXIO || errno == ENOENT) && running)
+        {
+            Pa_Sleep(200);
+            continue;
+        }
+        return -1;
+    }
+}
+
+/*
+ * Write a full buffer, transparently recovering when the server closes its
+ * read end: close our side, wait for the reader to come back, reopen, retry.
+ */
+static bool write_channel(int* fd, const char* fifo_path, const void* data, size_t bytes)
+{
+    for (;;)
+    {
+        if (*fd < 0)
+        {
+            *fd = open_fifo_writer(fifo_path);
+            if (*fd < 0)
+                return false;
+        }
+        if (writeFully(*fd, data, bytes))
+            return true;
+        fprintf(stderr, "FIFO reader closed (%s), reopening\n", fifo_path);
+        close(*fd);
+        *fd = -1;
+        if (!running)
+            return false;
+        Pa_Sleep(100);
+    }
 }
 
 static int parse_outputs(int argc, char** argv, CaptureOutputs* outputs)
@@ -84,8 +174,8 @@ int main(int argc, char** argv)
     int right_fd = -1;
     if (outputs.left_fifo != NULL)
     {
-        left_fd = open(outputs.left_fifo, O_WRONLY);
-        right_fd = open(outputs.right_fifo, O_WRONLY);
+        left_fd = open_fifo_writer(outputs.left_fifo);
+        right_fd = (left_fd >= 0) ? open_fifo_writer(outputs.right_fifo) : -1;
         if ((left_fd < 0) || (right_fd < 0))
         {
             fprintf(stderr, "Could not open capture FIFOs\n");
@@ -165,6 +255,7 @@ int main(int argc, char** argv)
     int32_t pcm24[480 * 2];
     int32_t left[480];
     int32_t right[480];
+    const bool use_fifos = (outputs.left_fifo != NULL);
     int exit_code = 0;
     SnapcastAudioMetricsPublisher metricsPublisher = {.fd = -1, .metrics = NULL};
     if (!audioMetricsPublisherOpen(&metricsPublisher, outputs.metrics_shm))
@@ -175,15 +266,36 @@ int main(int argc, char** argv)
     }
     fprintf(stderr, "Publishing audio metrics to %s\n", metricsPublisher.name);
 
+    g_capture_stream = stream;
+    atomic_store(&g_last_read_ms, monotonic_ms());
+    pthread_t watchdog_thread;
+    if (pthread_create(&watchdog_thread, NULL, capture_watchdog, NULL) != 0)
+    {
+        fprintf(stderr, "Could not start capture watchdog, running without stall recovery\n");
+    }
+
     while (running)
     {
         error = Pa_ReadStream(stream, buffer, frames_per_buffer);
         if (error != paNoError && error != paInputOverflowed)
         {
-            fprintf(stderr, "Capture read failed: %s\n", Pa_GetErrorText(error));
-            exit_code = 5;
-            break;
+            fprintf(stderr, "Capture read failed: %s, reopening input stream\n", Pa_GetErrorText(error));
+            Pa_AbortStream(stream);
+            Pa_CloseStream(stream);
+            error = Pa_OpenStream(&stream, &input_parameters, NULL, 48000, frames_per_buffer, paClipOff, NULL, NULL);
+            if (error == paNoError)
+                error = Pa_StartStream(stream);
+            if (error != paNoError)
+            {
+                fprintf(stderr, "Capture stream reopen failed: %s\n", Pa_GetErrorText(error));
+                exit_code = 5;
+                break;
+            }
+            g_capture_stream = stream;
+            atomic_store(&g_last_read_ms, monotonic_ms());
+            continue;
         }
+        atomic_store(&g_last_read_ms, monotonic_ms());
 
         SnapcastChannelMetrics leftMetrics = {0};
         SnapcastChannelMetrics rightMetrics = {0};
@@ -191,19 +303,17 @@ int main(int argc, char** argv)
         audioMetricsCalculateChannel(buffer, frames_per_buffer, 1, 2, &rightMetrics);
         audioMetricsPublisherPublish(&metricsPublisher, &leftMetrics, &rightMetrics, 48000);
 
-        if (left_fd >= 0)
+        if (use_fifos)
         {
             extractChannelS24In32(buffer, left, 480, AUDIO_CHANNEL_LEFT);
             extractChannelS24In32(buffer, right, 480, AUDIO_CHANNEL_RIGHT);
-            if (!writeFully(left_fd, left, sizeof(left)))
+            if (!write_channel(&left_fd, outputs.left_fifo, left, sizeof(left)))
             {
-                fprintf(stderr, "Left FIFO write failed\n");
                 exit_code = 6;
                 break;
             }
-            if (!writeFully(right_fd, right, sizeof(right)))
+            if (!write_channel(&right_fd, outputs.right_fifo, right, sizeof(right)))
             {
-                fprintf(stderr, "Right FIFO write failed\n");
                 exit_code = 6;
                 break;
             }
