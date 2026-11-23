@@ -41,15 +41,7 @@ public actor AgentRuntime {
 
         do {
             let status = try await snapserver.getStatus()
-            let channels = status.channels.map { channel in
-                var channel = channel
-                if let metrics {
-                    channel.peakDb = channel.side == "left" ? metrics.leftPeakDb : metrics.rightPeakDb
-                    channel.rmsDb = channel.side == "left" ? metrics.leftRmsDb : metrics.rightRmsDb
-                    channel.clipped = channel.side == "left" ? metrics.leftClipped : metrics.rightClipped
-                }
-                return channel
-            }
+            let channels = ChannelMetricsApplication.apply(metrics, to: status.channels)
             let running = services.filter { $0.state == .running }.count
             let mode: AudioMode = running > 0 ? .snapcast : .system
             let health: HealthLevel =

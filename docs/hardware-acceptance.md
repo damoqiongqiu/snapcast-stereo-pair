@@ -55,6 +55,8 @@ under each heading.
 ## Remote offline
 
 - Stop or disconnect the remote Mac.
+- Confirm within six seconds that the remote channel turns red, its waveform
+  clears, and the overall health becomes degraded.
 - Confirm local system-audio recovery still completes.
 - Confirm one degradation warning appears and is not repeated continuously.
 - Reconnect and confirm the incident resets.

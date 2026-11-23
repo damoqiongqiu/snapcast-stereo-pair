@@ -45,6 +45,23 @@ public struct WaveformHistory: Equatable, Sendable {
         points.append(Point(peak: peak, rms: rms, clipped: clipped))
     }
 
+    public mutating func update(channel: ChannelStatus?) {
+        guard let channel, channel.connected else {
+            points = Array(
+                repeating: Point(peak: 0, rms: 0, clipped: false),
+                count: capacity
+            )
+            return
+        }
+        append(
+            peakDb: channel.peakDb ?? -120,
+            rmsDb: channel.rmsDb ?? -120,
+            volumePercent: channel.volume,
+            muted: channel.muted,
+            clipped: channel.clipped
+        )
+    }
+
     private func normalized(_ db: Double) -> Double {
         min(1, max(0, (db + 60) / 60))
     }

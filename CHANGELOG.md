@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Treat clients as offline after six seconds without a Snapserver heartbeat, keep
+  the disconnected channel visible with a red status, and stop displaying
+  source-side waveform levels for that channel.
 - Remove the obsolete browser-based controller integration and its generated
   integration patch; the native SwiftUI console is the only supported interface.
 - Consolidate and renumber the public documentation set, add symmetric physical

@@ -288,13 +288,7 @@ private struct ChannelStrip: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.separator))
         .onChange(of: channel) { _, channel in
-            waveformHistory.append(
-                peakDb: channel?.peakDb ?? -120,
-                rmsDb: channel?.rmsDb ?? -120,
-                volumePercent: channel?.volume ?? 0,
-                muted: channel?.muted ?? true,
-                clipped: channel?.clipped ?? false
-            )
+            waveformHistory.update(channel: channel)
         }
     }
 

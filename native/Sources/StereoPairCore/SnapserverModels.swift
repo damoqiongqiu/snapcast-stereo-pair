@@ -11,23 +11,37 @@ public struct SnapserverStatus: Equatable, Sendable {
         self.healthIssues = healthIssues
     }
 
-    public static func decode(responseData: Data) throws -> SnapserverStatus {
+    public static func decode(
+        responseData: Data,
+        now: Date = Date(),
+        staleAfter: TimeInterval = 6
+    ) throws -> SnapserverStatus {
         let response = try JSONDecoder().decode(StatusResponse.self, from: responseData)
-        return normalize(server: response.result.server)
+        return normalize(
+            server: response.result.server,
+            now: now,
+            staleAfter: max(1, staleAfter)
+        )
     }
 
-    private static func normalize(server: ServerPayload) -> SnapserverStatus {
+    private static func normalize(
+        server: ServerPayload,
+        now: Date,
+        staleAfter: TimeInterval
+    ) -> SnapserverStatus {
         var channels: [ChannelStatus] = []
         var streamClients: [String: [String]] = [:]
         for group in server.groups {
-            let connected = group.clients.filter(\.connected)
-            streamClients[group.streamID, default: []].append(contentsOf: connected.map(\.id))
-            for client in connected {
+            for client in group.clients {
+                let connected = isLive(client, now: now, staleAfter: staleAfter)
+                if connected {
+                    streamClients[group.streamID, default: []].append(client.id)
+                }
                 channels.append(ChannelStatus(
                     side: group.streamID == "LeftAudio" ? "left" : "right",
                     clientId: client.id,
                     streamId: group.streamID,
-                    connected: true,
+                    connected: connected,
                     deviceName: nil,
                     volume: client.config.volume.percent,
                     muted: client.config.volume.muted,
@@ -60,6 +74,16 @@ public struct SnapserverStatus: Equatable, Sendable {
         }
         return SnapserverStatus(channels: channels, streams: streams, healthIssues: issues)
     }
+
+    private static func isLive(
+        _ client: ClientPayload,
+        now: Date,
+        staleAfter: TimeInterval
+    ) -> Bool {
+        guard client.connected else { return false }
+        guard let lastSeen = client.lastSeen else { return true }
+        return now.timeIntervalSince(lastSeen.date) <= staleAfter
+    }
 }
 
 private struct StatusResponse: Decodable {
@@ -91,6 +115,7 @@ private struct ClientPayload: Decodable {
     let id: String
     let connected: Bool
     let config: ClientConfigPayload
+    let lastSeen: TimestampPayload?
 }
 
 private struct ClientConfigPayload: Decodable {
@@ -101,6 +126,15 @@ private struct ClientConfigPayload: Decodable {
 private struct VolumePayload: Decodable {
     let percent: Int
     let muted: Bool
+}
+
+private struct TimestampPayload: Decodable {
+    let sec: Int
+    let usec: Int
+
+    var date: Date {
+        Date(timeIntervalSince1970: TimeInterval(sec) + (TimeInterval(usec) / 1_000_000))
+    }
 }
 
 private struct StreamPayload: Decodable {

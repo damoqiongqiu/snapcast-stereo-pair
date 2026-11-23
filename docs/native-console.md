@@ -98,6 +98,12 @@ beyond the other.
 Health is reported independently from the selected audio mode. Expected stops
 in system mode are shown as disabled rather than failed.
 
+A Snapcast client is considered connected only when the server reports it
+connected and its most recent heartbeat is no newer than six seconds. This
+detects a network loss before the operating system closes the TCP connection.
+The disconnected channel remains visible with a red status, its waveform is
+cleared, and the overall health changes to degraded.
+
 The notification rules use grace periods:
 
 - local service failures settle for 3 seconds;

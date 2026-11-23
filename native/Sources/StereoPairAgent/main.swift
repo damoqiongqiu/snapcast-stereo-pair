@@ -40,13 +40,7 @@ final class SnapshotStore: @unchecked Sendable {
 
     func merge(metrics: AudioMetricsSnapshot) {
         lock.lock()
-        snapshot.channels = snapshot.channels.map { channel in
-            var channel = channel
-            channel.peakDb = channel.side == "left" ? metrics.leftPeakDb : metrics.rightPeakDb
-            channel.rmsDb = channel.side == "left" ? metrics.leftRmsDb : metrics.rightRmsDb
-            channel.clipped = channel.side == "left" ? metrics.leftClipped : metrics.rightClipped
-            return channel
-        }
+        snapshot.channels = ChannelMetricsApplication.apply(metrics, to: snapshot.channels)
         lock.unlock()
     }
 }

@@ -16,6 +16,7 @@ final class SnapserverDecodingTests: XCTestCase {
                 {
                   "id": "left-test-client",
                   "connected": true,
+                  "lastSeen": {"sec": 1700000000, "usec": 0},
                   "config": {
                     "volume": {"percent": 58, "muted": false},
                     "latency": 0
@@ -30,6 +31,7 @@ final class SnapserverDecodingTests: XCTestCase {
                 {
                   "id": "right-test-client",
                   "connected": true,
+                  "lastSeen": {"sec": 1700000005, "usec": 0},
                   "config": {
                     "volume": {"percent": 52, "muted": true},
                     "latency": 12
@@ -56,7 +58,10 @@ final class SnapserverDecodingTests: XCTestCase {
     """.data(using: .utf8)!
 
     func testNormalizesConnectedClientsAndStreams() throws {
-        let status = try SnapserverStatus.decode(responseData: response)
+        let status = try SnapserverStatus.decode(
+            responseData: response,
+            now: Date(timeIntervalSince1970: 1_700_000_006)
+        )
 
         XCTAssertEqual(status.healthIssues, [])
         XCTAssertEqual(status.channels.count, 2)
@@ -70,13 +75,36 @@ final class SnapserverDecodingTests: XCTestCase {
         XCTAssertEqual(status.streams.map(\.id), ["LeftAudio", "RightAudio"])
     }
 
+    func testStaleHeartbeatMarksConnectedClientAsOffline() throws {
+        let stale = String(data: response, encoding: .utf8)!
+            .replacingOccurrences(
+                of: "\"lastSeen\": {\"sec\": 1700000000, \"usec\": 0}",
+                with: "\"lastSeen\": {\"sec\": 1699999990, \"usec\": 0}"
+            )
+            .data(using: .utf8)!
+
+        let status = try SnapserverStatus.decode(
+            responseData: stale,
+            now: Date(timeIntervalSince1970: 1_700_000_010)
+        )
+
+        XCTAssertEqual(status.channels.count, 2)
+        XCTAssertFalse(status.channels[0].connected)
+        XCTAssertTrue(status.channels[1].connected)
+        XCTAssertEqual(status.streams[0].clientIds, [])
+        XCTAssertTrue(status.healthIssues.contains("LeftAudio has no connected client"))
+    }
+
     func testMissingRightStreamProducesHealthIssue() throws {
         let broken = String(data: response, encoding: .utf8)!
             .replacingOccurrences(of: "\"id\": \"RightAudio\"", with: "\"id\": \"OtherAudio\"")
             .replacingOccurrences(of: "\"stream_id\": \"RightAudio\"", with: "\"stream_id\": \"OtherAudio\"")
             .data(using: .utf8)!
 
-        let status = try SnapserverStatus.decode(responseData: broken)
+        let status = try SnapserverStatus.decode(
+            responseData: broken,
+            now: Date(timeIntervalSince1970: 1_700_000_010)
+        )
         XCTAssertTrue(status.healthIssues.contains("RightAudio has no connected client"))
     }
 

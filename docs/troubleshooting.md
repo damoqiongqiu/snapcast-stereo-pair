@@ -17,6 +17,10 @@ Diagnostics for redacted export, service state, versions, and logs:
 
 Confirm the stream format:
 
+The native console treats a client as offline when its Snapserver heartbeat is
+older than six seconds. A red channel card and cleared waveform therefore mean
+the remote Mac stopped reporting before the TCP connection necessarily closed.
+
 ```sh
 curl -fsS http://127.0.0.1:1780/jsonrpc \
   -H 'Content-Type: application/json' \

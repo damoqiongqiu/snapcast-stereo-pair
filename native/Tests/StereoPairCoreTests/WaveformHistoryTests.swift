@@ -64,4 +64,31 @@ final class WaveformHistoryTests: XCTestCase {
         XCTAssertEqual(history.points[1].peak, 0)
         XCTAssertEqual(history.points[1].rms, 0)
     }
+
+    func testDisconnectedChannelClearsPreviouslyRenderedWaveform() {
+        var history = WaveformHistory(capacity: 2, prefill: true)
+        history.update(channel: channel(connected: true))
+
+        XCTAssertGreaterThan(history.points.last?.peak ?? 0, 0)
+
+        history.update(channel: channel(connected: false))
+
+        XCTAssertTrue(history.points.allSatisfy { $0.peak == 0 && $0.rms == 0 })
+    }
+
+    private func channel(connected: Bool) -> ChannelStatus {
+        ChannelStatus(
+            side: "left",
+            clientId: "left-client",
+            streamId: "LeftAudio",
+            connected: connected,
+            deviceName: "Speakers",
+            volume: 100,
+            muted: false,
+            latencyMs: 0,
+            peakDb: -6,
+            rmsDb: -12,
+            clipped: false
+        )
+    }
 }
