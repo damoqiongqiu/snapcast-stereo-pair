@@ -338,6 +338,8 @@ repository.
 | Installation lifecycle | [integration/scripts/install-lifecycle.sh](integration/scripts/install-lifecycle.sh) |
 | Architecture | [docs/architecture.md](docs/architecture.md) |
 | Troubleshooting | [docs/troubleshooting.md](docs/troubleshooting.md) |
+| Field debugging report | [docs/field-debugging-report.md](docs/field-debugging-report.md) |
+| Sample stack evidence | [docs/samples/README.md](docs/samples/README.md) |
 
 ### 7.2 Required Verification
 
