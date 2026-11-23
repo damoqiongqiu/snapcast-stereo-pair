@@ -11,7 +11,10 @@ project documentation.
 - [Installation](docs/installation.md)
 - [Native console](docs/native-console.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [Homebrew source build](docs/homebrew.md)
+- [Hardware acceptance](docs/hardware-acceptance.md)
 - [Upstream synchronization](docs/upstream-sync.md)
+- [Security policy](SECURITY.md)
 
 ## Upstream Sources
 

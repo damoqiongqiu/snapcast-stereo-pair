@@ -3,6 +3,9 @@
 The native application, `MacBook Stereo Pair.app`, is the primary interface for
 the stereo pair. It controls and observes the audio runtime but does not carry
 audio itself. Closing the window or quitting the GUI never stops playback.
+Physical placement still determines the acoustic center image; follow the
+[placement guidance](../README.md#32-physical-placement) before evaluating the
+console's stereo presentation.
 
 ![English native console](images/native-console-en.png)
 
@@ -13,7 +16,7 @@ audio itself. Closing the window or quitting the GUI never stops playback.
 
 </details>
 
-## Runtime and Interface Relationship
+## 1. Runtime and Interface Relationship
 
 ```text
 MacStereoPair.app --------+
@@ -35,7 +38,7 @@ Its mode is `0600`, and connections from another user are rejected. HTTP and
 TCP control APIs remain bound to localhost. Uncompressed audio port `1704`
 requires a trusted LAN, VPN, or restrictive firewall.
 
-## Two Audio Modes
+## 2. Two Audio Modes
 
 The high-level modes are:
 
@@ -52,8 +55,10 @@ to both Macs and prevents a hand-back transition from unexpectedly jumping to
 BlackHole remains installed in system mode. It is only made inactive by the
 audio route, and the runtime never unloads or deletes the driver.
 
-The application appears in both the Dock and menu bar. The menu-bar menu
-provides mode, status, volume, mute, reconnect, console, and quit-GUI actions.
+The application appears in both the Dock and menu bar. The menu-bar menu provides
+the current status, console access, stereo-pair/system-mode switching, the
+current master-volume readout, and Quit Interface. Mute, reconnect, and latency
+controls remain in the main console.
 The main window provides:
 
 - master volume with preserved left/right offsets;
@@ -88,7 +93,7 @@ overwrite the committed value and make the knob jump backward. Each slider has
 100%. The scale shares the slider track endpoints so neither end protrudes
 beyond the other.
 
-## Health and Notifications
+## 3. Health and Notifications
 
 Health is reported independently from the selected audio mode. Expected stops
 in system mode are shown as disabled rather than failed.
@@ -109,7 +114,7 @@ Its launchd state is therefore normally inactive between 15-second runs. A
 successful pairing marker keeps the row marked healthy for up to 45 seconds;
 failed, stale, or never-successful checks remain warnings or failures.
 
-## First-Run Setup
+## 4. First-Run Setup
 
 The wizard has four persistent stages after the welcome page:
 
@@ -134,7 +139,7 @@ The remote step creates or reuses an SSH key, uses `ssh-copy-id` only when
 needed, verifies key-only access with `BatchMode=yes`, installs the remote
 helper, and writes a local non-secret `remote-control.json`.
 
-## Diagnostics and Privacy
+## 5. Diagnostics and Privacy
 
 Redacted diagnostics remove home paths, SSH targets, IP addresses, and token-like
 values. The export is created only after an explicit user action and is never
@@ -143,7 +148,7 @@ uploaded automatically.
 The service maintenance action accepts only the fixed runtime LaunchAgent IDs.
 The protocol never accepts an executable path or shell fragment.
 
-## Languages and Accessibility
+## 6. Languages and Accessibility
 
 English and Simplified Chinese resources ship with the application. English is
 the default for new installations, while an existing saved language choice is
@@ -153,7 +158,7 @@ Status LEDs always include text or accessibility labels. Reduce Motion stops LED
 pulses while preserving the semantic status. The main controls expose VoiceOver
 labels and keyboard actions.
 
-## Volume Controls
+## 7. Volume and Waveform Controls
 
 Side and master Snapcast sliders follow the pointer continuously for smooth
 dragging. The visible percentage and committed Snapcast value use whole-percent
@@ -175,7 +180,7 @@ and is suppressed during pointer drags. Master-volume writes are serialized,
 and Snapserver JSON-RPC requests use short connections so a reused keep-alive
 connection cannot return an empty response and leave one channel behind.
 
-## System Volume Observation
+## 8. System Volume Observation
 
 Snapcast volume and the macOS physical output volume are separate controls. The
 console labels them independently so an accidentally reduced speaker volume is
@@ -195,14 +200,14 @@ The UI receives only the physical side, volume, timestamp, and a generic error
 state. It does not expose SSH targets, account names, executable paths, or device
 UIDs.
 
-## Packaging
+## 9. Packaging
 
 Public releases build from source and are ad-hoc signed. They are not notarized,
 do not require paid Apple Developer membership, have no App Store dependency,
 and have no automatic updater. See [installation.md](installation.md) and
 [homebrew.md](homebrew.md) for distribution details.
 
-## Reinstall and Upgrade
+## 10. Reinstall and Upgrade
 
 Installation is manifest-driven. The installer writes:
 

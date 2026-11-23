@@ -8,7 +8,7 @@ upstream https://github.com/snapcast/snapcast.git
 origin   https://github.com/damoqiongqiu/snapcast-stereo-pair.git
 ```
 
-## Check the Current Bases
+## 1. Check the Current Bases
 
 ```sh
 git remote -v
@@ -18,14 +18,14 @@ git log --oneline --decorate --graph -12
 
 The first public integration base is Snapcast `v0.35.0`.
 
-## Rebase the Project Layer
+## 2. Rebase the Project Layer
 
 Fetch upstream tags and replay the project commit onto the desired release:
 
 ```sh
 git fetch upstream --tags
 git switch main
-git switch -c upgrade/snapcast-vX.Y.Z
+git switch -c codex/upstream-snapcast-vX.Y.Z
 git rebase --onto vX.Y.Z v0.35.0
 ```
 
@@ -51,7 +51,7 @@ Resolve conflicts by preserving the project behavior described in
 When the upstream base tag changes, update this document, the README
 compatibility table, and CI expectations together.
 
-## Regenerate the Integration Patch
+## 3. Regenerate the Integration Patch
 
 After the rebased tree passes validation, regenerate the distributable diff:
 
@@ -76,27 +76,10 @@ git apply --check --reverse \
   integration/patches/snapcast-macos-stereo.patch
 ```
 
-## Validate the Upgrade
+## 4. Validate the Upgrade
 
-```sh
-./integration/scripts/build-macos.sh
-swift test --package-path native
-swift build --package-path native -c release
-integration/test/test-pair-config.sh
-integration/test/test-audio-levels.sh
-integration/test/test-pair-routing.sh
-integration/test/test-wake-recovery.sh
-integration/test/test-control-plane.sh
-integration/test/test-mode-transitions.sh
-integration/test/test-control-agent-install.sh
-integration/test/test-native-app-packaging.sh
-integration/test/test-homebrew-formula.sh
-zsh -n integration/scripts/*.sh integration/test/*.sh
-plutil -lint integration/launchagents/*.plist.in
-./scripts/check-public-tree.sh
-```
-
-Build and run upstream unit tests:
+Run the canonical release checklist in [AGENTS.md](../AGENTS.md). The rebased
+tree must also run the upstream unit tests:
 
 ```sh
 cmake -S . -B .build-tests -G Ninja -DBUILD_SERVER=OFF -DBUILD_CLIENT=ON \
@@ -109,9 +92,10 @@ Hardware acceptance still requires the two-MacBook setup. Verify both stream
 formats, routing, full-scale PCM with CoreAudio queue volume, `vmvc`/`volm`
 normalization, sleep/wake recovery, click-marker alignment, native-mode
 restoration, native console and CLI state agreement, notification deduplication,
-and remote-offline degradation before merging.
+and remote-offline degradation before merging. Use
+[hardware-acceptance.md](hardware-acceptance.md) for the required report.
 
-## Privacy
+## 5. Privacy
 
 Local `pair.env` files, generated LaunchAgents, logs, build products, private IP
 addresses, usernames, credentials, and home paths must never enter a commit.

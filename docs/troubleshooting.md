@@ -10,10 +10,10 @@ The native console and CLI share the same Agent snapshot. Use Advanced
 Diagnostics for redacted export, service state, versions, and logs:
 
 ```sh
-~/Library/Application\ Support/Snapcast/bin/mac-stereo-pairctl status --json
+~/Library/Application\ Support/Snapcast/bin/mac-stereo-pairctl status
 ```
 
-## Missing LeftAudio or RightAudio
+## 1. Missing LeftAudio or RightAudio
 
 Confirm the stream format:
 
@@ -39,7 +39,7 @@ launchctl kickstart -k "gui/$uid/com.snapcast.server"
 launchctl kickstart -k "gui/$uid/com.snapcast.splitter"
 ```
 
-## FIFO Errors
+## 2. FIFO Errors
 
 Check the named pipes:
 
@@ -58,7 +58,7 @@ Do not replace a FIFO with a regular file. A leftover splitter process can also
 hold a stale endpoint after server recovery; restart both services in the
 order shown above.
 
-## Streams Are Reversed
+## 3. Streams Are Reversed
 
 Open:
 
@@ -80,7 +80,11 @@ Then reinstall the local runtime so templates and routing use the new roles:
 The native console derives the visible sides from `LeftAudio` and `RightAudio`, not
 from client IDs.
 
-## Local MacBook Is Silent
+If routing is correct but the center image remains offset, check the physical
+layout described in
+[Physical Placement](../README.md#32-physical-placement).
+
+## 4. Local MacBook Is Silent
 
 In snapcast mode, the system output is BlackHole and applications are suspended
 from the speaker. The local Snapclient must select the built-in speaker
@@ -98,7 +102,7 @@ be running with `SNAPCLIENT_COREAUDIO_DEVICE` set. If the configured device UID
 is wrong, run `SwitchAudioSource -a -t output`, update
 `LOCAL_OUTPUT_DEVICE`, and reinstall.
 
-## One Side Is Much Quieter
+## 5. One Side Is Much Quieter
 
 Run:
 
@@ -127,7 +131,10 @@ The console volume is applied by CoreAudio after the 24-bit PCM chunks have
 been decoded. The stream itself remains at full scale; lowering Snapcast volume
 does not rewrite or truncate the integer audio buffers.
 
-## Crackling, Dropouts, or Low Volume After Wake
+If both Snapcast and hardware levels match, compare speaker distance, nearby
+walls, furniture, and Mac orientation before compensating with channel volume.
+
+## 6. Crackling, Dropouts, or Low Volume After Wake
 
 macOS can invalidate active CoreAudio queues during sleep and restore the
 speaker's physical volume separately from its virtual main volume. Both Macs
@@ -148,7 +155,7 @@ If a failure still occurs, collect
 `~/Library/Logs/Snapcast/wake-recovery.stderr.log` and any `snapclient` crash
 report produced around the wake time.
 
-## Dropouts or Periodic Gaps
+## 7. Dropouts or Periodic Gaps
 
 The validated 200 ms buffer covers normal Wi-Fi jitter. Symptoms include
 `Not enough`, `age >`, `No chunk available`, or `onResync` in recent logs.
@@ -171,7 +178,7 @@ If the network genuinely needs a larger buffer, change `buffer` in
 [`integration/config/snapserver.conf.in`](../integration/config/snapserver.conf.in)
 and rerun the local installer. A smaller buffer increases underrun risk.
 
-## Audio/Video Offset
+## 8. Audio/Video Offset
 
 Snapcast synchronization aligns the two audio clients with each other. The
 stream buffer adds intentional latency between the source application and both
@@ -181,10 +188,10 @@ Keep both sides on the same runtime configuration and the same buffer. Changing
 one client's latency can improve a specific room compromise but breaks the
 left/right timing relationship.
 
-## Return to Native Audio
+## 9. Return to Native Audio
 
 Choose **Mac system audio** in the native console or use the command below.
-System mode intentionally stops the pair runtime;
+System mode intentionally stops the pair runtime.
 
 Use the generated mode switcher:
 
@@ -204,6 +211,10 @@ the server stopped, the remote client has no stream to play. The native Agent
 attempts a bounded, key-only remote stop and reports a degraded warning when the
 remote Mac is unavailable without rolling back the local switch.
 
+Running `set-mode.sh` directly changes only the local Mac. Use the native console
+or `mac-stereo-pairctl stop` when coordinated best-effort remote mode handling is
+required.
+
 Expected disabled services in system mode do not generate notifications. A
 notification is sent once when Snapserver, a playback route, a client, or wake
 recovery actually fails in Snapcast mode, then resets after recovery.
@@ -218,7 +229,7 @@ Both Macs restore that volume before switching output back. If the remembered
 device is unavailable, the fallback volume is 30%. Do not raise the saved
 fallback to 100%; use the normal system volume after the transition.
 
-## Collect a Safe Bug Report
+## 10. Collect a Safe Bug Report
 
 Include:
 

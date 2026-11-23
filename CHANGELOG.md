@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Consolidate and renumber the public documentation set, add symmetric physical
+  placement guidance, correct native menu and removal behavior, reduce duplicated
+  release checklists, and expand the README and `llms.txt` document maps.
 - Add a native SwiftUI menu-bar console and dual-channel professional control
   surface with live mirrored waveforms, peak/RMS meters, clip indication,
   master/side volume, mute, latency, routing, stream format, and recovery state.
@@ -10,7 +13,7 @@
   physical system-volume indicators for both Macs.
 - Tighten the console dashboard by grouping mute and delay controls, reducing
   secondary card spacing, unifying the system-volume refresh control, improving
-  status legibility, and lowering the no-scroll minimum height to 1040 × 660.
+  status legibility, and reducing the no-scroll minimum window size to 1040 × 660.
 - Redraw the channel waveforms as stable audio instruments with separate Peak
   and RMS envelopes, dB reference grids, live dBFS readouts, and clipping-aware
   color instead of decorative time-based motion.

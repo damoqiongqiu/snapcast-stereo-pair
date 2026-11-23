@@ -23,6 +23,9 @@ plutil -lint integration/launchagents/*.plist.in
 Use the installed native application for manual UI acceptance. Hardware changes
 also require a two-MacBook validation report.
 
+[AGENTS.md](AGENTS.md) contains the canonical complete release-check list. Run
+the checks that cover the change and use the complete list before a release.
+
 ## Pull Requests
 
 - Explain the user-visible problem and the chosen behavior.

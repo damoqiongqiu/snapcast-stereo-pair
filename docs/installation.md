@@ -4,7 +4,11 @@ This guide assumes the repository that captures audio is called the source Mac
 and the second MacBook is called the remote Mac. Both can use any stable role
 names and either can be on the physical left.
 
-## Prerequisites
+Before installation, place both Macs symmetrically around the primary listening
+position. See [Physical Placement](../README.md#32-physical-placement) for the
+practical layout guidance.
+
+## 1. Prerequisites
 
 Install Xcode Command Line Tools and Homebrew on the source Mac:
 
@@ -34,14 +38,14 @@ ssh <ssh-user>@<remote-mac-address>
 The installer uses normal SSH configuration and does not prompt for or store a
 password.
 
-## Clone the Repository
+## 2. Clone the Repository
 
 ```sh
 git clone https://github.com/damoqiongqiu/snapcast-stereo-pair.git
 cd snapcast-stereo-pair
 ```
 
-## Configure Roles
+## 3. Configure Roles
 
 Run the interactive configurator:
 
@@ -104,7 +108,7 @@ LEFT_IS_REMOTE=true \
 `--print` resolves and displays the configuration without writing it. The
 address above is reserved for documentation and is not a real network target.
 
-## Build and Install Locally
+## 4. Build and Install the Local Product
 
 Build and validate without changing services:
 
@@ -135,7 +139,7 @@ The installer:
 - renders templates into `~/Library/Application Support/Snapcast/`;
 - keeps BlackHole and the built-in speaker at 100% hardware volume;
 - creates the left/right FIFOs;
-- installs the local LaunchAgents;
+- installs the native app, control Agent, CLI, and local LaunchAgents;
 - switches system output to BlackHole;
 - starts Snapserver, splitter, local Snapclient, route, pairing, and wake
   recovery services.
@@ -157,7 +161,7 @@ LaunchAgents, and templates. It preserves the pairing configuration, remote
 control configuration, logs, and user preferences. It may briefly interrupt
 audio while runtime services restart.
 
-## Install the Remote Client
+## 5. Install the Remote Client
 
 Run from the source Mac after local installation:
 
@@ -182,9 +186,9 @@ password, private key, or token. Remote mode commands run with `BatchMode=yes`
 and a bounded timeout. Failure to stop or start the remote client degrades
 synchronization status but does not roll back the local mode change.
 
-## Install the Native Console
+## 6. Native Console and First-Run Setup
 
-The product installer above installs the app under `~/Applications`.
+The local product installation installs the app under `~/Applications`.
 Its first-run wizard can also run
 the local and remote installation steps through Terminal. It detects existing
 configuration and preconfigured SSH keys. Password entry stays in Terminal.
@@ -197,7 +201,7 @@ The native app also exposes **Advanced Diagnostics → Installation maintenance*
 with a confirmed force-reinstall action. This exists because file and version
 detection can occasionally be wrong; the user must retain an explicit override.
 
-## Validate
+## 7. Validate
 
 Run:
 
@@ -223,7 +227,7 @@ System mode restores the remembered physical output and exact volume, with a
 The native app and CLI use the same Agent snapshot:
 
 ```sh
-~/Library/Application\ Support/Snapcast/bin/mac-stereo-pairctl status --json
+~/Library/Application\ Support/Snapcast/bin/mac-stereo-pairctl status
 ```
 
 Advanced Diagnostics exports redacted information only after an explicit local
@@ -238,24 +242,32 @@ CoreAudio applies the console volume through the AudioQueue floating-point
 volume parameter. The 24-bit PCM received from Snapserver remains at full scale,
 so changing listening volume does not rewrite the integer audio buffer.
 
-## Complete Removal
+## 8. Complete Removal
 
-Return to native audio first:
+Return the source Mac to native audio first:
 
 ```sh
 ~/Library/Application\ Support/Snapcast/set-mode.sh native
 ```
 
-Stop all local Snapcast services:
+For a coordinated, best-effort remote transition, use the native console or
+`mac-stereo-pairctl stop` instead. The generated `set-mode.sh` changes only the
+local Mac.
+
+Stop all local services and restore normal output:
 
 ```sh
-uid="$(id -u)"
-for label in local-client capture server route splitter pairing wake-recovery; do
-  launchctl bootout "gui/$uid/com.snapcast.$label" 2>/dev/null || true
-done
+./integration/scripts/uninstall-local.sh
 ```
 
-Remove generated local files only after confirming their paths:
+Remove the native app, control Agent, and CLI:
+
+```sh
+./integration/scripts/uninstall-native.sh
+```
+
+`uninstall-local.sh` preserves runtime files. A complete removal additionally
+requires deleting these generated local paths after confirming them:
 
 ```text
 ~/Library/Application Support/Snapcast
@@ -265,14 +277,8 @@ Remove generated local files only after confirming their paths:
 
 The remote installer has no automatic uninstaller. On the remote Mac, boot out
 `com.snapcast.remote-client` and `com.snapcast.remote-wake-recovery`, then remove
-the copied binaries, scripts, and LaunchAgents after confirming the account and
-paths.
-
-Remove only the native app, Agent, and CLI with:
-
-```sh
-./integration/scripts/uninstall-native.sh
-```
-
-This leaves the audio runtime and user configuration intact.
+the copied binaries, scripts, LaunchAgents, and the `.snapcast-remote-mode` and
+`.snapcast-volume` symlinks after confirming the account and paths. On the source
+Mac, separately remove `~/Library/Application Support/Snapcast/state/remote-control.json`
+if remote mode control is no longer needed.
 

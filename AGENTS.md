@@ -19,6 +19,23 @@ and device recovery. The native console is not an audio engine.
   packaging, and tests.
 - `docs/`: public architecture, installation, security, and maintenance docs.
 
+## Documentation Map
+
+- `README.md`: public overview, quick start, physical placement, operations, FAQ,
+  and documentation index.
+- `docs/installation.md`: end-to-end installation, validation, and removal.
+- `docs/architecture.md`: capture, synchronization, routing, recovery, and
+  acoustic limits.
+- `docs/native-console.md`: native app behavior, volume handling, diagnostics,
+  accessibility, and packaging.
+- `docs/troubleshooting.md`: user-facing recovery procedures.
+- `docs/homebrew.md`: source formula installation and removal.
+- `docs/hardware-acceptance.md`: two-Mac release acceptance format.
+- `docs/upstream-sync.md`: Snapcast rebase and integration-patch workflow.
+
+Keep this file as the canonical source for the complete release-check list.
+Other documents should link here instead of duplicating the full checklist.
+
 ## Required Checks
 
 Run the checks that cover the change; run the complete set before release:
@@ -66,6 +83,8 @@ macOS and BlackHole versions when changing audio behavior.
 ## Audio Rules
 
 - Preserve one shared capture clock for both mono streams.
+- Document that two Macs should be placed symmetrically around the primary
+  listener; synchronization does not correct path-length or room asymmetry.
 - Keep `LeftAudio` and `RightAudio` at the same sample rate, format, chunk size,
   and buffer unless a reviewed design changes both sides.
 - Keep the local Snapclient explicitly bound to a real output device while

@@ -25,7 +25,7 @@ dual-Mac system-volume indicators, and end-to-end runtime health.</sub>
 
 </details>
 
-## At a Glance
+## 1. At a Glance
 
 | Property | Project behavior |
 | --- | --- |
@@ -37,13 +37,14 @@ dual-Mac system-volume indicators, and end-to-end runtime health.</sub>
 | Playback | Patched Snapclient with explicit CoreAudio device selection |
 | Control surface | Native SwiftUI Dock and menu-bar application |
 | Volume control | Continuous side/master sliders with throttled asynchronous audio previews |
+| Physical placement | Symmetric left/right placement around the primary listening position |
 | Network boundary | Stream TCP `1704`; control APIs bound to localhost |
 | Recovery | Sleep/wake relaunch, hardware-volume recovery, health monitoring |
 | Release model | Ad-hoc signed source builds and Homebrew packaging |
 | License | GPL-3.0-or-later |
 | Upstream base | Snapcast `v0.35.0` |
 
-## Why This Fork
+## 2. Why This Fork
 
 Upstream Snapcast provides the synchronization engine. This project packages
 the macOS-specific work needed to run a practical two-Mac stereo pair.
@@ -51,7 +52,7 @@ the macOS-specific work needed to run a practical two-Mac stereo pair.
 | Requirement | Raw Snapcast setup | MacBook Stereo Pair |
 | --- | --- | --- |
 | macOS system-audio capture | Assemble separately | BlackHole capture and left/right FIFO split built in |
-| Stereo placement | Configure generic clients | Stable role-based `LeftAudio` and `RightAudio` routing |
+| Left/right role mapping | Configure generic clients | Stable role-based `LeftAudio` and `RightAudio` routing |
 | Local playback device | Choose manually | Explicit CoreAudio output binding with feedback-safe routing |
 | Volume interaction | Control through external tools | Native continuous sliders with synchronized side/master updates |
 | Volume safety | Manage external scripts | Preserve and restore hardware output and exact volume |
@@ -59,9 +60,9 @@ the macOS-specific work needed to run a practical two-Mac stereo pair.
 | Control interface | Use an external client | Native SwiftUI console with live meters and diagnostics |
 | Install and upgrade | Reproducible manual steps | Manifest-driven installer, repair, upgrade, and force reinstall |
 
-## Quick Start
+## 3. Quick Start
 
-### Prerequisites
+### 3.1 Prerequisites
 
 - Two Macs running macOS 14 or newer on the same trusted LAN or VPN.
 - An SSH account on the remote Mac. The setup wizard can create or install a key
@@ -80,7 +81,31 @@ brew install switchaudio-osx portaudio cmake ninja pkgconf boost openssl@4 \
 Run all installation and configuration commands on the Mac that will capture
 system audio. This documentation calls it the **source Mac**.
 
-### Option A: Native Setup Wizard
+### 3.2 Physical Placement
+
+Place the two Macs symmetrically to the listener's left and right. Symmetry has
+a larger effect on the center image than small differences in absolute speaker
+distance:
+
+- Keep both Macs at approximately the same distance from the primary listening
+  position and keep the listener near the center line between them.
+- Use the same height and orientation for both Macs, with the built-in speakers
+  facing the listening position.
+- Avoid placing only one Mac against a wall, in a corner, behind furniture, or
+  on a materially different surface; asymmetric reflections can pull the image
+  to one side.
+- Keep the left and right Snapcast levels equal, and leave both physical output
+  stages at 100%.
+- A near-equilateral triangle between the two Macs and the listener is a useful
+  starting point. Adjust the width and inward angle using centered vocals and
+  hard-panned instruments until the center image is stable and in front.
+
+Snapcast synchronizes the playback timelines, but it cannot remove acoustic
+path-length differences, room reflections, or other effects caused by
+asymmetric placement. See [docs/architecture.md](docs/architecture.md) for the
+timing and acoustic boundaries.
+
+### 3.3 Option A: Native Setup Wizard
 
 ```sh
 git clone https://github.com/damoqiongqiu/snapcast-stereo-pair.git
@@ -105,7 +130,7 @@ The wizard uses the default layout with the **remote Mac physically on the
 left**. Use the CLI path if the source Mac is physically on the left or if the
 output devices need non-default UIDs.
 
-### Option B: CLI Configuration
+### 3.4 Option B: CLI Configuration
 
 Use this path for explicit control over physical placement and device config:
 
@@ -149,7 +174,7 @@ Remove `--print` after checking the resolved values.
 For detailed prerequisites and manual configuration, see
 [docs/installation.md](docs/installation.md).
 
-## Native macOS Console
+## 4. Native macOS Console
 
 The console is the supported graphical control surface for this repository. It
 is a normal Dock application with a menu-bar entry and remains independent from
@@ -174,7 +199,7 @@ Key capabilities:
 See [docs/native-console.md](docs/native-console.md) for the complete control
 model, recovery behavior, accessibility, and privacy design.
 
-## How the Stereo Pair Works
+## 5. How the Stereo Pair Works
 
 ```text
 macOS applications
@@ -201,9 +226,11 @@ Listening volume is applied after decoding through
 BlackHole and the physical speaker stages are normalized independently.
 
 See [docs/architecture.md](docs/architecture.md) for timing, routing, recovery,
-network, and CoreAudio details.
+network, CoreAudio, and acoustic-limit details. Physical placement still
+affects path length, reflections, and the perceived stereo image even when the
+playback timelines are synchronized.
 
-## Installation and Operations
+## 6. Installation and Operations
 
 The product installer is idempotent and manifest-driven:
 
@@ -230,7 +257,7 @@ Common commands:
 # Read redacted diagnostics.
 "$HOME/Library/Application Support/Snapcast/bin/mac-stereo-pairctl" diagnostics
 
-# Return both Macs to their saved normal audio configuration.
+# Return the source Mac to its saved normal audio configuration.
 "$HOME/Library/Application Support/Snapcast/set-mode.sh" native
 ```
 
@@ -252,12 +279,12 @@ Logs are written under:
 ~/Library/Logs/Snapcast/
 ```
 
-## Agent Quick Reference
+## 7. Agent Quick Reference
 
 AI coding agents should read [AGENTS.md](AGENTS.md) before modifying the
 repository.
 
-### Source of Truth
+### 7.1 Source of Truth
 
 | Task | Read or use |
 | --- | --- |
@@ -269,32 +296,18 @@ repository.
 | Architecture | [docs/architecture.md](docs/architecture.md) |
 | Troubleshooting | [docs/troubleshooting.md](docs/troubleshooting.md) |
 
-### Required Verification
+### 7.2 Required Verification
 
-Run the checks that cover the change. For full release validation:
+[AGENTS.md](AGENTS.md) is the canonical release checklist. Run every check that
+covers the change and use the complete list before a release. Documentation-only
+changes must at least pass:
 
 ```sh
-./integration/scripts/build-macos.sh
-swift test --package-path native
-swift build --package-path native -c release
-integration/test/test-pair-config.sh
-integration/test/test-audio-levels.sh
-integration/test/test-audio-profile.sh
-integration/test/test-pair-routing.sh
-integration/test/test-wake-recovery.sh
-integration/test/test-control-plane.sh
-integration/test/test-mode-transitions.sh
-integration/test/test-install-lifecycle.sh
-integration/test/test-control-agent-install.sh
-integration/test/test-native-app-packaging.sh
-integration/test/test-homebrew-formula.sh
-integration/test/test-native-release.sh --automated-only
-zsh -n integration/scripts/*.sh integration/test/*.sh
-plutil -lint integration/launchagents/*.plist.in
 ./scripts/check-public-tree.sh
+git diff --check
 ```
 
-### Safety Rules
+### 7.3 Safety Rules
 
 - Never execute a user-editable `pair.env` as shell source.
 - Never accept executable paths or shell fragments over the control socket.
@@ -307,19 +320,19 @@ plutil -lint integration/launchagents/*.plist.in
 
 For machine-readable project context, see [llms.txt](llms.txt).
 
-## Requirements and Compatibility
+## 8. Requirements and Compatibility
 
 - macOS 14 or newer on both Macs.
 - BlackHole 2ch on the source Mac.
 - The same CPU architecture on both Macs when using the bundled remote installer
   to copy a locally built Snapclient binary.
 - Snapcast upstream base: `v0.35.0`.
-- Current native runtime line: `v0.2.x`.
+- Current native runtime: `v0.2.0`.
 
 The primary validated environment is two MacBook Pro `Mac16,1` systems with
 Apple M4, 24 GB and 16 GB memory, macOS 27.2.1, and BlackHole 2ch 0.7.1.
 
-## Security Boundaries
+## 9. Security Boundaries
 
 - Snapcast stream TCP `1704` is unauthenticated and requires a trusted LAN,
   VPN, or restrictive firewall.
@@ -332,15 +345,11 @@ Apple M4, 24 GB and 16 GB memory, macOS 27.2.1, and BlackHole 2ch 0.7.1.
 
 Read [SECURITY.md](SECURITY.md) before reporting a vulnerability.
 
-## FAQ
+## 10. FAQ
 
 ### Is the audio lossless?
 
 Yes. The default path uses uncompressed 48 kHz / 24-bit mono PCM for each side.
-
-### Does this require a separate web application?
-
-No. The native SwiftUI application is the supported control surface.
 
 ### Does it replace the upstream Snapcast project?
 
@@ -363,7 +372,7 @@ Smaller buffers may reduce latency but increase underrun risk on Wi-Fi.
 Wake-recovery LaunchAgents recreate invalidated CoreAudio queues, restore
 routing and hardware volume, and restart capture or playback as needed.
 
-## Troubleshooting
+## 11. Troubleshooting
 
 Start with:
 
@@ -381,7 +390,7 @@ Then inspect:
 
 See [docs/troubleshooting.md](docs/troubleshooting.md) for recovery procedures.
 
-## Development
+## 12. Development
 
 The repository contains both the macOS integration layer and the patched
 Snapcast sources:
@@ -400,25 +409,51 @@ Snapcast sources:
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes.
 
-## Uninstall and Rollback
+## 13. Uninstall and Rollback
 
-Return to normal local audio:
+Return the source Mac to normal local audio:
 
 ```sh
 "$HOME/Library/Application Support/Snapcast/set-mode.sh" native
 ```
 
-Stop or remove the runtime:
+The native console and `mac-stereo-pairctl stop` also attempt a bounded,
+best-effort remote transition. The generated `set-mode.sh` changes only the
+local Mac.
+
+Stop the local runtime and remove the native interface:
 
 ```sh
 ./integration/scripts/uninstall-local.sh
 ./integration/scripts/uninstall-native.sh
 ```
 
+`uninstall-local.sh` stops all local services, including the control Agent, and
+restores normal system output while preserving runtime files.
+`uninstall-native.sh` removes the app, Agent binary, CLI, and Agent LaunchAgent
+without deleting the audio runtime or user configuration.
+
 Complete removal steps and remote-cleanup guidance are documented in
 [docs/installation.md](docs/installation.md).
 
-## License and Upstream
+## 14. Documentation Map
+
+| Need | Document |
+| --- | --- |
+| Install, configure, validate, or remove the pair | [Installation](docs/installation.md) |
+| Understand capture, synchronization, routing, and recovery | [Architecture](docs/architecture.md) |
+| Use the native app, diagnostics, and accessibility | [Native console](docs/native-console.md) |
+| Diagnose missing streams, reversed sides, or dropouts | [Troubleshooting](docs/troubleshooting.md) |
+| Build or maintain the Homebrew package | [Homebrew source build](docs/homebrew.md) |
+| Run the two-Mac release acceptance checklist | [Hardware acceptance](docs/hardware-acceptance.md) |
+| Rebase the project onto a new Snapcast release | [Upstream synchronization](docs/upstream-sync.md) |
+| Review security boundaries and vulnerability reporting | [SECURITY.md](SECURITY.md) |
+| Review release changes | [CHANGELOG.md](CHANGELOG.md) |
+| Contribute code, tests, or documentation | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Get machine-readable repository context | [llms.txt](llms.txt) |
+| Modify the repository safely | [AGENTS.md](AGENTS.md) |
+
+## 15. License and Upstream
 
 This is an unofficial macOS stereo-pair fork maintained by `damoqiongqiu`, not
 an official Snapcast release.
@@ -426,11 +461,3 @@ an official Snapcast release.
 It preserves upstream Snapcast history, copyright notices, and GPL provenance,
 and is distributed under GPL-3.0-or-later. See [NOTICE.md](NOTICE.md),
 [README.snapcast.md](README.snapcast.md), and [LICENSE](LICENSE).
-
-Additional documentation:
-
-- [Installation](docs/installation.md)
-- [Architecture](docs/architecture.md)
-- [Native console](docs/native-console.md)
-- [Homebrew packaging](docs/homebrew.md)
-- [Hardware acceptance](docs/hardware-acceptance.md)

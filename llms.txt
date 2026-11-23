@@ -10,6 +10,8 @@
 - Platform: macOS 14 or newer
 - Supported architectures: Intel and Apple Silicon
 - Primary use case: two-MacBook synchronized stereo playback of macOS system audio
+- Physical placement: symmetric left/right around the primary listener; Snapcast
+  synchronization cannot correct path-length or room asymmetry
 - Control surface: native SwiftUI Dock and menu-bar console
 - Audio path: BlackHole 2ch -> PortAudio capture -> two mono FIFOs -> Snapserver -> Snapclients -> explicit CoreAudio output devices
 - Default stream format: 48 kHz / 24-bit / mono PCM
@@ -37,6 +39,9 @@ the macOS-specific integration needed for a practical two-Mac stereo pair:
 - Understand the audio design: [docs/architecture.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/architecture.md)
 - Install or repair the runtime: [docs/installation.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/installation.md)
 - Work on the native console: [docs/native-console.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/native-console.md)
+- Build or remove the Homebrew package: [docs/homebrew.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/homebrew.md)
+- Run two-Mac release acceptance: [docs/hardware-acceptance.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/hardware-acceptance.md)
+- Rebase onto a new Snapcast release: [docs/upstream-sync.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/upstream-sync.md)
 - Diagnose a running pair: [docs/troubleshooting.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/docs/troubleshooting.md)
 - Review release checks: [AGENTS.md](https://github.com/damoqiongqiu/snapcast-stereo-pair/blob/main/AGENTS.md)
 
@@ -68,6 +73,7 @@ swift build --package-path native -c release
 - The native control protocol and runtime models are in `native/Sources/StereoPairCore/`.
 - The native application is in `native/Sources/MacStereoPair/`.
 - The control Agent socket is owner-only at `~/Library/Application Support/Snapcast/run/control.sock`.
+- The complete release-check list is canonical in `AGENTS.md`.
 
 ## Agent constraints
 
@@ -76,6 +82,7 @@ swift build --package-path native -c release
 - Keep HTTP and TCP control bound to localhost.
 - Do not expose TCP stream port 1704 beyond a trusted LAN, VPN, or firewall.
 - Preserve one capture clock for both mono streams.
+- Keep the two Macs symmetrically placed around the primary listening position.
 - Keep left and right streams on the same rate, format, chunk size, and buffer.
 - Do not add lossy codecs or resampling without measured quality and latency evidence.
 - Do not attenuate integer PCM in software; use the AudioQueue listening-volume path.

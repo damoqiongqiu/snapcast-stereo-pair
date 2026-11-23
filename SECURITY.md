@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Security fixes target the current `v0.2.x` source release and the `main`
+Security fixes target the current `v0.2.0` source release and the `main`
 branch. Older preparation branches and private development branches are not
 supported releases.
 

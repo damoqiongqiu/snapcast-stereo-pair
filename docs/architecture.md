@@ -35,7 +35,7 @@ LeftAudio  -> role-based left client  -> CoreAudio -> left MacBook speaker
 RightAudio -> role-based right client -> CoreAudio -> right MacBook speaker
 ```
 
-## Capture and Split
+## 1. Capture and Split
 
 BlackHole is a virtual CoreAudio output device. PortAudio opens it as an input
 and receives 48 kHz, 32-bit float samples in 10 ms callbacks. Each callback is
@@ -55,7 +55,19 @@ uncompressed PCM at `48000:24:1`, with `chunk_ms = 20` and `buffer = 200`.
 The PCM payload is approximately 192,000 bytes/s or 1.54 Mbit/s per stream,
 before TCP and Snapcast protocol overhead.
 
-## Synchronization
+## 2. Placement and Acoustic Limits
+
+Place both Macs symmetrically around the primary listening position. Equal
+distance, height, orientation, and nearby room boundaries matter more than a
+very precise absolute distance. A near-equilateral triangle between the two
+Macs and the listener is a useful starting point, followed by small adjustments
+using centered vocals and hard-panned material.
+
+Keep both Snapcast channel levels equal and both physical output stages at 100%.
+One-sided walls, corners, furniture, or reflective surfaces can still pull the
+center image toward one side.
+
+## 3. Synchronization
 
 One capture process creates both channels, so no independent application
 clocks can drift before Snapserver. Snapcast timestamps encoded chunks using
@@ -63,14 +75,14 @@ the server clock. Both clients use that clock to schedule the first sample and
 correct small clock differences by inserting or removing samples.
 
 Synchronization aligns the playback timelines at each client. It cannot remove
-the speed-of-sound delay between speakers separated across a room. Physical
-placement, relative volume, and room acoustics still affect the perceived
-stereo image and echo.
+path-length delay, reflections, or other acoustic asymmetry between the two
+speakers. Placement, relative volume, and room acoustics still affect the
+perceived stereo image and echo.
 
 The 200 ms stream buffer absorbed Wi-Fi scheduling jitter in the validated
 setup. Lower buffers reduce latency but increase the chance of underruns.
 
-## Local Output Binding
+## 4. Local Output Binding
 
 In snapcast mode, the source Mac's default system output must be BlackHole so
 applications are captured. The local Snapclient therefore cannot follow the
@@ -102,7 +114,7 @@ The CoreAudio player applies the exponential Snapcast volume curve through
 24-bit buffer at full scale and lets CoreAudio perform the attenuation in its
 floating-point playback path. Hardware output volume remains at 100%.
 
-## Groups and Roles
+## 5. Groups and Roles
 
 The pair uses stable role IDs rather than IP-derived names:
 
@@ -127,7 +139,7 @@ The native console follows the stream IDs, not client IDs. Any connected client
 in the `LeftAudio` group is displayed and treated as the left side; the
 `RightAudio` group determines the right side.
 
-## Recovery
+## 6. Recovery
 
 Snapserver opens both FIFOs for reading and retries after EOF. If the splitter
 exits, both streams become idle until launchd restarts it. If Snapserver
@@ -145,7 +157,7 @@ capture and local playback processes. The remote Mac normalizes its speaker and
 recreates Snapclient. This avoids reusing AudioQueues that macOS invalidated
 during sleep.
 
-## Network Boundary
+## 7. Network Boundary
 
 Snapserver binds the control APIs to `127.0.0.1`:
 

@@ -10,7 +10,7 @@ It builds from source with the installed Xcode toolchain and Homebrew
 dependencies. It is intended for a project tap or direct local installation,
 not submission to `homebrew-core`.
 
-## Requirements
+## 1. Requirements
 
 - macOS 14 or newer.
 - Xcode Command Line Tools and a compatible Swift toolchain.
@@ -23,7 +23,7 @@ Install the audio driver:
 brew install --cask blackhole-2ch
 ```
 
-## Install
+## 2. Install
 
 From a project tap:
 
@@ -56,7 +56,7 @@ on both Apple Silicon and Intel:
 /usr/local
 ```
 
-## Signing and Gatekeeper
+## 3. Signing and Gatekeeper
 
 Public source builds are ad-hoc signed and are not notarized. They do not require
 a paid Apple Developer ID and have no App Store component.
@@ -66,7 +66,7 @@ project repository. The supported source-build path does not require disabling
 Gatekeeper, SIP, or another macOS security feature. Users choosing a different
 distribution method are responsible for the signing decision.
 
-## Updating and Removal
+## 4. Updating and Removal
 
 Because the formula tracks the `main` branch:
 
@@ -90,9 +90,13 @@ Return to system audio before removal:
 Then remove the native interface:
 
 ```sh
-./integration/scripts/uninstall-native.sh
+"$(brew --prefix)/opt/macbook-stereo-pair/share/macbook-stereo-pair/integration/scripts/uninstall-native.sh"
 brew uninstall macbook-stereo-pair
 ```
 
-The uninstaller preserves user audio configuration and runtime services unless
-a separate runtime uninstall is explicitly requested.
+`uninstall-native.sh` removes the app, control Agent, and CLI while preserving
+the audio runtime, user configuration, logs, and remote control state. To stop
+the local runtime first, run the corresponding installed `uninstall-local.sh`
+from the same `share/macbook-stereo-pair/integration/scripts/` directory.
+Complete file removal is documented in
+[installation.md](installation.md#8-complete-removal).
