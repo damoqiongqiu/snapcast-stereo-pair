@@ -51,32 +51,7 @@ Resolve conflicts by preserving the project behavior described in
 When the upstream base tag changes, update this document, the README
 compatibility table, and CI expectations together.
 
-## 3. Regenerate the Integration Patch
-
-After the rebased tree passes validation, regenerate the distributable diff:
-
-```sh
-git diff --binary vX.Y.Z -- . \
-  ':(exclude)integration/patches/snapcast-macos-stereo.patch' \
-  ':(exclude)docs/superpowers/**' \
-  > integration/patches/snapcast-macos-stereo.patch
-git apply --check --reverse integration/patches/snapcast-macos-stereo.patch
-```
-
-The reverse check confirms that the patch describes changes already present in
-the working tree. On a default case-insensitive macOS filesystem, the upstream
-case-only renames `changelog.md` and `.github/pull_request_template.md` can make
-the reverse check ambiguous. Exclude those paths when validating on such a
-checkout, or run the full reverse check in a case-sensitive checkout:
-
-```sh
-git apply --check --reverse \
-  --exclude=changelog.md \
-  --exclude=.github/pull_request_template.md \
-  integration/patches/snapcast-macos-stereo.patch
-```
-
-## 4. Validate the Upgrade
+## 3. Validate the Upgrade
 
 Run the canonical release checklist in [AGENTS.md](../AGENTS.md). The rebased
 tree must also run the upstream unit tests:
@@ -95,7 +70,7 @@ restoration, native console and CLI state agreement, notification deduplication,
 and remote-offline degradation before merging. Use
 [hardware-acceptance.md](hardware-acceptance.md) for the required report.
 
-## 5. Privacy
+## 4. Privacy
 
 Local `pair.env` files, generated LaunchAgents, logs, build products, private IP
 addresses, usernames, credentials, and home paths must never enter a commit.

@@ -10,6 +10,7 @@ checks=(
   '\bmac12''0\b'
   '\bmac12''2\b'
   'DELL ''24'
+  '(?i)snap''web'
 )
 
 failed=0

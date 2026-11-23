@@ -161,14 +161,6 @@ else()
     FILES etc/index.html
     COMPONENT server
     DESTINATION ${CMAKE_INSTALL_DATADIR}/snapserver)
-  if(SNAPWEB_DIR)
-    install(DIRECTORY "${SNAPWEB_DIR}/"
-            DESTINATION ${CMAKE_INSTALL_DATADIR}/snapserver/snapweb)
-  else()
-    install(DIRECTORY etc/snapweb/
-            DESTINATION ${CMAKE_INSTALL_DATADIR}/snapserver/snapweb)
-  endif()
-
   install(DIRECTORY DESTINATION ${CMAKE_INSTALL_DATADIR}/snapserver/sandbox/)
 
   install(

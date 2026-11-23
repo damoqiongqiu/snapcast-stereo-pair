@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Remove the obsolete browser-based controller integration and its generated
+  integration patch; the native SwiftUI console is the only supported interface.
 - Consolidate and renumber the public documentation set, add symmetric physical
   placement guidance, correct native menu and removal behavior, reduce duplicated
   release checklists, and expand the README and `llms.txt` document maps.

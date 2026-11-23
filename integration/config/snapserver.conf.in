@@ -7,7 +7,6 @@ datadir = @SUPPORT_DIR@/data
 enabled = true
 bind_to_address = 127.0.0.1
 port = 1780
-doc_root = @SUPPORT_DIR@/snapweb
 
 [tcp-control]
 enabled = true
