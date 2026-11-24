@@ -7,7 +7,7 @@
 - Repository: https://github.com/damoqiongqiu/snapcast-stereo-pair
 - License: GPL-3.0-or-later
 - Upstream base: Snapcast v0.35.0
-- Platform: macOS 14 or newer
+- Platform: macOS 13 or newer
 - Supported architectures: Intel and Apple Silicon
 - Primary use case: two-MacBook synchronized stereo playback of macOS system audio
 - Physical placement: symmetric left/right around the primary listener; Snapcast

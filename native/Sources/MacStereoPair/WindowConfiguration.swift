@@ -34,37 +34,75 @@ enum WindowSizePolicy {
 }
 
 struct WindowConfigurator: NSViewRepresentable {
+    let onVisibilityChanged: @MainActor (Bool) -> Void
+
     func makeNSView(context: Context) -> NSView {
-        WindowConfigurationView()
+        WindowConfigurationView(onVisibilityChanged: onVisibilityChanged)
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        (nsView as? WindowConfigurationView)?.configureWindow()
+        guard let view = nsView as? WindowConfigurationView else { return }
+        view.onVisibilityChanged = onVisibilityChanged
+        view.configureWindow()
     }
 }
 
 @MainActor
 private final class WindowConfigurationView: NSView {
-    private var resizeObserver: NSObjectProtocol?
+    var onVisibilityChanged: @MainActor (Bool) -> Void
+    private var observers: [NSObjectProtocol] = []
+
+    init(onVisibilityChanged: @escaping @MainActor (Bool) -> Void) {
+        self.onVisibilityChanged = onVisibilityChanged
+        super.init(frame: .zero)
+    }
+
+    required init?(coder: NSCoder) {
+        return nil
+    }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        if let resizeObserver {
-            NotificationCenter.default.removeObserver(resizeObserver)
-            self.resizeObserver = nil
+        for observer in observers {
+            NotificationCenter.default.removeObserver(observer)
         }
+        observers.removeAll()
         if let window {
-            resizeObserver = NotificationCenter.default.addObserver(
-                forName: NSWindow.didResizeNotification,
-                object: window,
-                queue: .main
-            ) { [weak self] _ in
-                MainActor.assumeIsolated {
-                    self?.enforceMaximumSize()
-                }
+            for notification in [
+                NSWindow.didResizeNotification,
+                NSWindow.didMiniaturizeNotification,
+                NSWindow.didDeminiaturizeNotification,
+                NSWindow.didChangeOcclusionStateNotification
+            ] {
+                observers.append(NotificationCenter.default.addObserver(
+                    forName: notification,
+                    object: window,
+                    queue: .main
+                ) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        guard let self else { return }
+                        self.enforceMaximumSize()
+                        self.publishVisibility()
+                    }
+                })
+            }
+            for notification in [
+                NSApplication.didHideNotification,
+                NSApplication.didUnhideNotification
+            ] {
+                observers.append(NotificationCenter.default.addObserver(
+                    forName: notification,
+                    object: nil,
+                    queue: .main
+                ) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        self?.publishVisibility()
+                    }
+                })
             }
         }
         configureWindow()
+        publishVisibility()
     }
 
     func configureWindow() {
@@ -96,9 +134,22 @@ private final class WindowConfigurationView: NSView {
         window.setContentSize(clamped)
     }
 
+    private func publishVisibility() {
+        guard let window else {
+            onVisibilityChanged(false)
+            return
+        }
+        onVisibilityChanged(
+            !NSApp.isHidden &&
+                window.isVisible &&
+                !window.isMiniaturized &&
+                window.occlusionState.contains(.visible)
+        )
+    }
+
     isolated deinit {
-        if let resizeObserver {
-            NotificationCenter.default.removeObserver(resizeObserver)
+        for observer in observers {
+            NotificationCenter.default.removeObserver(observer)
         }
     }
 }

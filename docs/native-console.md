@@ -90,8 +90,9 @@ sustained drag, serialized audio previews are sent a few times per second rather
 than once per movement. Releasing the pointer sends the final rounded value
 after any in-flight preview completes. A direct click moves the handle
 immediately and coalesces its asynchronous update. This keeps the knob
-responsive even while the 100 ms status refresh is still returning the previous
-volume. Out-of-order status responses are discarded, so an older poll cannot
+responsive even while the 250 ms visible-window status refresh is still
+returning the previous volume. Out-of-order status responses are discarded, so
+an older poll cannot
 overwrite the committed value and make the knob jump backward. Each slider has
 5% reference ticks, with longer and labeled marks at 0%, 25%, 50%, 75%, and
 100%. The scale shares the slider track endpoints so neither end protrudes
@@ -185,6 +186,9 @@ trailing-debounced after release. Direct clicks jump the handle immediately and
 submit one coalesced update. Periodic status polling pauses during the drag,
 then resumes after the final value is acknowledged. The waveform is
 data-driven and does not add decorative motion unrelated to the audio level.
+Visible windows poll four times per second; hidden, minimized, or fully
+occluded windows drop to once per second to avoid unnecessary background UI
+work.
 The displayed envelopes and Peak/RMS readout apply the current Snapcast channel
 volume and mute state. High-level peaks move from green through amber toward
 red, while the readout sits in the channel title row so it never covers the

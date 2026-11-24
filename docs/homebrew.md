@@ -12,8 +12,9 @@ not submission to `homebrew-core`.
 
 ## 1. Requirements
 
-- macOS 14 or newer.
-- Xcode Command Line Tools and a compatible Swift toolchain.
+- The produced app and runtime run on macOS 13 or newer.
+- Building from source requires Xcode 16 or newer because the native package
+  uses Swift 6 tools.
 - Homebrew on Apple Silicon or Intel.
 - BlackHole 2ch, which remains a separately installed audio driver.
 

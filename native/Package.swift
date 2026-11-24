@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "MacStereoPairNative",
     defaultLocalization: "en",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v13)],
     products: [
         .library(name: "StereoPairCore", targets: ["StereoPairCore"]),
         .executable(name: "StereoPairAgent", targets: ["StereoPairAgent"]),

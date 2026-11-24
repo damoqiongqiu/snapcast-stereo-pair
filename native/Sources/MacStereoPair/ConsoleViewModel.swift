@@ -1,6 +1,15 @@
 import Foundation
 import StereoPairCore
 
+enum ConsolePollingPolicy {
+    static let visibleInterval: Duration = .milliseconds(250)
+    static let hiddenInterval: Duration = .seconds(1)
+
+    static func snapshotInterval(consoleVisible: Bool) -> Duration {
+        consoleVisible ? visibleInterval : hiddenInterval
+    }
+}
+
 @MainActor
 final class ConsoleViewModel: ObservableObject {
     @Published var snapshot: RuntimeSnapshot?
@@ -9,11 +18,14 @@ final class ConsoleViewModel: ObservableObject {
     @Published private(set) var isRefreshingHardwareVolume = false
     @Published private(set) var connectionState: AgentConnectionState = .failed
     @Published private(set) var isVolumeInteractionActive = false
+    let menuBar = MenuBarStatus()
+    let liveChannels = LiveChannelsStatus()
 
     private let transport: any ControlTransport
     private var pollingTask: Task<Void, Never>?
     private var refreshGeneration = 0
     private var volumeInteractionCount = 0
+    private var consoleVisible = true
 
     init(transport: (any ControlTransport)? = nil) {
         self.transport = transport ?? UnixControlTransport(
@@ -25,8 +37,8 @@ final class ConsoleViewModel: ObservableObject {
     var left: ChannelStatus? { snapshot?.channels.first { $0.streamId == "LeftAudio" } }
     var right: ChannelStatus? { snapshot?.channels.first { $0.streamId == "RightAudio" } }
     var masterVolume: Int {
-        guard left != nil || right != nil else { return 0 }
-        return Int((((left?.volume ?? 0) + (right?.volume ?? 0))) / 2)
+        guard let snapshot, !snapshot.channels.isEmpty else { return 0 }
+        return snapshot.channels.reduce(0) { $0 + $1.volume } / snapshot.channels.count
     }
     var isSnapcast: Bool { snapshot?.mode == .snapcast }
     var healthy: Bool { snapshot?.health == .healthy }
@@ -49,8 +61,18 @@ final class ConsoleViewModel: ObservableObject {
         pollingTask = Task {
             while !Task.isCancelled {
                 await refreshIfIdleForPolling()
-                try? await Task.sleep(for: .milliseconds(100))
+                try? await Task.sleep(for: ConsolePollingPolicy.snapshotInterval(
+                    consoleVisible: consoleVisible
+                ))
             }
+        }
+    }
+
+    func setConsoleVisible(_ visible: Bool) {
+        let becameVisible = visible && !consoleVisible
+        consoleVisible = visible
+        if becameVisible {
+            Task { await refresh() }
         }
     }
 
@@ -78,23 +100,35 @@ final class ConsoleViewModel: ObservableObject {
             if case .snapshot(let value) = event {
                 apply(snapshot: value)
                 connectionState = .connected
+                updateMenuBarStatus()
                 message = nil
             }
         } catch {
             guard generation == refreshGeneration else { return }
             connectionState = .failed
+            updateMenuBarStatus()
             message = error.localizedDescription
         }
     }
 
     func apply(snapshot value: RuntimeSnapshot) {
+        liveChannels.update(channels: value.channels)
+
+        if let current = snapshot {
+            guard !Self.controlEquivalence(current, value) else { return }
+        }
         snapshot = value
+        updateMenuBarStatus()
     }
 
     func setMode(_ mode: AudioMode) async {
         guard canChangeMode else { return }
         isWorking = true
-        defer { isWorking = false }
+        updateMenuBarStatus()
+        defer {
+            isWorking = false
+            updateMenuBarStatus()
+        }
         do {
             let event = try await transport.request(
                 .setAudioMode(requestId: UUID().uuidString, audioMode: mode)
@@ -120,6 +154,7 @@ final class ConsoleViewModel: ObservableObject {
             await refresh()
         } catch {
             connectionState = .failed
+            updateMenuBarStatus()
             message = error.localizedDescription
         }
     }
@@ -147,6 +182,7 @@ final class ConsoleViewModel: ObservableObject {
             await refresh()
         } catch {
             connectionState = .failed
+            updateMenuBarStatus()
             message = error.localizedDescription
         }
     }
@@ -161,6 +197,7 @@ final class ConsoleViewModel: ObservableObject {
             await refresh()
         } catch {
             connectionState = .failed
+            updateMenuBarStatus()
             message = error.localizedDescription
         }
     }
@@ -175,6 +212,7 @@ final class ConsoleViewModel: ObservableObject {
             await refresh()
         } catch {
             connectionState = .failed
+            updateMenuBarStatus()
             message = error.localizedDescription
         }
     }
@@ -194,6 +232,7 @@ final class ConsoleViewModel: ObservableObject {
             await refresh()
         } catch {
             connectionState = .failed
+            updateMenuBarStatus()
             message = error.localizedDescription
         }
     }
@@ -214,6 +253,7 @@ final class ConsoleViewModel: ObservableObject {
             }
         } catch {
             connectionState = .failed
+            updateMenuBarStatus()
             message = error.localizedDescription
         }
         return nil
@@ -232,7 +272,37 @@ final class ConsoleViewModel: ObservableObject {
             }
         } catch {
             connectionState = .failed
+            updateMenuBarStatus()
             message = error.localizedDescription
         }
+    }
+
+    private func updateMenuBarStatus() {
+        menuBar.update(
+            snapshot: snapshot,
+            isWorking: isWorking,
+            isConnected: connectionState == .connected
+        )
+    }
+
+    private static func controlEquivalence(
+        _ lhs: RuntimeSnapshot,
+        _ rhs: RuntimeSnapshot
+    ) -> Bool {
+        var normalizedLHS = lhs
+        var normalizedRHS = rhs
+        normalizedLHS.updatedAt = .distantPast
+        normalizedRHS.updatedAt = .distantPast
+        for index in normalizedLHS.channels.indices {
+            normalizedLHS.channels[index].peakDb = nil
+            normalizedLHS.channels[index].rmsDb = nil
+            normalizedLHS.channels[index].clipped = false
+        }
+        for index in normalizedRHS.channels.indices {
+            normalizedRHS.channels[index].peakDb = nil
+            normalizedRHS.channels[index].rmsDb = nil
+            normalizedRHS.channels[index].clipped = false
+        }
+        return normalizedLHS == normalizedRHS
     }
 }

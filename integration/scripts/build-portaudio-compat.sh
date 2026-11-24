@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
-target="${SNAPCAST_DEPLOYMENT_TARGET:-14.0}"
+target="${SNAPCAST_DEPLOYMENT_TARGET:-13.0}"
 deps_dir="$repo_root/.build/deps"
 archive="$deps_dir/portaudio-19.7.0.tar.gz"
 source_dir="$deps_dir/portaudio-src"

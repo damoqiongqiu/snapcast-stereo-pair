@@ -2,10 +2,15 @@
 
 ## Unreleased
 
+- Lower the native app and runtime deployment target to macOS 13 Ventura while
+  retaining macOS 14 focus styling where available.
+- Reduce control-console redraw pressure by isolating menu-bar summaries and
+  live waveforms, polling hidden windows at 1 Hz, and sampling Agent audio
+  metrics at 10 Hz.
 - Correct PR #1 regressions: redact deployment evidence, persist local mode,
   restart the GUI during updates, reject idle streams in health checks,
   synchronize watchdog stream lifecycle, add privacy/health/FIFO/watchdog tests
-  to the release gate, and enforce macOS 14-compatible build dependencies.
+  to the release gate, and enforce macOS 13-compatible build dependencies.
 - Keep macOS Snapserver FIFO readers open without writers and restart the
   splitter once after switching back to the pair, preventing Native-to-pair
   transitions from losing the capture pipeline.

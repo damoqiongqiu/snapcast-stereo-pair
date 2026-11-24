@@ -11,7 +11,7 @@ class MacbookStereoPair < Formula
   depends_on "cmake" => :build
   depends_on "ninja" => :build
   depends_on "pkgconf" => :build
-  depends_on xcode: ["15.0", :build]
+  depends_on xcode: ["16.0", :build]
   depends_on "boost"
   depends_on "flac"
   depends_on "libogg"
@@ -32,6 +32,7 @@ class MacbookStereoPair < Formula
     resource("portaudio").stage do
       system "cmake", "-S", ".", "-B", "build", *std_cmake_args,
              "-DCMAKE_INSTALL_PREFIX=#{portaudio_prefix}",
+             "-DCMAKE_OSX_DEPLOYMENT_TARGET=13.0",
              "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",
              "-DPA_BUILD_SHARED=OFF",
              "-DPA_BUILD_STATIC=ON",

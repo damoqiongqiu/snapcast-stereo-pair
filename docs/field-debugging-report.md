@@ -192,4 +192,4 @@ integration/test/test-install-lifecycle.sh    # 问题 1：全新安装不崩
 - 健康检查将 `idle` 流视为失败，避免“服务进程存在但音频未流动”的假健康。
 - watchdog 使用互斥锁保护流的 abort/close/replace，并通过状态机 harness 验证阈值。
 - 新增测试已接入 `test-native-release.sh --automated-only` 和 `AGENTS.md`。
-- macOS 14 构建会静态编译目标兼容的 PortAudio，并禁用默认固定 48 kHz 路径不需要的 Soxr；构建结束会扫描动态依赖的最低系统版本。
+- macOS 13 部署目标会静态编译目标兼容的 PortAudio，并禁用默认固定 48 kHz 路径不需要的 Soxr；构建结束会扫描动态依赖的最低系统版本。

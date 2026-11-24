@@ -19,7 +19,7 @@ struct ConsoleView: View {
             minWidth: MainWindowMetrics.minimumSize.width,
             minHeight: MainWindowMetrics.minimumSize.height
         )
-        .onChange(of: model.snapshot) { _, snapshot in
+        .onChange(of: model.snapshot) { snapshot in
             guard let snapshot else { return }
             Task {
                 await notifications.process(snapshot: snapshot, language: language)
@@ -110,12 +110,16 @@ struct ConsoleView: View {
                 ChannelStrip(
                     title: language.text("channel.left"),
                     channel: model.left,
+                    liveChannels: model.liveChannels,
+                    liveSide: "left",
                     hardwareVolume: model.hardwareVolume(side: "left"),
                     model: model
                 )
                 ChannelStrip(
                     title: language.text("channel.right"),
                     channel: model.right,
+                    liveChannels: model.liveChannels,
+                    liveSide: "right",
                     hardwareVolume: model.hardwareVolume(side: "right"),
                     model: model
                 )
@@ -197,13 +201,11 @@ private struct LanguageMenu: View {
 private struct ChannelStrip: View {
     let title: String
     let channel: ChannelStatus?
+    let liveChannels: LiveChannelsStatus
+    let liveSide: String
     let hardwareVolume: HardwareVolumeStatus?
     @ObservedObject var model: ConsoleViewModel
     @EnvironmentObject private var language: AppLanguage
-    @State private var waveformHistory = WaveformHistory(
-        capacity: 72,
-        prefill: true
-    )
 
     private var publishedVolume: Double {
         Double(channel?.volume ?? 0)
@@ -211,28 +213,12 @@ private struct ChannelStrip: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
-            HStack {
-                Circle().fill(channel?.connected == true ? Theme.green : Theme.red).frame(width: 7, height: 7)
-                    .accessibilityHidden(true)
-                Text(verbatim: "\(title) · \(channel?.clientId ?? language.text("channel.unavailable"))")
-                    .font(.headline)
-                    .accessibilityLabel(language.format(
-                        "accessibility.connectionFormat",
-                        title,
-                        channel?.connected == true
-                            ? language.text("status.connected")
-                            : language.text("status.disconnected")
-                    ))
-                Spacer()
-                WaveformLevelReadout(
-                    point: waveformHistory.points.last,
-                    clipped: waveformClipping
-                )
-            }
-            ChannelWaveform(
-                points: waveformHistory.points
+            LiveWaveform(
+                title: title,
+                channel: channel,
+                liveChannels: liveChannels,
+                side: liveSide
             )
-                .padding(.horizontal, 2)
             HardwareVolumeIndicator(
                 title: title,
                 status: hardwareVolume
@@ -287,14 +273,55 @@ private struct ChannelStrip: View {
         .background(Theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.separator))
-        .onChange(of: channel) { _, channel in
-            waveformHistory.update(channel: channel)
-        }
+    }
+}
+
+private struct LiveWaveform: View {
+    let title: String
+    let channel: ChannelStatus?
+    @ObservedObject var liveChannels: LiveChannelsStatus
+    let side: String
+    @State private var history = WaveformHistory(
+        capacity: 72,
+        prefill: true
+    )
+    @EnvironmentObject private var language: AppLanguage
+
+    private var liveChannel: ChannelStatus? {
+        side == "left" ? liveChannels.left : liveChannels.right
     }
 
-    private var waveformClipping: Bool {
-        channel?.clipped == true ||
-            waveformHistory.points.contains(where: \.clipped)
+    private var clipping: Bool {
+        liveChannel?.clipped == true ||
+            history.points.contains(where: \.clipped)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack {
+                Circle().fill(channel?.connected == true ? Theme.green : Theme.red).frame(width: 7, height: 7)
+                    .accessibilityHidden(true)
+                Text(verbatim: "\(title) · \(channel?.clientId ?? language.text("channel.unavailable"))")
+                    .font(.headline)
+                    .accessibilityLabel(language.format(
+                        "accessibility.connectionFormat",
+                        title,
+                        channel?.connected == true
+                            ? language.text("status.connected")
+                            : language.text("status.disconnected")
+                    ))
+                Spacer()
+                WaveformLevelReadout(
+                    point: history.points.last,
+                    clipped: clipping
+                )
+            }
+            ChannelWaveform(points: history.points)
+                .padding(.horizontal, 2)
+                .onChange(of: liveChannel) { channel in
+                    history.update(channel: channel)
+                }
+        }
     }
 }
 
@@ -587,29 +614,21 @@ private struct VolumeSliderSurface: View {
         }
         .frame(height: VolumeSliderGeometry.controlHeight)
         .focusable()
-        .focusEffectDisabled()
+        .focusEffectDisabledCompat()
         .focused($isFocused)
-        .onKeyPress(.leftArrow) {
-            showsKeyboardFocus = true
-            onAdjust(-1)
-            return .handled
+        .onMoveCommand { direction in
+            switch direction {
+            case .left, .down:
+                showsKeyboardFocus = true
+                onAdjust(-1)
+            case .right, .up:
+                showsKeyboardFocus = true
+                onAdjust(1)
+            @unknown default:
+                return
+            }
         }
-        .onKeyPress(.downArrow) {
-            showsKeyboardFocus = true
-            onAdjust(-1)
-            return .handled
-        }
-        .onKeyPress(.rightArrow) {
-            showsKeyboardFocus = true
-            onAdjust(1)
-            return .handled
-        }
-        .onKeyPress(.upArrow) {
-            showsKeyboardFocus = true
-            onAdjust(1)
-            return .handled
-        }
-        .onChange(of: isFocused) { _, focused in
+        .onChange(of: isFocused) { focused in
             if !focused {
                 showsKeyboardFocus = false
             }
@@ -619,6 +638,17 @@ private struct VolumeSliderSurface: View {
                 RoundedRectangle(cornerRadius: 5)
                     .stroke(Theme.blue.opacity(0.8), lineWidth: 1)
             }
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func focusEffectDisabledCompat() -> some View {
+        if #available(macOS 14.0, *) {
+            focusEffectDisabled()
+        } else {
+            self
         }
     }
 }
@@ -744,7 +774,9 @@ private struct MasterControl: View {
 }
 
 struct MenuBarContent: View {
-    @ObservedObject var model: ConsoleViewModel
+    @ObservedObject var status: MenuBarStatus
+    let enableSnapcast: () -> Void
+    let useSystem: () -> Void
     @EnvironmentObject private var language: AppLanguage
     @Environment(\.openWindow) private var openWindow
 
@@ -752,22 +784,26 @@ struct MenuBarContent: View {
         Text(verbatim: menuStatus)
         Divider()
         Button(language.text("menu.openConsole")) { openWindow(id: "console") }
-        Button(language.text("menu.enableSnapcast")) { Task { await model.setMode(.snapcast) } }
-            .disabled(model.isWorking || model.isSnapcast)
-        Button(language.text("menu.useSystem")) { Task { await model.setMode(.system) } }
-            .disabled(model.isWorking || !model.isSnapcast)
+        Button(language.text("menu.enableSnapcast"), action: enableSnapcast)
+            .disabled(status.value.isWorking || isSnapcast)
+        Button(language.text("menu.useSystem"), action: useSystem)
+            .disabled(status.value.isWorking || !isSnapcast)
         Divider()
-        Text(verbatim: language.format("volume.totalFormat", model.masterVolume))
+        Text(verbatim: language.format("volume.totalFormat", status.value.masterVolume))
         Button(language.text("menu.quitGUI")) { NSApplication.shared.terminate(nil) }
     }
 
+    private var isSnapcast: Bool {
+        status.value.mode == .snapcast
+    }
+
     private var menuStatus: String {
-        guard model.isSnapcast else {
+        guard isSnapcast else {
             return language.text("menu.systemMode")
         }
         return language.format(
             "menu.statusSnapcastFormat",
-            language.text(model.healthy ? "status.healthy" : "status.warning")
+            language.text(status.value.health == .healthy ? "status.healthy" : "status.warning")
         )
     }
 }

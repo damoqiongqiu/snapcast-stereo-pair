@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
-target="${SNAPCAST_DEPLOYMENT_TARGET:-14.0}"
+target="${SNAPCAST_DEPLOYMENT_TARGET:-13.0}"
 build_dir="${SNAPCAST_BUILD_DIR:-$repo_root/.build}"
 binaries=(
   "$build_dir/bin/snapserver"
@@ -32,6 +32,11 @@ for binary in "${binaries[@]}"; do
     print -u2 "Missing build artifact: $binary"
     failed=1
     continue
+  fi
+  binary_min="$(minimum_macos "$binary")"
+  if [[ -n "$binary_min" ]] && (( $(normalize_version "$binary_min") > target_key )); then
+    print -u2 "Binary targets macOS $binary_min, target $target: $binary"
+    failed=1
   fi
   while IFS= read -r dependency; do
     [[ "$dependency" == /* ]] || continue
