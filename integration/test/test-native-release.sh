@@ -8,6 +8,7 @@ cd "$repo_root"
 swift test --package-path native
 integration/test/test-install-lifecycle.sh
 integration/test/test-audio-profile.sh
+integration/test/test-deployment-target.sh
 integration/test/test-fifo-resilience.sh
 integration/test/test-health-check.sh
 integration/test/test-public-tree-privacy.sh

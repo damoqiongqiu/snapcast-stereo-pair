@@ -38,8 +38,8 @@ class MacbookStereoPair < Formula
              "-DPA_USE_COREAUDIO=ON"
       system "cmake", "--build", "build", "--target", "install"
     end
-    ENV["SNAPCAST_PORTAUDIO_STATIC"] = portaudio_prefix/"lib/libportaudio.a"
-    ENV["SNAPCAST_PORTAUDIO_INCLUDE"] = portaudio_prefix/"include"
+    ENV["SNAPCAST_PORTAUDIO_STATIC"] = (portaudio_prefix/"lib/libportaudio.a").to_s
+    ENV["SNAPCAST_PORTAUDIO_INCLUDE"] = (portaudio_prefix/"include").to_s
     system "integration/scripts/build-macos.sh"
     system "native/Packaging/build-native.sh"
     system "native/Packaging/build-app.sh", "--output", buildpath/"MacBook Stereo Pair.app"

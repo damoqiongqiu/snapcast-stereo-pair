@@ -54,6 +54,7 @@ integration/test/test-public-tree-privacy.sh
 integration/test/test-watchdog-recovery.sh
 integration/test/test-wake-recovery.sh
 integration/test/test-control-plane.sh
+integration/test/test-deployment-target.sh
 integration/test/test-mode-transitions.sh
 integration/test/test-install-lifecycle.sh
 integration/test/test-control-agent-install.sh

@@ -3,12 +3,13 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 target="${SNAPCAST_DEPLOYMENT_TARGET:-14.0}"
+build_dir="${SNAPCAST_BUILD_DIR:-$repo_root/.build}"
 binaries=(
-  "$repo_root/.build/bin/snapserver"
-  "$repo_root/.build/bin/snapclient"
-  "$repo_root/.build/bin/capture-blackhole"
-  "$repo_root/.build/bin/set-audio-volume"
-  "$repo_root/.build/bin/wake-recovery-listener"
+  "$build_dir/bin/snapserver"
+  "$build_dir/bin/snapclient"
+  "$build_dir/bin/capture-blackhole"
+  "$build_dir/bin/set-audio-volume"
+  "$build_dir/bin/wake-recovery-listener"
 )
 
 normalize_version() {
@@ -27,7 +28,11 @@ minimum_macos() {
 target_key="$(normalize_version "$target")"
 failed=0
 for binary in "${binaries[@]}"; do
-  [[ -x "$binary" ]] || continue
+  if [[ ! -x "$binary" ]]; then
+    print -u2 "Missing build artifact: $binary"
+    failed=1
+    continue
+  fi
   while IFS= read -r dependency; do
     [[ "$dependency" == /* ]] || continue
     [[ "$dependency" == /System/* || "$dependency" == /usr/lib/* ]] && continue
