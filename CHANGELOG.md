@@ -6,6 +6,9 @@
   restart the GUI during updates, reject idle streams in health checks,
   synchronize watchdog stream lifecycle, add privacy/health/FIFO/watchdog tests
   to the release gate, and enforce macOS 14-compatible build dependencies.
+- Keep macOS Snapserver FIFO readers open without writers and restart the
+  splitter once after switching back to the pair, preventing Native-to-pair
+  transitions from losing the capture pipeline.
 - Document required macOS permissions, common symptoms caused by denied access,
   and recovery steps for audio input, notifications, Local Network, firewall,
   Remote Login, SSH, and Gatekeeper.

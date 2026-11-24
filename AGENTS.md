@@ -47,6 +47,7 @@ swift build --package-path native -c release
 integration/test/test-pair-config.sh
 integration/test/test-audio-levels.sh
 integration/test/test-audio-profile.sh
+integration/test/test-fifo-reader-resilience.sh
 integration/test/test-fifo-resilience.sh
 integration/test/test-health-check.sh
 integration/test/test-pair-routing.sh

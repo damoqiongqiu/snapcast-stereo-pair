@@ -48,6 +48,10 @@ The high-level modes are:
   disabled, and the last non-BlackHole output is restored. If that device is no
   longer available, the configured built-in speaker is used.
 
+When switching back to the stereo pair, the runtime restarts the splitter once
+after all services are running. This releases BlackHole input from the silent
+device state that can survive the Native-to-Snapcast route change.
+
 The exact physical output volume is restored before switching back. This applies
 to both Macs and prevents a hand-back transition from unexpectedly jumping to
 100%.

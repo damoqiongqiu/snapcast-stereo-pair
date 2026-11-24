@@ -59,7 +59,13 @@ PipeStream::PipeStream(PcmStream::Listener* pcmListener, boost::asio::io_context
 
 void PipeStream::connect()
 {
-    int fd = open(uri_.path.c_str(), O_RDONLY | O_NONBLOCK);
+    int flags = O_RDONLY | O_NONBLOCK;
+#ifdef MACOS
+    // A read-only FIFO open followed immediately by EOF closes the reader
+    // before a retrying writer can attach. Keep both FIFO ends alive on macOS.
+    flags = O_RDWR | O_NONBLOCK;
+#endif
+    int fd = open(uri_.path.c_str(), flags);
     if (fd < 0)
     {
         std::string error = "failed to open fifo \"" + uri_.path + "\": " + cpt::to_string(errno);

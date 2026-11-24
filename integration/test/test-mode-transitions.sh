@@ -46,12 +46,16 @@ cat > "$fake_bin/launchctl" <<'EOF'
 #!/bin/zsh
 print -r -- "launchctl $*" >> "$MODE_TRANSITION_TEST_LOG"
 EOF
+cat > "$fake_bin/curl" <<'EOF'
+#!/bin/zsh
+print -r -- '{"result":{"server":{"streams":[{"id":"LeftAudio","status":"idle"},{"id":"RightAudio","status":"idle"}]}}}'
+EOF
 cat > "$fake_bin/sleep" <<'EOF'
 #!/bin/zsh
 exit 0
 EOF
 chmod +x "$fake_bin/SwitchAudioSource" "$support_dir/bin/set-audio-volume" \
-  "$fake_bin/launchctl" "$fake_bin/sleep"
+  "$fake_bin/launchctl" "$fake_bin/curl" "$fake_bin/sleep"
 
 cat > "$support_dir/state/native-audio.json" <<'EOF'
 {"schemaVersion":1,"outputUID":"NativeSpeaker","outputName":"Native Speaker","volumePercent":37}
@@ -80,10 +84,17 @@ install -m 644 "$repo_root/integration/scripts/audio-profile.sh" "$support_dir/a
 export MODE_TRANSITION_TEST_LOG="$tmp_dir/mode-calls.log"
 PATH="$fake_bin:/usr/bin:/bin:/usr/sbin:/sbin" \
   "$support_dir/set-mode.sh" snapcast >/dev/null
+grep -Fq "kickstart -k gui/$(id -u)/com.snapcast.splitter" "$MODE_TRANSITION_TEST_LOG"
 jq -e '.mode == "snapcast"' "$support_dir/state/audio-mode.json" >/dev/null
 
 PATH="$fake_bin:/usr/bin:/bin:/usr/sbin:/sbin" \
   "$support_dir/set-mode.sh" native >/dev/null
 jq -e '.mode == "system"' "$support_dir/state/audio-mode.json" >/dev/null
+
+: > "$MODE_TRANSITION_TEST_LOG"
+PATH="$fake_bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+  "$support_dir/set-mode.sh" snapcast >/dev/null
+grep -Fq "kickstart -k gui/$(id -u)/com.snapcast.splitter" "$MODE_TRANSITION_TEST_LOG"
+jq -e '.mode == "snapcast"' "$support_dir/state/audio-mode.json" >/dev/null
 
 print "Mode transition tests passed"

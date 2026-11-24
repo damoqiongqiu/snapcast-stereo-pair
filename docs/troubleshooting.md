@@ -48,6 +48,10 @@ Then resume the pair and restart the splitter:
 launchctl kickstart -k "gui/$(id -u)/com.snapcast.splitter"
 ```
 
+The native mode switcher also performs this recovery automatically when
+returning from Mac system audio. It restarts the splitter once after the
+services start so BlackHole input does not remain in its silent device state.
+
 While the stereo pair is actively capturing, macOS may show the orange
 microphone indicator. BlackHole is exposed through a virtual audio-input path,
 so this indicator does not mean the physical microphone is being recorded.

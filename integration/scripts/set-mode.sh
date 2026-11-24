@@ -35,6 +35,8 @@ start_snapcast() {
   launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.local-client.plist"
   launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.pairing.plist"
   launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.wake-recovery.plist"
+  sleep 1
+  launchctl kickstart -k "gui/$uid/com.snapcast.splitter"
   audio_write_persisted_mode "@SUPPORT_DIR@/state" snapcast
   print "Snapcast stereo-pair mode enabled."
 }

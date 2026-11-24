@@ -146,6 +146,11 @@ exits, both streams become idle until launchd restarts it. If Snapserver
 restarts, an in-flight FIFO write can fail, causing the splitter to exit and be
 relaunched after the server's new readers are ready.
 
+On macOS, Snapserver keeps both FIFO ends open for read mode. This avoids an
+immediate EOF/close cycle when Snapserver starts before the splitter writer,
+which otherwise can leave both processes retrying without establishing a
+connection.
+
 The process source accepts scheduling jitter below 200 ms by reading again
 while preserving the logical audio timeline. A gap of 200 ms or more is treated
 as a genuine discontinuity and triggers a real resync.
