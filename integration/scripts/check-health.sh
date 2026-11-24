@@ -44,15 +44,11 @@ server_status="$(curl -fsS "$api/jsonrpc" \
 }
 
 print "\nStreams:"
-if print -r -- "$server_status" | jq -e '
-  [.result.server.streams[]
-    | select(.id == "LeftAudio" or .id == "RightAudio")
-    | .uri.query.sampleformat]
-  | sort == ["48000:24:1", "48000:24:1"]
-' >/dev/null; then
-  print "  LeftAudio / RightAudio: 48000:24:1"
+if stream_error="$(print -r -- "$server_status" |
+  jq -f "$repo_root/integration/scripts/health-status.jq" 2>&1 >/dev/null)"; then
+  print "  LeftAudio / RightAudio: playing at 48000:24:1"
 else
-  print -u2 "  stream formats are not both 48000:24:1"
+  print -u2 "  $stream_error"
   health_status=1
 fi
 
