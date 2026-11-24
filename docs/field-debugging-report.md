@@ -37,7 +37,7 @@ flowchart TD
     D --> E[修复: 两个函数末尾 return 0]
 ```
 
-`backu_installation_assets` / `restore_installation_assets` 的最后一条命令是 `[[ -f ... ]] && install ...`。文件不存在时该复合命令返回 1，成为函数返回值；调用方在 `set -e` 下直接终止，症状是「安装脚本无任何输出、exit 1」，极难定位。**修复**：两个函数末尾各加 `return 0`。
+`backup_installation_assets` / `restore_installation_assets` 的最后一条命令是 `[[ -f ... ]] && install ...`。文件不存在时该复合命令返回 1，成为函数返回值；调用方在 `set -e` 下直接终止，症状是「安装脚本无任何输出、exit 1」，极难定位。**修复**：两个函数末尾各加 `return 0`。
 
 **测试**：`integration/test/test-install-lifecycle.sh` 覆盖全新安装场景。
 
@@ -183,3 +183,13 @@ integration/test/test-install-lifecycle.sh    # 问题 1：全新安装不崩
 ```
 
 样本骨架与判读说明见 `docs/samples/README.md`。
+
+## 7. 后续工程校正
+
+- 部署报告已移除真实 IP、主机名、用户名和本机路径，统一使用占位符。
+- 本地模式切换现在写入 `audio-mode.json`，安装器不会再把旧模式当成当前模式。
+- 原生应用更新时会先退出旧 GUI，再启动替换后的 App。
+- 健康检查将 `idle` 流视为失败，避免“服务进程存在但音频未流动”的假健康。
+- watchdog 使用互斥锁保护流的 abort/close/replace，并通过状态机 harness 验证阈值。
+- 新增测试已接入 `test-native-release.sh --automated-only` 和 `AGENTS.md`。
+- macOS 14 构建会静态编译目标兼容的 PortAudio，并禁用默认固定 48 kHz 路径不需要的 Soxr；构建结束会扫描动态依赖的最低系统版本。

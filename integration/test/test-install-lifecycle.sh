@@ -112,4 +112,30 @@ set -e
 grep -q "StereoPairAgent" "$SNAPCAST_SUPPORT_DIR/bin/StereoPairAgent"
 grep -q "MacStereoPair" "$SNAPCAST_APP_PATH/Contents/MacOS/MacStereoPair"
 
+cat > "$tmp_dir/fake-native-install.sh" <<EOF
+#!/bin/zsh
+print -r -- changed > "$SNAPCAST_SUPPORT_DIR/bin/StereoPairAgent"
+print -r -- changed > "$SNAPCAST_APP_PATH/Contents/MacOS/MacStereoPair"
+EOF
+cat > "$tmp_dir/fake-local-install.sh" <<'EOF'
+#!/bin/zsh
+exit 0
+EOF
+cat > "$SNAPCAST_SUPPORT_DIR/set-mode.sh" <<'EOF'
+#!/bin/zsh
+print -r -- "$*" >> "$INSTALL_MODE_LOG"
+EOF
+chmod 755 "$tmp_dir/fake-native-install.sh" \
+  "$tmp_dir/fake-local-install.sh" "$SNAPCAST_SUPPORT_DIR/set-mode.sh"
+chmod +x "$SNAPCAST_SUPPORT_DIR/bin/StereoPairAgent" \
+  "$SNAPCAST_SUPPORT_DIR/bin/mac-stereo-pairctl"
+export INSTALL_MODE_LOG="$tmp_dir/install-mode.log"
+print -r -- '{"mode":"system"}' > "$SNAPCAST_SUPPORT_DIR/state/audio-mode.json"
+
+PATH="$tmp_dir/bin:$PATH" \
+SNAPCAST_INSTALL_NATIVE_SCRIPT="$tmp_dir/fake-native-install.sh" \
+SNAPCAST_INSTALL_LOCAL_SCRIPT="$tmp_dir/fake-local-install.sh" \
+  "$repo_root/integration/scripts/install-product.sh" --force-reinstall >/dev/null
+grep -qx "native" "$INSTALL_MODE_LOG"
+
 print "Install lifecycle tests passed"

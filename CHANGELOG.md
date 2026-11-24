@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Correct PR #1 regressions: redact deployment evidence, persist local mode,
+  restart the GUI during updates, reject idle streams in health checks,
+  synchronize watchdog stream lifecycle, add privacy/health/FIFO/watchdog tests
+  to the release gate, and enforce macOS 14-compatible build dependencies.
 - Document required macOS permissions, common symptoms caused by denied access,
   and recovery steps for audio input, notifications, Local Network, firewall,
   Remote Login, SSH, and Gatekeeper.

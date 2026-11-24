@@ -112,6 +112,10 @@ if require_pair_config 2>/dev/null; then
 else
   PAIR_LOCAL_ONLY=1 "$local_installer"
 fi
+if [[ "$previous_mode" == "system" &&
+  -x "$(installation_support_dir)/set-mode.sh" ]]; then
+  "$(installation_support_dir)/set-mode.sh" native
+fi
 
 asset_digest="$(installation_asset_digest)"
 write_installation_manifest "$product_version" 1 "source" "$asset_digest"
