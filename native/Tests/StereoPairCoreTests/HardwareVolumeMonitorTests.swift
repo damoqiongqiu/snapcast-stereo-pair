@@ -122,8 +122,8 @@ final class HardwareVolumeMonitorTests: XCTestCase {
         {
           "user": "tester",
           "host": "remote.test",
-          "helperPath": "/Users/tester/.snapcast-remote-mode",
-          "volumeReaderPath": "/Users/tester/.snapcast-volume"
+          "helperPath": "/tmp/snapcast-test/.snapcast-remote-mode",
+          "volumeReaderPath": "/tmp/snapcast-test/.snapcast-volume"
         }
         """
         try Data(devices.utf8).write(to: directory.appendingPathComponent("state/audio-devices.json"))

@@ -33,7 +33,7 @@ final class ModeCoordinatorTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
 
         let remote = """
-        {"user":"tester","host":"remote.local","helperPath":"/Users/tester/remote-mode.sh"}
+        {"user":"tester","host":"remote.test","helperPath":"/tmp/remote-mode.sh"}
         """
         try Data(remote.utf8).write(to: directory.appendingPathComponent("state/remote-control.json"))
 
@@ -47,7 +47,7 @@ final class ModeCoordinatorTests: XCTestCase {
         XCTAssertEqual(calls[0].executable, "/bin/zsh")
         XCTAssertEqual(calls[0].arguments, [directory.appendingPathComponent("set-mode.sh").path, "native"])
         XCTAssertEqual(calls[1].executable, "/usr/bin/ssh")
-        XCTAssertTrue(calls[1].arguments.contains("tester@remote.local"))
+        XCTAssertTrue(calls[1].arguments.contains("tester@remote.test"))
 
         let marker = try JSONDecoder().decode(
             [String: String].self,

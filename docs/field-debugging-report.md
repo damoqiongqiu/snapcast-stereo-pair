@@ -8,9 +8,9 @@
 
 | 角色 | 机器 | 系统 | 职责 |
 |---|---|---|---|
-| 音源端（本机） | KK-MacBookPro / 192.168.3.103 | macOS 27.0 arm64 | 音源 + snapserver + BlackHole 采集拆分 + **右声道** `stereo-local` |
-| 远端（原） | ai.local / 192.168.3.137 | macOS 14.6.1 arm64 | **左声道** `stereo-remote` |
-| 远端（现） | kimmking-mac2020.local / 192.168.3.154 | macOS 15.6.1 x86_64 | 接替 137 的左声道客户端 |
+| 音源端（本机） | `<source-mac>` / `<source-lan-address>` | macOS 27.0 arm64 | 音源 + snapserver + BlackHole 采集拆分 + **右声道** `stereo-local` |
+| 远端（原） | `<remote-mac-a>` / `<remote-lan-address-a>` | macOS 14.6.1 arm64 | **左声道** `stereo-remote` |
+| 远端（现） | `<remote-mac-b>` / `<remote-lan-address-b>` | macOS 15.6.1 x86_64 | 接替原远端 Mac 的左声道客户端 |
 
 最终结果：✅ 双机配对可用，48kHz/24bit 无损（PCM S24In32），静音期自愈唤醒 ≤1.5s，经真实听感验证。
 
@@ -154,7 +154,7 @@ curl -s -X POST http://127.0.0.1:1780/jsonrpc \
 
 ```
 Stream: RightAudio → stereo-local   connected=True  127.0.0.1      arm64
-Stream: LeftAudio  → stereo-remote  connected=True  192.168.3.154  i386
+Stream: LeftAudio  → stereo-remote  connected=True  <remote-lan-address>  i386
 ```
 
 ## 4. 两个血泪教训
@@ -164,7 +164,7 @@ Stream: LeftAudio  → stereo-remote  connected=True  192.168.3.154  i386
 
 ## 5. 跨平台迁移补充（154 实战，2026-11-23）
 
-原左声道 137 下线后，由 192.168.3.154（x86_64 / macOS 15.6.1）接替。Snapcast 客户端身份由 `--hostID` 逻辑标识（本例 `stereo-remote`），与机器名/MAC 无关，服务端流配置无需改动。迁移要点：
+原左声道 Mac 下线后，由 `<remote-mac-b>`（x86_64 / macOS 15.6.1）接替。Snapcast 客户端身份由 `--hostID` 逻辑标识（本例 `stereo-remote`），与机器名/MAC 无关，服务端流配置无需改动。迁移要点：
 
 | 项 | 处理 |
 |---|---|

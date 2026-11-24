@@ -164,12 +164,12 @@ int main(int argc, char** argv)
 #endif
 #ifdef HAS_MDNS
                         "://<snapserver host or IP or mDNS service name>[:port]\n"
-                        " For example: 'tcp://192.168.1.1:1704', or 'ws://)homeserver.local' or 'wss://_snapcast-https._tcp'\n"
+                        " For example: 'tcp://192.0.2.1:1704', or 'ws://)homeserver.local' or 'wss://_snapcast-https._tcp'\n"
                         " If 'url' is not configured, snapclient defaults to '" +
                         default_uri + "'\n");
 #else
                         "://<snapserver host or IP>[:port]\n"
-                        " For example: 'tcp://192.168.1.1:1704', or 'ws://homeserver.local'\n");
+                        " For example: 'tcp://192.0.2.1:1704', or 'ws://homeserver.local'\n");
 #endif
         auto helpSwitch = op.add<Switch>("", "help", "Produce help message");
         auto groffSwitch = op.add<Switch, Attribute::hidden>("", "groff", "Produce groff message");

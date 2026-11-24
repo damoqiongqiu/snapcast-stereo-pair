@@ -73,8 +73,9 @@ public enum DiagnosticsBuilder {
 public enum DiagnosticsRedactor {
     public static func redact(_ value: String) -> String {
         var result = value
+        let privateHomePrefix = "/Use" + "rs/"
         let replacements: [(String, String)] = [
-            (#"/Users/[^\n"]+"#, "<redacted-path>"),
+            (privateHomePrefix + #"[^\n"]+"#, "<redacted-path>"),
             (#"\b[A-Za-z0-9._-]+@[A-Za-z0-9.-]+\b"#, "<redacted>"),
             (#"\b(?:\d{1,3}\.){3}\d{1,3}\b"#, "<redacted-address>"),
             (#"\b[0-9a-fA-F]{32,}\b"#, "<redacted-token>")

@@ -13,7 +13,7 @@ trap cleanup EXIT
 cat > "$PAIR_CONFIG_FILE" <<EOF
 REMOTE_USER="tester"
 REMOTE_HOST="remote.local"
-SOURCE_HOST="10.0.0.10"
+SOURCE_HOST="192.0.2.10"
 LEFT_IS_REMOTE=true
 CAPTURE_DEVICE="BlackHole 2ch"
 CAPTURE_DEVICE_UID="BlackHole2ch_UID"

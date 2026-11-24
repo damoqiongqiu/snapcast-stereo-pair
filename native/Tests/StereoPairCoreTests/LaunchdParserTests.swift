@@ -5,7 +5,7 @@ final class LaunchdParserTests: XCTestCase {
     func testRunningJobParsesRunsPIDAndExitState() throws {
         let output = """
             state = running
-            path = /Users/tester/Library/LaunchAgents/com.snapcast.server.plist
+            path = /tmp/Library/LaunchAgents/com.snapcast.server.plist
             runs = 3
             pid = 4812
             last exit code = 0

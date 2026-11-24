@@ -36,7 +36,7 @@ Supported parameters for all source types:
 - `sampleformat`: Override the global sample format
 - `chunk_ms`: Override the global `chunk_ms`
 - `controlscript`: Script to control the stream source and read and provide meta data, see [stream_plugin.md](json_rpc_api/stream_plugin.md)
-- `controlscriptparams`: Control script command line arguments, must be url-encoded (use `%20` instead of a space " "), e.g. `--mopidy-host=192.168.42.23%20--debug`
+- `controlscriptparams`: Control script command line arguments, must be url-encoded (use `%20` instead of a space " "), e.g. `--mopidy-host=192.0.2.23%20--debug`
 
 Available audio source types are:
 

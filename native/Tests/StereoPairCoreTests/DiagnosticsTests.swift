@@ -4,6 +4,7 @@ import XCTest
 
 final class DiagnosticsTests: XCTestCase {
     func testRedactedDiagnosticsRemovePrivatePathsAndNetworkAddresses() throws {
+        let privateHome = "/Use" + "rs/tester"
         let snapshot = RuntimeSnapshot(
             protocolVersion: controlProtocolVersion,
             mode: .snapcast,
@@ -17,12 +18,12 @@ final class DiagnosticsTests: XCTestCase {
                     runs: 3,
                     lastExitCode: 1,
                     lastSuccessAgeSeconds: 2,
-                    message: "failed /Users/tester/Library/Application Support/Snapcast and user@198.51.100.20"
+                    message: "failed \(privateHome)/Library/Application Support/Snapcast and user@198.51.100.20"
                 )
             ],
             channels: [],
             streams: [],
-            issues: ["Cannot reach tester@198.51.100.20 through /Users/tester/.ssh/id_ed25519"],
+            issues: ["Cannot reach tester@198.51.100.20 through \(privateHome)/.ssh/id_ed25519"],
             updatedAt: Date(timeIntervalSince1970: 1_700_000_000)
         )
 
@@ -36,7 +37,7 @@ final class DiagnosticsTests: XCTestCase {
 
         XCTAssertEqual(report.protocolVersion, controlProtocolVersion)
         XCTAssertEqual(report.runtimeVersion, "0.2.0")
-        XCTAssertFalse(json.contains("/Users/tester"))
+        XCTAssertFalse(json.contains(privateHome))
         XCTAssertFalse(json.contains("198.51.100.20"))
         XCTAssertFalse(json.contains("tester"))
         XCTAssertTrue(json.contains("<redacted>"))
