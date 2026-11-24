@@ -1,6 +1,7 @@
 #include <portaudio.h>
 
 #include "audio_metrics.h"
+#include "capture_watchdog.h"
 #include "fifo_io.h"
 #include "pcm24.h"
 
@@ -37,8 +38,9 @@ static void stop_capture(int signal_number)
  * can reopen it (which restarts the CoreAudio device); if aborting cannot
  * unblock the read, give up and let launchd relaunch the process fresh.
  */
-static PaStream* g_capture_stream = NULL;
 static atomic_llong g_last_read_ms = 0;
+static CaptureStreamHandle g_stream_handle;
+static bool g_stream_handle_initialized = false;
 
 static long long monotonic_ms(void)
 {
@@ -50,21 +52,23 @@ static long long monotonic_ms(void)
 static void* capture_watchdog(void* argument)
 {
     (void)argument;
+    long long aborted_for_last_read = -1;
     while (running)
     {
         Pa_Sleep(1000);
         long long last = atomic_load(&g_last_read_ms);
         long long now = monotonic_ms();
-        if (last > 0 && now - last > 1000)
+        CaptureWatchdogDecision decision = capture_watchdog_decide(now, last);
+        if (decision == CAPTURE_WATCHDOG_EXIT_PROCESS)
+        {
+            fprintf(stderr, "Capture watchdog: no input frames for %lld ms, exiting for relaunch\n", now - last);
+            _exit(8);
+        }
+        if (decision == CAPTURE_WATCHDOG_ABORT && aborted_for_last_read != last)
         {
             fprintf(stderr, "Capture watchdog: no input frames for %lld ms, aborting stream\n", now - last);
-            Pa_AbortStream(g_capture_stream);
-            Pa_Sleep(2000);
-            if (atomic_load(&g_last_read_ms) == last)
-            {
-                fprintf(stderr, "Capture watchdog: abort did not unblock read, exiting for relaunch\n");
-                _exit(8);
-            }
+            capture_stream_abort(&g_stream_handle);
+            aborted_for_last_read = last;
         }
     }
     return NULL;
@@ -245,6 +249,20 @@ int main(int argc, char** argv)
             close(right_fd);
         return 4;
     }
+    if (!capture_stream_init(&g_stream_handle))
+    {
+        fprintf(stderr, "Could not initialize capture stream synchronization\n");
+        Pa_StopStream(stream);
+        Pa_CloseStream(stream);
+        Pa_Terminate();
+        if (left_fd >= 0)
+            close(left_fd);
+        if (right_fd >= 0)
+            close(right_fd);
+        return 5;
+    }
+    g_stream_handle_initialized = true;
+    capture_stream_replace(&g_stream_handle, stream);
 
     if (left_fd >= 0)
         fprintf(stderr, "Capturing %s at 48000 Hz into left/right 24-bit PCM FIFOs, 10 ms buffers\n", info->name);
@@ -257,6 +275,8 @@ int main(int argc, char** argv)
     int32_t right[480];
     const bool use_fifos = (outputs.left_fifo != NULL);
     int exit_code = 0;
+    pthread_t watchdog_thread;
+    bool watchdog_started = false;
     SnapcastAudioMetricsPublisher metricsPublisher = {.fd = -1, .metrics = NULL};
     if (!audioMetricsPublisherOpen(&metricsPublisher, outputs.metrics_shm))
     {
@@ -266,10 +286,9 @@ int main(int argc, char** argv)
     }
     fprintf(stderr, "Publishing audio metrics to %s\n", metricsPublisher.name);
 
-    g_capture_stream = stream;
     atomic_store(&g_last_read_ms, monotonic_ms());
-    pthread_t watchdog_thread;
-    if (pthread_create(&watchdog_thread, NULL, capture_watchdog, NULL) != 0)
+    watchdog_started = pthread_create(&watchdog_thread, NULL, capture_watchdog, NULL) == 0;
+    if (!watchdog_started)
     {
         fprintf(stderr, "Could not start capture watchdog, running without stall recovery\n");
     }
@@ -280,8 +299,12 @@ int main(int argc, char** argv)
         if (error != paNoError && error != paInputOverflowed)
         {
             fprintf(stderr, "Capture read failed: %s, reopening input stream\n", Pa_GetErrorText(error));
-            Pa_AbortStream(stream);
-            Pa_CloseStream(stream);
+            PaStream* failed_stream = capture_stream_take(&g_stream_handle);
+            if (failed_stream != NULL)
+            {
+                Pa_AbortStream(failed_stream);
+                Pa_CloseStream(failed_stream);
+            }
             error = Pa_OpenStream(&stream, &input_parameters, NULL, 48000, frames_per_buffer, paClipOff, NULL, NULL);
             if (error == paNoError)
                 error = Pa_StartStream(stream);
@@ -291,7 +314,7 @@ int main(int argc, char** argv)
                 exit_code = 5;
                 break;
             }
-            g_capture_stream = stream;
+            capture_stream_replace(&g_stream_handle, stream);
             atomic_store(&g_last_read_ms, monotonic_ms());
             continue;
         }
@@ -330,9 +353,18 @@ int main(int argc, char** argv)
     }
 
 cleanup:
+    running = 0;
+    if (watchdog_started)
+        pthread_join(watchdog_thread, NULL);
     audioMetricsPublisherClose(&metricsPublisher);
-    Pa_StopStream(stream);
-    Pa_CloseStream(stream);
+    PaStream* final_stream = capture_stream_take(&g_stream_handle);
+    if (final_stream != NULL)
+    {
+        Pa_StopStream(final_stream);
+        Pa_CloseStream(final_stream);
+    }
+    if (g_stream_handle_initialized)
+        capture_stream_destroy(&g_stream_handle);
     Pa_Terminate();
     if (left_fd >= 0)
         close(left_fd);

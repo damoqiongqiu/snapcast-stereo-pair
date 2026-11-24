@@ -8,27 +8,20 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 capture_src="$repo_root/integration/capture/capture-blackhole-pa.c"
-
-# Contract 1: watchdog thread is created and armed at startup.
-for token in 'pthread_create(&watchdog_thread' 'capture_watchdog' 'g_last_read_ms' 'atomic_store'; do
-  grep -q "$token" "$capture_src" || { print -u2 "watchdog missing: $token"; exit 1; }
-done
-
-# Contract 2: stall detection threshold is 1s, abort path uses Pa_AbortStream,
-# and the escalation path exits with code 8 for launchd to relaunch.
-grep -q 'now - last > 1000' "$capture_src" || { print -u2 "missing 1s stall threshold"; exit 1; }
-grep -q 'Pa_AbortStream(g_capture_stream)' "$capture_src" || { print -u2 "missing abort path"; exit 1; }
-grep -q '_exit(8)' "$capture_src" || { print -u2 "missing escalation exit code 8"; exit 1; }
-
-# Contract 3: read loop refreshes the heartbeat on every successful frame
-# and reopens the stream after a recoverable read error.
-grep -q 'atomic_store(&g_last_read_ms, monotonic_ms())' "$capture_src" || {
-  print -u2 "heartbeat not refreshed"; exit 1; }
-grep -q 'Pa_OpenStream(&stream' "$capture_src" || { print -u2 "missing stream reopen"; exit 1; }
-
-# Contract 4: C source still compiles after the patch (portaudio dev headers).
 portaudio_prefix="$(/opt/homebrew/bin/brew --prefix portaudio 2>/dev/null || true)"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
 if [[ -n "$portaudio_prefix" && -d "$portaudio_prefix/include" ]]; then
+  harness="$tmp_dir/watchdog-decision-harness"
+  clang -O1 -Wall -Wextra \
+    -I"$portaudio_prefix/include" \
+    -I"$repo_root/integration/capture" \
+    -o "$harness" \
+    "$repo_root/integration/test/watchdog_decision_harness.c" \
+    "$repo_root/integration/capture/capture_watchdog.c" \
+    -L"$portaudio_prefix/lib" -lportaudio
+  "$harness"
   clang -fsyntax-only -Wall -Wextra -I"$portaudio_prefix/include" \
     -I"$repo_root/integration/capture" "$capture_src"
 else
@@ -41,9 +34,9 @@ listener="$repo_root/.build/bin/wake-recovery-listener"
 if [[ -x "$listener" ]]; then
   set +e
   usage="$("$listener" 2>&1)"
-  status=$?
+  listener_status=$?
   set -e
-  [[ "$status" -eq 2 && "$usage" == Usage:* ]] || {
+  [[ "$listener_status" -eq 2 && "$usage" == Usage:* ]] || {
     print -u2 "wake-recovery-listener usage contract broken"; exit 1; }
 else
   print "Note: run build-macos.sh to verify wake-recovery-listener binary"

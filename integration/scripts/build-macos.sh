@@ -46,6 +46,7 @@ clang -O2 -Wall -Wextra \
   -Wl,-rpath,"$portaudio_prefix/lib" \
   -o "$build_dir/bin/capture-blackhole" \
   "$repo_root/integration/capture/capture-blackhole-pa.c" \
+  "$repo_root/integration/capture/capture_watchdog.c" \
   "$repo_root/integration/capture/audio_metrics.c" \
   -lportaudio
 clang -O2 -Wall -Wextra \
