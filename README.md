@@ -30,7 +30,7 @@ dual-Mac system-volume indicators, and end-to-end runtime health.</sub>
 | Property | Project behavior |
 | --- | --- |
 | Primary use case | Two-MacBook left/right stereo for macOS system audio |
-| Platform | macOS 14 or newer; Intel and Apple Silicon builds supported |
+| Platform | macOS 13 or newer; Intel and Apple Silicon builds supported |
 | Audio transport | Snapcast with uncompressed 48 kHz / 24-bit mono PCM streams |
 | Timing | One capture clock, 20 ms Snapcast chunks, 200 ms default stream buffer |
 | Audio capture | BlackHole 2ch through PortAudio |
@@ -64,7 +64,7 @@ the macOS-specific work needed to run a practical two-Mac stereo pair.
 
 ### 3.1 Prerequisites
 
-- Two Macs running macOS 14 or newer on the same trusted LAN or VPN.
+- Two Macs running macOS 13 or newer on the same trusted LAN or VPN.
 - An SSH account on the remote Mac. The setup wizard can create or install a key
   when key-only access is not configured yet.
 - Homebrew and Xcode Command Line Tools on the source Mac.
@@ -367,7 +367,7 @@ For machine-readable project context, see [llms.txt](llms.txt).
 
 ## 8. Requirements and Compatibility
 
-- macOS 14 or newer on both Macs.
+- macOS 13 or newer on both Macs.
 - BlackHole 2ch on the source Mac.
 - The same CPU architecture on both Macs when using the bundled remote installer
   to copy a locally built Snapclient binary.

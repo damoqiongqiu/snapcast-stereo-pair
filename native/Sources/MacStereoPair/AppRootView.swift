@@ -13,7 +13,9 @@ struct AppRootView: View {
                 SetupFlowView(setup: setup, model: model)
             }
         }
-        .background(WindowConfigurator())
+        .background(WindowConfigurator { visible in
+            model.setConsoleVisible(visible)
+        })
         .task {
             await model.start()
             await setup.start()

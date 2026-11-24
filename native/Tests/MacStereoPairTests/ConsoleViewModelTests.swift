@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import StereoPairCore
 import XCTest
@@ -23,6 +24,80 @@ final class ConsoleViewModelTests: XCTestCase {
         XCTAssertEqual(model.right?.clientId, "right-client")
         XCTAssertEqual(model.snapshot?.health, .healthy)
         XCTAssertNil(model.message)
+    }
+
+    func testEquivalentSnapshotWithNewTimestampDoesNotRepublish() {
+        let model = ConsoleViewModel(transport: FixtureTransport())
+        model.apply(snapshot: .healthy)
+
+        var publicationCount = 0
+        let cancellable = model.objectWillChange.sink { _ in
+            publicationCount += 1
+        }
+        defer { cancellable.cancel() }
+
+        var equivalent = RuntimeSnapshot.healthy
+        equivalent.updatedAt = equivalent.updatedAt.addingTimeInterval(1)
+        model.apply(snapshot: equivalent)
+
+        XCTAssertEqual(publicationCount, 0)
+    }
+
+    func testMenuBarStateIgnoresWaveformOnlySnapshotChanges() {
+        let model = ConsoleViewModel(transport: FixtureTransport())
+        model.apply(snapshot: .healthy)
+
+        var publicationCount = 0
+        let cancellable = model.menuBar.objectWillChange.sink { _ in
+            publicationCount += 1
+        }
+        defer { cancellable.cancel() }
+
+        var waveformOnlyChange = RuntimeSnapshot.healthy
+        waveformOnlyChange.updatedAt = waveformOnlyChange.updatedAt.addingTimeInterval(1)
+        waveformOnlyChange.channels[0].peakDb = -12
+        model.apply(snapshot: waveformOnlyChange)
+        XCTAssertEqual(publicationCount, 0)
+
+        var volumeChange = waveformOnlyChange
+        volumeChange.channels[0].volume = 51
+        volumeChange.channels[1].volume = 91
+        model.apply(snapshot: volumeChange)
+        XCTAssertEqual(publicationCount, 1)
+    }
+
+    func testWaveformOnlySnapshotChangeDoesNotRepublishConsoleRoot() {
+        let model = ConsoleViewModel(transport: FixtureTransport())
+        model.apply(snapshot: .healthy)
+
+        var publicationCount = 0
+        let cancellable = model.objectWillChange.sink { _ in
+            publicationCount += 1
+        }
+        defer { cancellable.cancel() }
+
+        var waveformOnlyChange = RuntimeSnapshot.healthy
+        waveformOnlyChange.updatedAt = waveformOnlyChange.updatedAt.addingTimeInterval(1)
+        waveformOnlyChange.channels[0].peakDb = -8
+        waveformOnlyChange.channels[0].rmsDb = -20
+        model.apply(snapshot: waveformOnlyChange)
+
+        XCTAssertEqual(publicationCount, 0)
+        XCTAssertEqual(model.liveChannels.left?.peakDb, -8)
+    }
+
+    func testControlSnapshotPollingRunsFourTimesPerSecond() {
+        XCTAssertEqual(
+            ConsolePollingPolicy.snapshotInterval(consoleVisible: true),
+            .milliseconds(250)
+        )
+    }
+
+    func testHiddenConsolePollsOncePerSecond() {
+        XCTAssertEqual(
+            ConsolePollingPolicy.snapshotInterval(consoleVisible: false),
+            .seconds(1)
+        )
     }
 
     func testDuplicateModeCommandIsIgnoredWhileTransitionIsInFlight() async {

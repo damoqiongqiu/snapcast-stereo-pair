@@ -3,13 +3,13 @@ import SwiftUI
 @main
 struct MacStereoPairApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var model = ConsoleViewModel()
+    @StateObject private var shell = AppShellModel()
     @StateObject private var language = AppLanguage()
     @StateObject private var notifications = NotificationManager()
 
     var body: some Scene {
         Window("MacBook Stereo Pair", id: "console") {
-            AppRootView(model: model, notifications: notifications)
+            AppRootView(model: shell.console, notifications: notifications)
                 .environmentObject(language)
                 .environmentObject(notifications)
                 .environment(\.locale, language.locale)
@@ -25,7 +25,15 @@ struct MacStereoPairApp: App {
         }
 
         MenuBarExtra("MacBook Stereo Pair", systemImage: "hifispeaker.2.fill") {
-            MenuBarContent(model: model)
+            MenuBarContent(
+                status: shell.console.menuBar,
+                enableSnapcast: {
+                    Task { await shell.console.setMode(.snapcast) }
+                },
+                useSystem: {
+                    Task { await shell.console.setMode(.system) }
+                }
+            )
                 .environmentObject(language)
                 .environment(\.locale, language.locale)
         }

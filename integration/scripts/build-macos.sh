@@ -3,6 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 build_dir="$repo_root/.build"
+deployment_target="${SNAPCAST_DEPLOYMENT_TARGET:-13.0}"
 
 command_names=(cmake ninja pkg-config clang)
 if [[ -z "${SNAPCAST_BREW_PREFIX:-}" || -z "${SNAPCAST_PORTAUDIO_PREFIX:-}" ]]; then
@@ -29,7 +30,7 @@ export PKG_CONFIG_PATH="$brew_prefix/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 
 cmake -S "$repo_root" -B "$build_dir" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_OSX_DEPLOYMENT_TARGET="${SNAPCAST_DEPLOYMENT_TARGET:-14.0}" \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET="$deployment_target" \
   -DBUILD_SERVER=ON \
   -DBUILD_CLIENT=ON \
   -DBUILD_WITH_SSL=OFF \
@@ -48,7 +49,7 @@ cmake --build "$build_dir" -j "$(sysctl -n hw.logicalcpu)"
 mkdir -p "$build_dir/bin"
 install -m 755 "$repo_root/bin/snapserver" "$build_dir/bin/snapserver"
 install -m 755 "$repo_root/bin/snapclient" "$build_dir/bin/snapclient"
-clang -O2 -Wall -Wextra \
+clang -O2 -Wall -Wextra -mmacosx-version-min="$deployment_target" \
   -I"$portaudio_include" \
   -o "$build_dir/bin/capture-blackhole" \
   "$repo_root/integration/capture/capture-blackhole-pa.c" \
@@ -60,12 +61,12 @@ clang -O2 -Wall -Wextra \
   -framework AudioUnit \
   -framework CoreServices \
   -framework CoreFoundation
-clang -O2 -Wall -Wextra \
+clang -O2 -Wall -Wextra -mmacosx-version-min="$deployment_target" \
   -o "$build_dir/bin/set-audio-volume" \
   "$repo_root/integration/capture/set-audio-volume.c" \
   -framework CoreAudio \
   -framework CoreFoundation
-clang -O2 -Wall -Wextra \
+clang -O2 -Wall -Wextra -mmacosx-version-min="$deployment_target" \
   -o "$build_dir/bin/wake-recovery-listener" \
   "$repo_root/integration/capture/wake-recovery-listener.c" \
   -framework CoreFoundation \

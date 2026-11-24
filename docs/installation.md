@@ -193,7 +193,7 @@ Its first-run wizard can also run
 the local and remote installation steps through Terminal. It detects existing
 configuration and preconfigured SSH keys. Password entry stays in Terminal.
 
-The app requires macOS 14 or newer. It is ad-hoc signed, not notarized, and does
+The app requires macOS 13 or newer. It is ad-hoc signed, not notarized, and does
 not require an Apple Developer subscription. See
 [native-console.md](native-console.md).
 

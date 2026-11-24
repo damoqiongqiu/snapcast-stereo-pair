@@ -82,8 +82,8 @@ struct ServiceLED: View {
         .accessibilityLabel(label)
         .accessibilityValue(statusText)
         .onAppear(perform: updatePulse)
-        .onChange(of: appearance) { _, _ in updatePulse() }
-        .onChange(of: reduceMotion) { _, _ in updatePulse() }
+        .onChange(of: appearance) { _ in updatePulse() }
+        .onChange(of: reduceMotion) { _ in updatePulse() }
     }
 
     private func updatePulse() {

@@ -16,7 +16,6 @@ struct RemoteSetupStep: View {
                 TextField(language.text("setup.remote.user"), text: $setup.remoteUser)
                     .textContentType(.username)
                 TextField(language.text("setup.remote.host"), text: $setup.remoteHost)
-                    .textContentType(.URL)
             }
             .textFieldStyle(.roundedBorder)
             .disabled(setup.flow.pendingAction != nil)

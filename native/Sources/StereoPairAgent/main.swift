@@ -164,7 +164,7 @@ Task {
         if let metrics = await runtime.liveMetrics() {
             store.merge(metrics: metrics)
         }
-        try? await Task.sleep(for: .milliseconds(50))
+        try? await Task.sleep(for: AudioMetricsSamplingPolicy.interval)
     }
 }
 Task {
