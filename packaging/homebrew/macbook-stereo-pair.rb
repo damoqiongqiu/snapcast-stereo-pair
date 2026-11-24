@@ -15,16 +15,31 @@ class MacbookStereoPair < Formula
   depends_on "boost"
   depends_on "flac"
   depends_on "libogg"
-  depends_on "libsoxr"
   depends_on "libvorbis"
   depends_on "openssl@4"
   depends_on "opus"
   depends_on "portaudio"
   depends_on "switchaudio-osx"
 
+  resource "portaudio" do
+    url "https://files.portaudio.com/archives/pa_stable_v190700_20210406.tgz"
+    sha256 "47efbf42c77c19a05d22e627d42873e991ec0c1357219c0d74ce6a2948cb2def"
+  end
+
   def install
     ENV["SNAPCAST_BREW_PREFIX"] = HOMEBREW_PREFIX
-    ENV["SNAPCAST_PORTAUDIO_PREFIX"] = formula_opt_prefix("portaudio")
+    portaudio_prefix = buildpath/"portaudio-compat"
+    resource("portaudio").stage do
+      system "cmake", "-S", ".", "-B", "build", *std_cmake_args,
+             "-DCMAKE_INSTALL_PREFIX=#{portaudio_prefix}",
+             "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",
+             "-DPA_BUILD_SHARED=OFF",
+             "-DPA_BUILD_STATIC=ON",
+             "-DPA_USE_COREAUDIO=ON"
+      system "cmake", "--build", "build", "--target", "install"
+    end
+    ENV["SNAPCAST_PORTAUDIO_STATIC"] = portaudio_prefix/"lib/libportaudio.a"
+    ENV["SNAPCAST_PORTAUDIO_INCLUDE"] = portaudio_prefix/"include"
     system "integration/scripts/build-macos.sh"
     system "native/Packaging/build-native.sh"
     system "native/Packaging/build-app.sh", "--output", buildpath/"MacBook Stereo Pair.app"

@@ -60,6 +60,7 @@ integration/test/test-control-agent-install.sh
 integration/test/test-native-app-packaging.sh
 integration/test/test-homebrew-formula.sh
 integration/test/test-native-release.sh --automated-only
+integration/scripts/check-deployment-target.sh
 zsh -n integration/scripts/*.sh integration/test/*.sh
 plutil -lint integration/launchagents/*.plist.in
 ./scripts/check-public-tree.sh
