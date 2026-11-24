@@ -35,6 +35,7 @@ start_snapcast() {
   launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.local-client.plist"
   launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.pairing.plist"
   launchctl bootstrap "gui/$uid" "$launch_dir/com.snapcast.wake-recovery.plist"
+  audio_write_persisted_mode "@SUPPORT_DIR@/state" snapcast
   print "Snapcast stereo-pair mode enabled."
 }
 
@@ -52,6 +53,7 @@ case "${1:-}" in
       "@NATIVE_OUTPUT_DEVICE_UID@" \
       SwitchAudioSource \
       "@SUPPORT_DIR@/bin/set-audio-volume"
+    audio_write_persisted_mode "@SUPPORT_DIR@/state" system
     print "Native macOS audio mode enabled across future logins."
     ;;
   *)
