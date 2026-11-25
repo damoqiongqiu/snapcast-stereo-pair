@@ -27,7 +27,21 @@ typedef struct
     uint32_t rightClipped;
     uint32_t sampleRate;
     uint32_t flags;
+    uint64_t callbackCount;
+    uint64_t generatedSilenceCycles;
+    uint64_t droppedFrames;
+    uint32_t recoveryAttempts;
+    uint32_t successfulRecoveries;
 } SnapcastAudioMetrics;
+
+typedef struct
+{
+    uint64_t callback_count;
+    uint64_t generated_silence_cycles;
+    uint64_t dropped_frames;
+    uint32_t recovery_attempts;
+    uint32_t successful_recoveries;
+} SnapcastCaptureMetrics;
 
 typedef struct
 {
@@ -44,7 +58,8 @@ void audioMetricsPublisherPublish(
     SnapcastAudioMetricsPublisher* publisher,
     const SnapcastChannelMetrics* left,
     const SnapcastChannelMetrics* right,
-    uint32_t sampleRate);
+    uint32_t sampleRate,
+    const SnapcastCaptureMetrics* capture);
 void audioMetricsPublisherClose(SnapcastAudioMetricsPublisher* publisher);
 
 #ifdef __cplusplus

@@ -10,6 +10,11 @@ public struct AudioMetricsSnapshot: Sendable {
     public var leftClipped: Bool
     public var rightClipped: Bool
     public var sampleRate: UInt32
+    public var callbackCount: UInt64 = 0
+    public var generatedSilenceCycles: UInt64 = 0
+    public var droppedFrames: UInt64 = 0
+    public var recoveryAttempts: UInt32 = 0
+    public var successfulRecoveries: UInt32 = 0
 }
 
 private struct SharedAudioMetrics {
@@ -23,6 +28,11 @@ private struct SharedAudioMetrics {
     var rightClipped: UInt32 = 0
     var sampleRate: UInt32 = 0
     var flags: UInt32 = 0
+    var callbackCount: UInt64 = 0
+    var generatedSilenceCycles: UInt64 = 0
+    var droppedFrames: UInt64 = 0
+    var recoveryAttempts: UInt32 = 0
+    var successfulRecoveries: UInt32 = 0
 }
 
 public struct MetricsReader: Sendable {
@@ -58,7 +68,12 @@ public struct MetricsReader: Sendable {
                 rightRmsDb: Double(value.rightRmsDb),
                 leftClipped: value.leftClipped != 0,
                 rightClipped: value.rightClipped != 0,
-                sampleRate: value.sampleRate
+                sampleRate: value.sampleRate,
+                callbackCount: value.callbackCount,
+                generatedSilenceCycles: value.generatedSilenceCycles,
+                droppedFrames: value.droppedFrames,
+                recoveryAttempts: value.recoveryAttempts,
+                successfulRecoveries: value.successfulRecoveries
             )
         }
         return nil

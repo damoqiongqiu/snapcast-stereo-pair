@@ -96,7 +96,8 @@ void audioMetricsPublisherPublish(
     SnapcastAudioMetricsPublisher* publisher,
     const SnapcastChannelMetrics* left,
     const SnapcastChannelMetrics* right,
-    uint32_t sampleRate)
+    uint32_t sampleRate,
+    const SnapcastCaptureMetrics* capture)
 {
     if ((publisher == NULL) || (publisher->metrics == NULL))
         return;
@@ -115,6 +116,22 @@ void audioMetricsPublisherPublish(
     metrics->rightClipped = right->clipped;
     metrics->sampleRate = sampleRate;
     metrics->flags = 1;
+    if (capture != NULL)
+    {
+        metrics->callbackCount = capture->callback_count;
+        metrics->generatedSilenceCycles = capture->generated_silence_cycles;
+        metrics->droppedFrames = capture->dropped_frames;
+        metrics->recoveryAttempts = capture->recovery_attempts;
+        metrics->successfulRecoveries = capture->successful_recoveries;
+    }
+    else
+    {
+        metrics->callbackCount = 0;
+        metrics->generatedSilenceCycles = 0;
+        metrics->droppedFrames = 0;
+        metrics->recoveryAttempts = 0;
+        metrics->successfulRecoveries = 0;
+    }
 
     atomic_fetch_add_explicit((_Atomic uint64_t*)&metrics->sequence, 1, memory_order_release);
 }

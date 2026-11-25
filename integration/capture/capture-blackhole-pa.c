@@ -303,6 +303,9 @@ int main(int argc, char** argv)
     int exit_code = 0;
     uint64_t next_deadline = monotonic_ns();
     uint64_t catchup_count = 0;
+    uint64_t generated_silence_cycles = 0;
+    uint64_t dropped_frames = 0;
+    uint64_t last_metrics_publish = 0;
     while (running)
     {
         const long long now_ms = monotonic_ms();
@@ -317,20 +320,38 @@ int main(int argc, char** argv)
         float block[CAPTURE_BLOCK_FRAMES * CAPTURE_CHANNELS];
         const CaptureClockBlock selected =
             captureClockNextBlock(&ring, block, CAPTURE_BLOCK_FRAMES, CAPTURE_MAX_BACKLOG_FRAMES);
+        if (!selected.has_audio)
+            ++generated_silence_cycles;
+        dropped_frames += selected.dropped_frames;
         if (!write_stereo_split(block, selected.frames, use_fifos, &left_fd, &right_fd, &outputs))
         {
             exit_code = 6;
             break;
         }
 
-        SnapcastChannelMetrics leftMetrics = {0};
-        SnapcastChannelMetrics rightMetrics = {0};
-        audioMetricsCalculateChannel(block, selected.frames, 0, CAPTURE_CHANNELS, &leftMetrics);
-        audioMetricsCalculateChannel(block, selected.frames, 1, CAPTURE_CHANNELS, &rightMetrics);
-        audioMetricsPublisherPublish(&metricsPublisher, &leftMetrics, &rightMetrics, 48000);
-
         next_deadline += WRITER_PERIOD_NS;
         const uint64_t now = monotonic_ns();
+        if (now - last_metrics_publish >= 20ULL * 1000000ULL)
+        {
+            SnapcastChannelMetrics leftMetrics = {0};
+            SnapcastChannelMetrics rightMetrics = {0};
+            audioMetricsCalculateChannel(block, selected.frames, 0, CAPTURE_CHANNELS, &leftMetrics);
+            audioMetricsCalculateChannel(block, selected.frames, 1, CAPTURE_CHANNELS, &rightMetrics);
+            const SnapcastCaptureMetrics captureMetrics = {
+                .callback_count =
+                    atomic_load_explicit(&capture.callback_count, memory_order_acquire),
+                .generated_silence_cycles = generated_silence_cycles,
+                .dropped_frames = dropped_frames,
+                .recovery_attempts =
+                    atomic_load_explicit(&recovery.recovery_attempts, memory_order_relaxed),
+                .successful_recoveries =
+                    atomic_load_explicit(&recovery.successful_recoveries, memory_order_relaxed),
+            };
+            audioMetricsPublisherPublish(
+                &metricsPublisher, &leftMetrics, &rightMetrics, 48000, &captureMetrics);
+            last_metrics_publish = now;
+        }
+
         if (now > next_deadline + WRITER_CATCHUP_NS)
         {
             ++catchup_count;
