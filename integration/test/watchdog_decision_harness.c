@@ -18,31 +18,25 @@ static void expect_decision(
 
 int main(void)
 {
-    expect_decision(
-        "fresh",
-        capture_watchdog_decide(1500, 1000),
-        CAPTURE_WATCHDOG_NONE);
-    expect_decision(
-        "stalled",
-        capture_watchdog_decide(2001, 1000),
-        CAPTURE_WATCHDOG_ABORT);
-    expect_decision(
-        "abort timeout",
-        capture_watchdog_decide(4002, 1000),
-        CAPTURE_WATCHDOG_EXIT_PROCESS);
+    expect_decision("fresh", capture_watchdog_decide(3999, 2000), CAPTURE_WATCHDOG_NONE);
+    expect_decision("idle within recovery deadline", capture_watchdog_decide(4001, 2000), CAPTURE_WATCHDOG_RECOVER);
+    expect_decision("recovery exhausted", capture_watchdog_decide(17001, 2000), CAPTURE_WATCHDOG_EXIT_PROCESS);
 
-    CaptureStreamHandle handle;
-    if (!capture_stream_init(&handle))
+    if (!capture_watchdog_should_attempt_recovery(2500, 0))
     {
-        fprintf(stderr, "failed to initialize stream handle\n");
-        return 1;
-    }
-    if (capture_stream_abort(&handle))
-    {
-        fprintf(stderr, "empty stream abort must be a no-op\n");
+        fprintf(stderr, "first recovery must be allowed immediately\n");
         ++failures;
     }
-    capture_stream_destroy(&handle);
+    if (capture_watchdog_should_attempt_recovery(3999, 2500))
+    {
+        fprintf(stderr, "recovery must be rate limited\n");
+        ++failures;
+    }
+    if (!capture_watchdog_should_attempt_recovery(4500, 2500))
+    {
+        fprintf(stderr, "recovery must resume after its interval\n");
+        ++failures;
+    }
 
     if (failures != 0)
         return 1;
