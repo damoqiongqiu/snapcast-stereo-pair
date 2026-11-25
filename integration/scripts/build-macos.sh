@@ -18,14 +18,6 @@ for command_name in "${command_names[@]}"; do
 done
 
 brew_prefix="${SNAPCAST_BREW_PREFIX:-$(brew --prefix)}"
-portaudio_prefix="${SNAPCAST_PORTAUDIO_PREFIX:-$(brew --prefix portaudio)}"
-portaudio_static="${SNAPCAST_PORTAUDIO_STATIC:-}"
-portaudio_include="${SNAPCAST_PORTAUDIO_INCLUDE:-$portaudio_prefix/include}"
-if [[ -z "$portaudio_static" ]]; then
-  "$repo_root/integration/scripts/build-portaudio-compat.sh"
-  portaudio_static="$repo_root/.build/deps/portaudio/lib/libportaudio.a"
-  portaudio_include="$repo_root/.build/deps/portaudio/include"
-fi
 export PKG_CONFIG_PATH="$brew_prefix/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 
 cmake -S "$repo_root" -B "$build_dir" -G Ninja \
@@ -50,12 +42,13 @@ mkdir -p "$build_dir/bin"
 install -m 755 "$repo_root/bin/snapserver" "$build_dir/bin/snapserver"
 install -m 755 "$repo_root/bin/snapclient" "$build_dir/bin/snapclient"
 clang -O2 -Wall -Wextra -mmacosx-version-min="$deployment_target" \
-  -I"$portaudio_include" \
+  -I"$repo_root/integration/capture" \
   -o "$build_dir/bin/capture-blackhole" \
   "$repo_root/integration/capture/capture-blackhole-pa.c" \
-  "$repo_root/integration/capture/capture_watchdog.c" \
+  "$repo_root/integration/capture/capture_ring.c" \
+  "$repo_root/integration/capture/capture_clock.c" \
+  "$repo_root/integration/capture/coreaudio_capture.c" \
   "$repo_root/integration/capture/audio_metrics.c" \
-  "$portaudio_static" \
   -framework CoreAudio \
   -framework AudioToolbox \
   -framework AudioUnit \

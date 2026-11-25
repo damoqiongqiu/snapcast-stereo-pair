@@ -1,4 +1,4 @@
-#include "capture_watchdog.h"
+#include "capture_clock.h"
 
 #include <stdio.h>
 

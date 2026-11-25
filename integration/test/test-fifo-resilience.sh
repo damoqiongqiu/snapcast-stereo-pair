@@ -44,9 +44,14 @@ mkfifo "$fifo2"
 # Case 3: source-level contract checks for the resilience patch.
 capture_src="$repo_root/integration/capture/capture-blackhole-pa.c"
 fifo_header="$repo_root/integration/capture/fifo_io.h"
-for token in 'open_fifo_writer' 'write_channel' 'capture_watchdog' 'Pa_AbortStream' '_exit(8)'; do
+for token in 'captureClockNextBlock' 'coreAudioCaptureOpen' 'write_channel' \
+  'open_fifo_writer' 'CAPTURE_WATCHDOG_RECOVER'; do
   grep -q "$token" "$capture_src" || { print -u2 "missing patched behavior: $token"; exit 1; }
 done
+grep -q 'Pa_ReadStream' "$capture_src" && {
+  print -u2 "blocking PortAudio read must not remain in the capture path"; exit 1; }
+grep -q '_exit(8)' "$capture_src" && {
+  print -u2 "routine process relaunch must not remain in the capture path"; exit 1; }
 grep -q 'poll(&pfd' "$fifo_header" || { print -u2 "missing EAGAIN poll handling"; exit 1; }
 grep -q 'O_WRONLY | O_NONBLOCK' "$capture_src" || { print -u2 "missing non-blocking FIFO open"; exit 1; }
 

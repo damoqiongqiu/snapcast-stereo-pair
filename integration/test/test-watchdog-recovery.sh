@@ -1,32 +1,21 @@
 #!/bin/zsh
 set -euo pipefail
 
-# Regression test for field-debugging-report.md issue #5:
-# BlackHole device stall must be detected and recovered by the watchdog.
-# Full runtime verification needs a live audio device; here we assert the
-# source-level contract of the watchdog and the compiled helper binaries.
+# Regression test for capture callback recovery. The FIFO clock remains
+# continuous while CoreAudio callback stalls are recovered by the supervisor.
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
-capture_src="$repo_root/integration/capture/capture-blackhole-pa.c"
-portaudio_prefix="$(/opt/homebrew/bin/brew --prefix portaudio 2>/dev/null || true)"
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
-if [[ -n "$portaudio_prefix" && -d "$portaudio_prefix/include" ]]; then
-  harness="$tmp_dir/watchdog-decision-harness"
-  clang -O1 -Wall -Wextra \
-    -I"$portaudio_prefix/include" \
-    -I"$repo_root/integration/capture" \
-    -o "$harness" \
-    "$repo_root/integration/test/watchdog_decision_harness.c" \
-    "$repo_root/integration/capture/capture_watchdog.c" \
-    -L"$portaudio_prefix/lib" -lportaudio
-  "$harness"
-  clang -fsyntax-only -Wall -Wextra -I"$portaudio_prefix/include" \
-    -I"$repo_root/integration/capture" "$capture_src"
-else
-  print "Note: portaudio headers unavailable, skipping compile check"
-fi
+harness="$tmp_dir/capture-recovery-harness"
+clang -O1 -Wall -Wextra -Werror \
+  -I"$repo_root/integration/capture" \
+  -o "$harness" \
+  "$repo_root/integration/test/capture_recovery_harness.c" \
+  "$repo_root/integration/capture/capture_clock.c" \
+  "$repo_root/integration/capture/capture_ring.c"
+"$harness"
 
 # Contract 5: wake-recovery helper binary (used by launchd) must be present
 # after a build and reject invalid invocations with usage.
