@@ -47,8 +47,10 @@ swift build --package-path native -c release
 integration/test/test-pair-config.sh
 integration/test/test-audio-levels.sh
 integration/test/test-audio-profile.sh
+integration/test/test-capture-ring.sh
 integration/test/test-fifo-reader-resilience.sh
 integration/test/test-fifo-resilience.sh
+integration/test/test-coreaudio-capture.sh
 integration/test/test-health-check.sh
 integration/test/test-pair-routing.sh
 integration/test/test-public-tree-privacy.sh
@@ -109,6 +111,10 @@ macOS and BlackHole versions when changing audio behavior.
   from one of its own callbacks.
 - Preserve timeline continuity for scheduling jitter below the discontinuity
   threshold.
+- Keep the FIFO writer running with digital silence during BlackHole idle
+  periods; missing audio frames are not a device-health failure.
+- Treat the CoreAudio callback heartbeat as device liveness and keep file I/O,
+  allocation, and blocking locks out of the real-time callback.
 - Do not add lossy codecs or resampling to the default path without measured
   quality and latency evidence.
 

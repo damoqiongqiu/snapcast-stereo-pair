@@ -5,6 +5,8 @@ repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 mode="${1:-release}"
 
 cd "$repo_root"
+rg -q 'continuous 10 ms' "$repo_root/docs/architecture.md"
+rg -q 'digital silence' "$repo_root/docs/troubleshooting.md"
 swift test --package-path native
 integration/test/test-install-lifecycle.sh
 integration/test/test-audio-profile.sh

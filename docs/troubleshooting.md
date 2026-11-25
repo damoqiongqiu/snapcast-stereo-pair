@@ -48,9 +48,9 @@ Then resume the pair and restart the splitter:
 launchctl kickstart -k "gui/$(id -u)/com.snapcast.splitter"
 ```
 
-The native mode switcher also performs this recovery automatically when
-returning from Mac system audio. It restarts the splitter once after the
-services start so BlackHole input does not remain in its silent device state.
+The native mode switcher also restarts the splitter once when returning from
+Mac system audio. Normal silence while the pair remains active does not require
+a restart.
 
 While the stereo pair is actively capturing, macOS may show the orange
 microphone indicator. BlackHole is exposed through a virtual audio-input path,
@@ -228,6 +228,24 @@ Also check:
 If the network genuinely needs a larger buffer, change `buffer` in
 [`integration/config/snapserver.conf.in`](../integration/config/snapserver.conf.in)
 and rerun the local installer. A smaller buffer increases underrun risk.
+
+### Stutter after a long idle period
+
+BlackHole may deliver no application audio for a long time. The splitter writes
+digital silence continuously during that period, so the FIFOs stay connected and
+Snapclients keep their timeline and buffer state. A splitter restart loop or a
+FIFO reconnect during ordinary silence is a regression, not expected behavior.
+
+Check:
+
+```sh
+launchctl print "gui/$(id -u)/com.snapcast.splitter"
+tail -50 "$HOME/Library/Logs/Snapcast/splitter.stderr.log"
+```
+
+The PID should remain stable while idle. A message about CoreAudio callback
+heartbeat recovery is a real device-path recovery; repeated `FIFO reader closed`
+messages during idle indicate a problem with the capture writer or Snapserver.
 
 ## 9. Audio/Video Offset
 

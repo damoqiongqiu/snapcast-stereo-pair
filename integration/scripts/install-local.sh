@@ -21,7 +21,7 @@ compute_pair_roles
 "$repo_root/native/Packaging/build-native.sh"
 homebrew_bin="$(brew --prefix)/bin"
 
-mkdir -p "$support_dir/bin" "$support_dir/data" "$support_dir/state" "$log_dir" "$launch_dir" "$run_dir"
+mkdir -p "$support_dir/bin" "$support_dir/data" "$support_dir/state" "$support_dir/capture-source" "$log_dir" "$launch_dir" "$run_dir"
 chmod 700 "$support_dir/state"
 for name in left right; do
   fifo="$run_dir/$name.pcm"
@@ -41,6 +41,12 @@ install -m 755 "$repo_root/native/.build/release/StereoPairAgent" "$support_dir/
 install -m 755 "$repo_root/native/.build/release/mac-stereo-pairctl" "$support_dir/bin/mac-stereo-pairctl"
 install -m 755 "$repo_root/.build/bin/capture-blackhole" "$homebrew_bin/snapcast-capture-blackhole"
 install -m 644 "$repo_root/integration/capture/capture-blackhole-pa.c" "$support_dir/capture-blackhole-pa.c"
+for source_file in \
+  capture-blackhole-pa.c capture_clock.c capture_clock.h capture_ring.c capture_ring.h \
+  coreaudio_capture.c coreaudio_capture.h audio_metrics.c audio_metrics.h \
+  fifo_io.h pcm24.h; do
+  install -m 644 "$repo_root/integration/capture/$source_file" "$support_dir/capture-source/$source_file"
+done
 render_pair_template \
   "$repo_root/integration/config/snapserver.conf.in" \
   "$support_dir/snapserver.conf"
