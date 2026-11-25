@@ -33,7 +33,7 @@ dual-Mac system-volume indicators, and end-to-end runtime health.</sub>
 | Platform | macOS 13 or newer; Intel and Apple Silicon builds supported |
 | Audio transport | Snapcast with uncompressed 48 kHz / 24-bit mono PCM streams |
 | Timing | One capture clock, 20 ms Snapcast chunks, 200 ms default stream buffer |
-| Audio capture | BlackHole 2ch through PortAudio |
+| Audio capture | BlackHole 2ch through real-time CoreAudio IOProc callbacks |
 | Playback | Patched Snapclient with explicit CoreAudio device selection |
 | Control surface | Native SwiftUI Dock and menu-bar application |
 | Volume control | Continuous side/master sliders with throttled asynchronous audio previews |
@@ -250,7 +250,7 @@ macOS applications
         v
 BlackHole 2ch
         |
-        | PortAudio, 10 ms capture callbacks
+        | CoreAudio IOProc, lock-free ring, continuous 10 ms writer
         v
 snapcast-capture-blackhole
         |
@@ -259,10 +259,12 @@ snapcast-capture-blackhole
         +---- right.pcm FIFO ---> RightAudio ---> right-side Mac
 ```
 
-One capture process writes both mono FIFOs from the same callback, preserving a
-shared source clock and block boundary. Snapserver timestamps both streams using
-one clock. Each Snapclient expands its mono stream to the two channels of its
-explicit CoreAudio output device.
+One capture process writes both mono FIFOs from the same frame stream, preserving
+a shared source clock and block boundary. The writer emits exact 10 ms blocks and
+fills digital silence when BlackHole has no audio, so an idle source does not
+disconnect or resynchronize the Snapcast streams. Snapserver timestamps both
+streams using one clock. Each Snapclient expands its mono stream to the two
+channels of its explicit CoreAudio output device.
 
 Listening volume is applied after decoding through
 `AudioQueueSetParameter`. The integer PCM network buffer remains at full scale.

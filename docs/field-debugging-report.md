@@ -17,7 +17,7 @@
 ```mermaid
 flowchart LR
     APP[应用音频] -->|系统输出| BH[BlackHole 2ch]
-    BH -->|PortAudio 采集| CAP[capture-blackhole-pa<br/>左右声道拆分]
+    BH -->|CoreAudio IOProc 采集| CAP[capture-blackhole-pa<br/>左右声道拆分]
     CAP -->|left.pcm FIFO| SR[snapserver<br/>LeftAudio 流]
     CAP -->|right.pcm FIFO| SR
     SR -->|tcp://:1704| LC[stereo-local<br/>本机右声道]
@@ -78,20 +78,33 @@ snapserver 重启或读端周期重开时，阻塞写收到 EPIPE → `exit 6` �
 
 **测试**：`integration/test/test-fifo-resilience.sh`（本文新增）。
 
-### 1.5 设备停转不自愈（`capture-blackhole-pa.c`，上游设计缺口）
+### 1.5 长期空闲后切回卡顿（CoreAudio 时钟桥，2026-11-25 根修）
 
-系统静音后 BlackHole 设备停转，PortAudio 的阻塞读在内部 `Pa_Sleep` 死循环（见 `samples/` 的 `sample` 调用栈），永不返回也永不报错；音频恢复时管线已死。**修复**：看门狗线程每秒检查 `g_last_read_ms`，超过 1 秒无帧 → `Pa_AbortStream` 触发重新打开流；若 abort 后 2 秒仍无帧 → `_exit(8)` 交给 launchd 重启。实测唤醒延迟 ≈1.5s。
+历史上 BlackHole 停止投递数据时，PortAudio 阻塞读会停在内部睡眠环（见
+`samples/` 的旧现场调用栈）。早期看门狗把“无帧”当成设备故障，1 秒后 abort，
+无法解除阻塞时退出并由 launchd 重启。该恢复路径会关闭 FIFO、重置
+Snapserver 时间线，并在音频恢复时触发客户端重新填缓冲，因此表现为明显卡顿。
+
+当前实现不再使用阻塞式 PortAudio 读。CoreAudio HAL IOProc 把状态和音频帧
+写入无锁环形缓冲；独立的 10 ms writer 持续输出真实帧或数字静音。仅当
+CoreAudio 回调心跳本身停止 2 秒时才重建 IOProc，15 秒仍失败才退出进程。
+普通空闲不会关闭 FIFO，也不会触发客户端 resync。
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Reading: Pa_ReadStream 正常
-    Reading --> Stalled: 静音/设备停转<br/>1s 无帧
-    Stalled --> Reading: watchdog Pa_AbortStream<br/>重开流成功
-    Stalled --> Relaunch: abort 无效 2s<br/>_exit(8) → launchd
-    Relaunch --> Reading: 进程重启
+    [*] --> Clocking: 10 ms writer 持续输出
+    Clocking --> Clocking: 有帧发布真实音频
+    Clocking --> Silent: 无帧发布数字静音
+    Silent --> Clocking: 新帧到达
+    Silent --> Recovering: CoreAudio 回调心跳停止 2s
+    Recovering --> Clocking: IOProc 重建后恢复回调
+    Recovering --> Relaunch: 15s 仍无回调
+    Relaunch --> Clocking: 进程重启
 ```
 
-**测试**：`integration/test/test-watchdog-recovery.sh`（本文新增）。
+**测试**：`integration/test/test-watchdog-recovery.sh`、
+`integration/test/test-capture-ring.sh` 和
+`integration/test/test-coreaudio-capture.sh`。
 
 ### 1.6 误装成独立节点（操作问题，非 bug）
 
@@ -101,7 +114,7 @@ stateDiagram-v2
 
 原始 4 份 `sample` 输出随 `/tmp` 清理丢失，以下为报告中记录的关键现场，按调用栈还原可直接复现的判读方式。样本骨架存放于 `docs/samples/`。
 
-### 2.1 ReadStream 睡眠环卡死（`capture-sample.txt` / `sample2.txt`）
+### 2.1 历史现场：ReadStream 睡眠环卡死（`capture-sample.txt` / `sample2.txt`）
 
 ```
 Call graph:
@@ -111,7 +124,8 @@ Call graph:
     Pa_ReadStream                            ← 采集进程阻塞读
      main (capture-blackhole-pa.c:Pa_ReadStream)
 ```
-判读：线程栈停在 `Pa_Sleep` 且 `g_last_read_ms` 不再更新 → BlackHole 停转，无数据无错误。这正是问题 5 看门狗要覆盖的场景。
+判读：这是旧 PortAudio 实现的现场证据，线程停在 `Pa_Sleep` 且没有读帧。
+当前版本已用 CoreAudio IOProc 和持续静音 writer 取代该路径。
 
 ### 2.2 Pa_OpenStream 死等 coreaudiod（`sample5961.txt` / `s3.txt`）
 
@@ -129,7 +143,7 @@ Call graph:
 
 | 栈顶 | 所处阶段 | 是否可自愈 | 处置 |
 |---|---|---|---|
-| `Pa_Sleep` ← `Pa_ReadStream` | 已进稳定读循环 | ✅ 看门狗 `Pa_AbortStream` 自愈 | 补丁自动处理 |
+| `Pa_Sleep` ← `Pa_ReadStream` | 旧版 PortAudio 读循环 | 历史路径 | 当前版本不再使用 |
 | `mach_msg` ← `Pa_OpenStream` | 打开流阶段 | ❌ 需外部介入 | `sudo killall coreaudiod` |
 
 ## 3. 排障工具箱（实战验证有效）
@@ -178,7 +192,9 @@ Stream: LeftAudio  → stereo-remote  connected=True  <remote-lan-address>  i386
 
 ```sh
 integration/test/test-fifo-resilience.sh      # 问题 4：FIFO 读端关闭/写阻塞恢复
-integration/test/test-watchdog-recovery.sh    # 问题 5：静音期看门狗自愈
+integration/test/test-capture-ring.sh         # 环形缓冲、持续静音、指标
+integration/test/test-watchdog-recovery.sh    # 回调心跳与受控恢复
+integration/test/test-coreaudio-capture.sh    # 真实 CoreAudio 回调探针
 integration/test/test-install-lifecycle.sh    # 问题 1：全新安装不崩
 ```
 
@@ -190,6 +206,8 @@ integration/test/test-install-lifecycle.sh    # 问题 1：全新安装不崩
 - 本地模式切换现在写入 `audio-mode.json`，安装器不会再把旧模式当成当前模式。
 - 原生应用更新时会先退出旧 GUI，再启动替换后的 App。
 - 健康检查将 `idle` 流视为失败，避免“服务进程存在但音频未流动”的假健康。
-- watchdog 使用互斥锁保护流的 abort/close/replace，并通过状态机 harness 验证阈值。
+- 采集改为 CoreAudio IOProc + 无锁环形缓冲，10 ms writer 在空闲和恢复期间
+  持续发送数字静音。
+- 回调心跳超过 2 秒才进入受控恢复，15 秒仍失败才退出进程。
 - 新增测试已接入 `test-native-release.sh --automated-only` 和 `AGENTS.md`。
-- macOS 13 部署目标会静态编译目标兼容的 PortAudio，并禁用默认固定 48 kHz 路径不需要的 Soxr；构建结束会扫描动态依赖的最低系统版本。
+- macOS 13 部署目标不再链接 PortAudio；构建结束会扫描动态依赖的最低系统版本。

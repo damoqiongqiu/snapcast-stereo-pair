@@ -1,7 +1,6 @@
-#include <portaudio.h>
-
 #include "audio_metrics.h"
-#include "capture_watchdog.h"
+#include "capture_clock.h"
+#include "coreaudio_capture.h"
 #include "fifo_io.h"
 #include "pcm24.h"
 
@@ -15,6 +14,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
+
+#define WRITER_PERIOD_NS (10ULL * 1000000ULL)
+#define WRITER_CATCHUP_NS (200ULL * 1000000ULL)
 
 static volatile sig_atomic_t running = 1;
 
@@ -25,61 +28,54 @@ typedef struct
     const char* metrics_shm;
 } CaptureOutputs;
 
+typedef struct
+{
+    CoreAudioCapture* capture;
+    pthread_t thread;
+    atomic_bool stop;
+    atomic_uint recovery_attempts;
+    atomic_uint successful_recoveries;
+} CaptureRecovery;
+
 static void stop_capture(int signal_number)
 {
     (void)signal_number;
     running = 0;
 }
 
-/*
- * BlackHole stops delivering input frames once its producer goes away, which
- * leaves the blocking Pa_ReadStream below stuck forever with no error and no
- * data. The watchdog notices the stall and aborts the stream so the main loop
- * can reopen it (which restarts the CoreAudio device); if aborting cannot
- * unblock the read, give up and let launchd relaunch the process fresh.
- */
-static atomic_llong g_last_read_ms = 0;
-static CaptureStreamHandle g_stream_handle;
-static bool g_stream_handle_initialized = false;
+static uint64_t monotonic_ns(void)
+{
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (uint64_t)now.tv_sec * 1000000000ULL + (uint64_t)now.tv_nsec;
+}
 
 static long long monotonic_ms(void)
 {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+    return (long long)(monotonic_ns() / 1000000ULL);
 }
 
-static void* capture_watchdog(void* argument)
+static void sleep_for_ns(uint64_t duration)
 {
-    (void)argument;
-    long long aborted_for_last_read = -1;
-    while (running)
+    struct timespec request = {
+        .tv_sec = (time_t)(duration / 1000000000ULL),
+        .tv_nsec = (long)(duration % 1000000000ULL),
+    };
+    while (nanosleep(&request, &request) != 0 && errno == EINTR && running)
     {
-        Pa_Sleep(1000);
-        long long last = atomic_load(&g_last_read_ms);
-        long long now = monotonic_ms();
-        CaptureWatchdogDecision decision = capture_watchdog_decide(now, last);
-        if (decision == CAPTURE_WATCHDOG_EXIT_PROCESS)
-        {
-            fprintf(stderr, "Capture watchdog: no input frames for %lld ms, exiting for relaunch\n", now - last);
-            _exit(8);
-        }
-        if (decision == CAPTURE_WATCHDOG_ABORT && aborted_for_last_read != last)
-        {
-            fprintf(stderr, "Capture watchdog: no input frames for %lld ms, aborting stream\n", now - last);
-            capture_stream_abort(&g_stream_handle);
-            aborted_for_last_read = last;
-        }
     }
-    return NULL;
 }
 
-/*
- * The snapserver briefly closes its FIFO read ends across restarts and reader
- * cycles, which would turn any blocking writer into an instant EPIPE. Open the
- * FIFOs non-blocking and wait for a reader to appear instead of hanging on a
- * blocking open that may never be answered.
- */
+static void sleep_until_ns(uint64_t deadline)
+{
+    uint64_t now = monotonic_ns();
+    while (running && now < deadline)
+    {
+        sleep_for_ns(deadline - now);
+        now = monotonic_ns();
+    }
+}
+
 static int open_fifo_writer(const char* path)
 {
     for (;;)
@@ -89,17 +85,13 @@ static int open_fifo_writer(const char* path)
             return fd;
         if ((errno == ENXIO || errno == ENOENT) && running)
         {
-            Pa_Sleep(200);
+            sleep_for_ns(200ULL * 1000000ULL);
             continue;
         }
         return -1;
     }
 }
 
-/*
- * Write a full buffer, transparently recovering when the server closes its
- * read end: close our side, wait for the reader to come back, reopen, retry.
- */
 static bool write_channel(int* fd, const char* fifo_path, const void* data, size_t bytes)
 {
     for (;;)
@@ -112,12 +104,13 @@ static bool write_channel(int* fd, const char* fifo_path, const void* data, size
         }
         if (writeFully(*fd, data, bytes))
             return true;
+
         fprintf(stderr, "FIFO reader closed (%s), reopening\n", fifo_path);
         close(*fd);
         *fd = -1;
         if (!running)
             return false;
-        Pa_Sleep(100);
+        sleep_for_ns(100ULL * 1000000ULL);
     }
 }
 
@@ -144,20 +137,86 @@ static int parse_outputs(int argc, char** argv, CaptureOutputs* outputs)
     return 0;
 }
 
-static int find_blackhole_input(void)
+static bool write_stereo_split(
+    const float* block,
+    size_t frames,
+    bool use_fifos,
+    int* left_fd,
+    int* right_fd,
+    const CaptureOutputs* outputs)
 {
-    const char* requested = getenv("CAPTURE_DEVICE");
-    if (requested == NULL || *requested == '\0')
-        requested = "BlackHole 2ch";
+    int32_t left[CAPTURE_BLOCK_FRAMES];
+    int32_t right[CAPTURE_BLOCK_FRAMES];
+    extractChannelS24In32(block, left, frames, AUDIO_CHANNEL_LEFT);
+    extractChannelS24In32(block, right, frames, AUDIO_CHANNEL_RIGHT);
 
-    const int device_count = Pa_GetDeviceCount();
-    for (int i = 0; i < device_count; ++i)
+    if (use_fifos)
     {
-        const PaDeviceInfo* info = Pa_GetDeviceInfo(i);
-        if (info != NULL && info->maxInputChannels >= 2 && strstr(info->name, requested) != NULL)
-            return i;
+        if (!write_channel(left_fd, outputs->left_fifo, left, frames * sizeof(left[0])))
+            return false;
+        return write_channel(right_fd, outputs->right_fifo, right, frames * sizeof(right[0]));
     }
-    return paNoDevice;
+
+    int32_t pcm24[CAPTURE_BLOCK_FRAMES * CAPTURE_CHANNELS];
+    floatToS24In32(block, pcm24, frames * CAPTURE_CHANNELS);
+    return fwrite(pcm24, sizeof(pcm24[0]), frames * CAPTURE_CHANNELS, stdout) == frames * CAPTURE_CHANNELS;
+}
+
+static void* capture_recovery_thread(void* argument)
+{
+    CaptureRecovery* recovery = argument;
+    long long last_attempt_ms = 0;
+    while (running && !atomic_load_explicit(&recovery->stop, memory_order_acquire))
+    {
+        sleep_for_ns(200ULL * 1000000ULL);
+        if (!running || atomic_load_explicit(&recovery->stop, memory_order_acquire))
+            break;
+
+        const long long now = monotonic_ms();
+        const long long last_callback =
+            atomic_load_explicit(&recovery->capture->callback_ms, memory_order_acquire);
+        const CaptureWatchdogDecision decision = capture_watchdog_decide(now, last_callback);
+        if ((decision == CAPTURE_WATCHDOG_RECOVER) &&
+            capture_watchdog_should_attempt_recovery(now, last_attempt_ms))
+        {
+            last_attempt_ms = now;
+            const unsigned attempt =
+                atomic_fetch_add_explicit(&recovery->recovery_attempts, 1, memory_order_relaxed) + 1;
+            fprintf(stderr, "CoreAudio callback heartbeat stalled; recovery attempt %u\n", attempt);
+            const int result = coreAudioCaptureRestart(recovery->capture);
+            if (result == 0)
+            {
+                atomic_fetch_add_explicit(
+                    &recovery->successful_recoveries, 1, memory_order_relaxed);
+                fprintf(stderr, "CoreAudio capture restart accepted; waiting for callbacks\n");
+            }
+            else
+            {
+                fprintf(stderr, "CoreAudio capture restart failed with code %d\n", result);
+            }
+        }
+        else if (decision == CAPTURE_WATCHDOG_EXIT_PROCESS)
+        {
+            fprintf(stderr, "CoreAudio callbacks did not recover after %lld ms\n", now - last_callback);
+        }
+    }
+    return NULL;
+}
+
+static bool start_recovery(CaptureRecovery* recovery, CoreAudioCapture* capture)
+{
+    memset(recovery, 0, sizeof(*recovery));
+    recovery->capture = capture;
+    atomic_init(&recovery->stop, false);
+    atomic_init(&recovery->recovery_attempts, 0);
+    atomic_init(&recovery->successful_recoveries, 0);
+    return pthread_create(&recovery->thread, NULL, capture_recovery_thread, recovery) == 0;
+}
+
+static void stop_recovery(CaptureRecovery* recovery)
+{
+    atomic_store_explicit(&recovery->stop, true, memory_order_release);
+    pthread_join(recovery->thread, NULL);
 }
 
 int main(int argc, char** argv)
@@ -165,7 +224,7 @@ int main(int argc, char** argv)
     CaptureOutputs outputs;
     if (parse_outputs(argc, argv, &outputs) != 0)
     {
-        fprintf(stderr, "Usage: %s [--left-fifo PATH --right-fifo PATH]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [--left-fifo PATH --right-fifo PATH] [--metrics-shm NAME]\n", argv[0]);
         return 2;
     }
 
@@ -176,11 +235,12 @@ int main(int argc, char** argv)
 
     int left_fd = -1;
     int right_fd = -1;
-    if (outputs.left_fifo != NULL)
+    const bool use_fifos = outputs.left_fifo != NULL;
+    if (use_fifos)
     {
         left_fd = open_fifo_writer(outputs.left_fifo);
-        right_fd = (left_fd >= 0) ? open_fifo_writer(outputs.right_fifo) : -1;
-        if ((left_fd < 0) || (right_fd < 0))
+        right_fd = left_fd >= 0 ? open_fifo_writer(outputs.right_fifo) : -1;
+        if (left_fd < 0 || right_fd < 0)
         {
             fprintf(stderr, "Could not open capture FIFOs\n");
             if (left_fd >= 0)
@@ -191,184 +251,130 @@ int main(int argc, char** argv)
         }
     }
 
-    PaError error = Pa_Initialize();
-    if (error != paNoError)
+    SnapcastAudioMetricsPublisher metricsPublisher = {.fd = -1, .metrics = NULL};
+    if (!audioMetricsPublisherOpen(&metricsPublisher, outputs.metrics_shm))
     {
-        fprintf(stderr, "PortAudio init failed: %s\n", Pa_GetErrorText(error));
+        fprintf(stderr, "Could not open shared audio metrics: %s\n", strerror(errno));
         if (left_fd >= 0)
             close(left_fd);
         if (right_fd >= 0)
             close(right_fd);
-        return 1;
+        return 7;
     }
 
-    const int device = find_blackhole_input();
-    if (device == paNoDevice)
+    CaptureFrameRing ring;
+    captureFrameRingInit(&ring);
+    CoreAudioCapture capture;
+    const char* requested = getenv("CAPTURE_DEVICE");
+    if (requested == NULL || *requested == '\0')
+        requested = "BlackHole 2ch";
+    const int capture_result = coreAudioCaptureOpen(&capture, requested, &ring);
+    if (capture_result != 0)
     {
-        fprintf(stderr, "BlackHole input device not found\n");
-        Pa_Terminate();
-        if (left_fd >= 0)
-            close(left_fd);
-        if (right_fd >= 0)
-            close(right_fd);
-        return 2;
-    }
-
-    const PaDeviceInfo* info = Pa_GetDeviceInfo(device);
-    const unsigned long frames_per_buffer = 480;
-    PaStreamParameters input_parameters;
-    memset(&input_parameters, 0, sizeof(input_parameters));
-    input_parameters.device = device;
-    input_parameters.channelCount = 2;
-    input_parameters.sampleFormat = paFloat32;
-    input_parameters.suggestedLatency = info->defaultLowInputLatency;
-    input_parameters.hostApiSpecificStreamInfo = NULL;
-
-    PaStream* stream = NULL;
-    error = Pa_OpenStream(&stream, &input_parameters, NULL, 48000, frames_per_buffer, paClipOff, NULL, NULL);
-    if (error != paNoError)
-    {
-        fprintf(stderr, "Could not open %s: %s\n", info->name, Pa_GetErrorText(error));
-        Pa_Terminate();
-        if (left_fd >= 0)
-            close(left_fd);
-        if (right_fd >= 0)
-            close(right_fd);
-        return 3;
-    }
-
-    error = Pa_StartStream(stream);
-    if (error != paNoError)
-    {
-        fprintf(stderr, "Could not start stream: %s\n", Pa_GetErrorText(error));
-        Pa_CloseStream(stream);
-        Pa_Terminate();
+        fprintf(stderr, "Could not open CoreAudio capture device %s: code %d\n", requested, capture_result);
+        audioMetricsPublisherClose(&metricsPublisher);
         if (left_fd >= 0)
             close(left_fd);
         if (right_fd >= 0)
             close(right_fd);
         return 4;
     }
-    if (!capture_stream_init(&g_stream_handle))
+
+    if (atomic_load_explicit(&capture.callback_ms, memory_order_acquire) <= 0)
+        atomic_store_explicit(&capture.callback_ms, monotonic_ms(), memory_order_release);
+
+    fprintf(stderr, "Capturing BlackHole through CoreAudio callback at 48000 Hz\n");
+    fprintf(stderr, "Writing continuous left/right 24-bit PCM with 10 ms blocks\n");
+    fprintf(stderr, "Publishing audio metrics to %s\n", metricsPublisher.name);
+
+    CaptureRecovery recovery;
+    if (!start_recovery(&recovery, &capture))
     {
-        fprintf(stderr, "Could not initialize capture stream synchronization\n");
-        Pa_StopStream(stream);
-        Pa_CloseStream(stream);
-        Pa_Terminate();
+        fprintf(stderr, "Could not start capture recovery thread\n");
+        coreAudioCaptureClose(&capture);
+        audioMetricsPublisherClose(&metricsPublisher);
         if (left_fd >= 0)
             close(left_fd);
         if (right_fd >= 0)
             close(right_fd);
         return 5;
     }
-    g_stream_handle_initialized = true;
-    capture_stream_replace(&g_stream_handle, stream);
 
-    if (left_fd >= 0)
-        fprintf(stderr, "Capturing %s at 48000 Hz into left/right 24-bit PCM FIFOs, 10 ms buffers\n", info->name);
-    else
-        fprintf(stderr, "Capturing %s at 48000 Hz, stereo float32 -> 24-bit PCM, 10 ms buffers\n", info->name);
-
-    float buffer[480 * 2];
-    int32_t pcm24[480 * 2];
-    int32_t left[480];
-    int32_t right[480];
-    const bool use_fifos = (outputs.left_fifo != NULL);
     int exit_code = 0;
-    pthread_t watchdog_thread;
-    bool watchdog_started = false;
-    SnapcastAudioMetricsPublisher metricsPublisher = {.fd = -1, .metrics = NULL};
-    if (!audioMetricsPublisherOpen(&metricsPublisher, outputs.metrics_shm))
-    {
-        fprintf(stderr, "Could not open shared audio metrics: %s\n", strerror(errno));
-        exit_code = 7;
-        goto cleanup;
-    }
-    fprintf(stderr, "Publishing audio metrics to %s\n", metricsPublisher.name);
-
-    atomic_store(&g_last_read_ms, monotonic_ms());
-    watchdog_started = pthread_create(&watchdog_thread, NULL, capture_watchdog, NULL) == 0;
-    if (!watchdog_started)
-    {
-        fprintf(stderr, "Could not start capture watchdog, running without stall recovery\n");
-    }
-
+    uint64_t next_deadline = monotonic_ns();
+    uint64_t catchup_count = 0;
+    uint64_t generated_silence_cycles = 0;
+    uint64_t dropped_frames = 0;
+    uint64_t last_metrics_publish = 0;
     while (running)
     {
-        error = Pa_ReadStream(stream, buffer, frames_per_buffer);
-        if (error != paNoError && error != paInputOverflowed)
+        const long long now_ms = monotonic_ms();
+        const long long callback_ms = atomic_load_explicit(&capture.callback_ms, memory_order_acquire);
+        if (callback_ms > 0 && capture_watchdog_decide(now_ms, callback_ms) == CAPTURE_WATCHDOG_EXIT_PROCESS)
         {
-            fprintf(stderr, "Capture read failed: %s, reopening input stream\n", Pa_GetErrorText(error));
-            PaStream* failed_stream = capture_stream_take(&g_stream_handle);
-            if (failed_stream != NULL)
-            {
-                Pa_AbortStream(failed_stream);
-                Pa_CloseStream(failed_stream);
-            }
-            error = Pa_OpenStream(&stream, &input_parameters, NULL, 48000, frames_per_buffer, paClipOff, NULL, NULL);
-            if (error == paNoError)
-                error = Pa_StartStream(stream);
-            if (error != paNoError)
-            {
-                fprintf(stderr, "Capture stream reopen failed: %s\n", Pa_GetErrorText(error));
-                exit_code = 5;
-                break;
-            }
-            capture_stream_replace(&g_stream_handle, stream);
-            atomic_store(&g_last_read_ms, monotonic_ms());
-            continue;
+            fprintf(stderr, "CoreAudio callbacks did not recover after %lld ms, exiting\n", now_ms - callback_ms);
+            exit_code = 10;
+            break;
         }
-        atomic_store(&g_last_read_ms, monotonic_ms());
 
-        SnapcastChannelMetrics leftMetrics = {0};
-        SnapcastChannelMetrics rightMetrics = {0};
-        audioMetricsCalculateChannel(buffer, frames_per_buffer, 0, 2, &leftMetrics);
-        audioMetricsCalculateChannel(buffer, frames_per_buffer, 1, 2, &rightMetrics);
-        audioMetricsPublisherPublish(&metricsPublisher, &leftMetrics, &rightMetrics, 48000);
-
-        if (use_fifos)
+        float block[CAPTURE_BLOCK_FRAMES * CAPTURE_CHANNELS];
+        const CaptureClockBlock selected =
+            captureClockNextBlock(&ring, block, CAPTURE_BLOCK_FRAMES, CAPTURE_MAX_BACKLOG_FRAMES);
+        if (!selected.has_audio)
+            ++generated_silence_cycles;
+        dropped_frames += selected.dropped_frames;
+        if (!write_stereo_split(block, selected.frames, use_fifos, &left_fd, &right_fd, &outputs))
         {
-            extractChannelS24In32(buffer, left, 480, AUDIO_CHANNEL_LEFT);
-            extractChannelS24In32(buffer, right, 480, AUDIO_CHANNEL_RIGHT);
-            if (!write_channel(&left_fd, outputs.left_fifo, left, sizeof(left)))
-            {
-                exit_code = 6;
-                break;
-            }
-            if (!write_channel(&right_fd, outputs.right_fifo, right, sizeof(right)))
-            {
-                exit_code = 6;
-                break;
-            }
+            exit_code = 6;
+            break;
+        }
+
+        next_deadline += WRITER_PERIOD_NS;
+        const uint64_t now = monotonic_ns();
+        if (now - last_metrics_publish >= 20ULL * 1000000ULL)
+        {
+            SnapcastChannelMetrics leftMetrics = {0};
+            SnapcastChannelMetrics rightMetrics = {0};
+            audioMetricsCalculateChannel(block, selected.frames, 0, CAPTURE_CHANNELS, &leftMetrics);
+            audioMetricsCalculateChannel(block, selected.frames, 1, CAPTURE_CHANNELS, &rightMetrics);
+            const SnapcastCaptureMetrics captureMetrics = {
+                .callback_count =
+                    atomic_load_explicit(&capture.callback_count, memory_order_acquire),
+                .generated_silence_cycles = generated_silence_cycles,
+                .dropped_frames = dropped_frames,
+                .recovery_attempts =
+                    atomic_load_explicit(&recovery.recovery_attempts, memory_order_relaxed),
+                .successful_recoveries =
+                    atomic_load_explicit(&recovery.successful_recoveries, memory_order_relaxed),
+            };
+            audioMetricsPublisherPublish(
+                &metricsPublisher, &leftMetrics, &rightMetrics, 48000, &captureMetrics);
+            last_metrics_publish = now;
+        }
+
+        if (now > next_deadline + WRITER_CATCHUP_NS)
+        {
+            ++catchup_count;
+            next_deadline = now;
         }
         else
         {
-            floatToS24In32(buffer, pcm24, 480 * 2);
-            if (fwrite(pcm24, sizeof(pcm24), 1, stdout) != 1)
-            {
-                exit_code = 6;
-                break;
-            }
+            sleep_until_ns(next_deadline);
         }
     }
 
-cleanup:
     running = 0;
-    if (watchdog_started)
-        pthread_join(watchdog_thread, NULL);
+    if (exit_code == 10)
+        _exit(exit_code);
+    stop_recovery(&recovery);
+    coreAudioCaptureClose(&capture);
     audioMetricsPublisherClose(&metricsPublisher);
-    PaStream* final_stream = capture_stream_take(&g_stream_handle);
-    if (final_stream != NULL)
-    {
-        Pa_StopStream(final_stream);
-        Pa_CloseStream(final_stream);
-    }
-    if (g_stream_handle_initialized)
-        capture_stream_destroy(&g_stream_handle);
-    Pa_Terminate();
     if (left_fd >= 0)
         close(left_fd);
     if (right_fd >= 0)
         close(right_fd);
+
+    if (catchup_count > 0)
+        fprintf(stderr, "Writer recovered from %llu scheduling catch-up events\n", (unsigned long long)catchup_count);
     return exit_code;
 }

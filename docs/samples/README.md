@@ -1,7 +1,8 @@
 # sample 调用栈样本与判读
 
 本目录保存双机部署排障时 `sample <pid> 2` 抓取的调用栈现场（原报告 `samples/` 4 份文件的整理版）。
-它们是从上游视角证明「PortAudio 在 macOS 上会无声卡死」的关键证据，报 issue 时可直接引用。
+它们记录了旧 PortAudio 采集路径在 macOS 上无声卡死的现场。当前运行时已改用
+CoreAudio IOProc 与持续 10 ms 时钟，以下内容保留用于历史分析和上游问题引用。
 
 原始文件：`capture-sample.txt`、`sample2.txt`（ReadStream 睡眠环）、`sample5961.txt`、`s3.txt`（Pa_OpenStream 死等 coreaudiod）。
 原始输出随 `/tmp` 清理丢失，以下为报告中记录的核心调用栈与判读结论，结构保持原样便于对照。
@@ -23,7 +24,7 @@ Call graph:
 
 **判读**：线程停在 `Pa_Sleep` 且无任何错误码返回——BlackHole 设备停转后 PortAudio 阻塞读进入内部睡眠环，
 永不返回、永不报错。看门狗补丁（`g_last_read_ms` + `Pa_AbortStream`）就是为这个场景设计的。
-对应修复见 `integration/capture/capture-blackhole-pa.c` 的 `capture_watchdog()`。
+当前修复见 [BlackHole Capture Clock Design](../designs/2026-11-25-blackhole-capture-clock-design.md)。
 
 ## 2. Pa_OpenStream 死等 coreaudiod（`sample5961.txt` / `s3.txt`）
 
@@ -56,7 +57,7 @@ sample $(pgrep -f 'snapclient tcp') 1
 
 | 栈顶特征 | 结论 | 可否自愈 |
 |---|---|---|
-| `Pa_Sleep` ← `Pa_ReadStream` | BlackHole 停转，阻塞读睡眠环 | ✅ 看门狗 abort/reopen |
+| `Pa_Sleep` ← `Pa_ReadStream` | 旧版 BlackHole 阻塞读睡眠环 | 历史路径；当前使用 CoreAudio IOProc |
 | `mach_msg` ← `Pa_OpenStream` | coreaudiod 卡死 | ❌ `sudo killall coreaudiod` |
 | `read` ← FIFO 写 | 读端关闭/管道满 | ✅ `write_channel` 重连（补丁） |
 

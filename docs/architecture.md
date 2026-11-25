@@ -22,8 +22,11 @@ macOS applications
        v
 BlackHole 2ch output
        |
-       | PortAudio / CoreAudio HAL
-       | 10 ms capture callbacks
+       | CoreAudio IOProc callbacks
+       v
+lock-free stereo ring
+       |
+       | continuous 10 ms writer
        v
 snapcast-capture-blackhole
        |
@@ -37,11 +40,18 @@ RightAudio -> role-based right client -> CoreAudio -> right MacBook speaker
 
 ## 1. Capture and Split
 
-BlackHole is a virtual CoreAudio output device. PortAudio opens it as an input
-and receives 48 kHz, 32-bit float samples in 10 ms callbacks. Each callback is
-converted once into two mono 24-bit PCM buffers. The left and right buffers are
-written by the same process from the same callback, preserving a shared source
-clock and block boundary.
+BlackHole is a virtual CoreAudio output device. A CoreAudio HAL IOProc receives
+48 kHz, 32-bit float samples and places them in a bounded single-producer,
+single-consumer ring without allocating, logging, or writing files in the
+real-time callback. The left and right channels come from the same frame stream,
+preserving a shared source clock and block boundary.
+
+An independent writer emits exactly 480 frames every 10 ms. When a complete
+block is available it converts that block to two mono 24-bit PCM buffers; when
+the device is idle it writes zero-valued digital silence. A backlog older than
+50 ms is discarded in favour of fresh input. The continuous 10 ms writer keeps
+the FIFO and Snapserver timeline alive across periods when BlackHole has no
+application audio.
 
 The splitter writes to two named pipes:
 
@@ -141,10 +151,17 @@ in the `LeftAudio` group is displayed and treated as the left side; the
 
 ## 6. Recovery
 
-Snapserver opens both FIFOs for reading and retries after EOF. If the splitter
-exits, both streams become idle until launchd restarts it. If Snapserver
-restarts, an in-flight FIFO write can fail, causing the splitter to exit and be
-relaunched after the server's new readers are ready.
+Snapserver opens both FIFOs for reading and retries after EOF. Ordinary idle
+BlackHole periods do not close either FIFO: the writer continues emitting
+digital silence. If the splitter exits unexpectedly, both streams become idle
+until launchd restarts it. If Snapserver restarts, the capture writer keeps its
+clock running and reopens an affected FIFO when the new reader is ready.
+
+The capture supervisor treats the CoreAudio callback heartbeat as the device
+health signal. After two seconds without callbacks it recreates the IOProc while
+the writer continues silence. Repeated failure to recover callbacks for fifteen
+seconds is the last-resort process exit; missing audio samples alone never
+trigger a relaunch.
 
 On macOS, Snapserver keeps both FIFO ends open for read mode. This avoids an
 immediate EOF/close cycle when Snapserver starts before the splitter writer,

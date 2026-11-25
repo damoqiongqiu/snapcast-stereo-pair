@@ -79,6 +79,9 @@ under each heading.
 
 - Use speech and familiar stereo music with centered vocals and hard-panned
   instruments.
+- [ ] Leave BlackHole without a producer for at least 10 minutes, then resume
+  playback. The splitter PID must not change, neither FIFO may reconnect, and
+  playback must start without the prior initial stutter.
 - Confirm both waveforms move independently and the center image remains in
   front of the listener.
 - Confirm the two Macs are symmetrically placed and the listener is centered
