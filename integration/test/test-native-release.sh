@@ -10,6 +10,8 @@ rg -q 'digital silence' "$repo_root/docs/troubleshooting.md"
 swift test --package-path native
 integration/test/test-install-lifecycle.sh
 integration/test/test-audio-profile.sh
+integration/test/test-capture-ring.sh
+integration/test/test-coreaudio-capture.sh
 integration/test/test-deployment-target.sh
 integration/test/test-fifo-reader-resilience.sh
 integration/test/test-fifo-resilience.sh
